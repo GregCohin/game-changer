@@ -48,10 +48,34 @@ export function writeScopedKeyFor(baseKey, teamId, seasonId, value) {
   try { rawStorage.setItem.call(window.localStorage, baseKey + scopeSuffixFor(teamId, seasonId), value); return true; } catch (e) { return false; }
 }
 
+// Storage.prototype est partagé par localStorage ET sessionStorage (même interface DOM) : sans le
+// garde `this === window.localStorage` ci-dessous, ce patch scoperait aussi sessionStorage si le
+// code venait un jour à l'utiliser (aujourd'hui aucun usage de sessionStorage dans l'app).
 (function installStorageScoping() {
   if (window.__tfScopingInstalled) return;
   window.__tfScopingInstalled = true;
-  Storage.prototype.getItem = function (key) { return rawStorage.getItem.call(this, scopedStorageKey(key)); };
-  Storage.prototype.setItem = function (key, value) { return rawStorage.setItem.call(this, scopedStorageKey(key), value); };
-  Storage.prototype.removeItem = function (key) { return rawStorage.removeItem.call(this, scopedStorageKey(key)); };
+  Storage.prototype.getItem = function (key) {
+    if (this !== window.localStorage) return rawStorage.getItem.call(this, key);
+    return rawStorage.getItem.call(this, scopedStorageKey(key));
+  };
+  Storage.prototype.setItem = function (key, value) {
+    if (this !== window.localStorage) return rawStorage.setItem.call(this, key, value);
+    try {
+      return rawStorage.setItem.call(this, scopedStorageKey(key), value);
+    } catch (e) {
+      // Quota localStorage dépassé (~5-10 Mo/site) : partout ailleurs dans l'app, l'échec de
+      // setItem est avalé silencieusement (try/catch vide) — sans ce signal, une sauvegarde
+      // pourrait échouer sans que l'utilisateur s'en aperçoive. Un seul avertissement par session
+      // pour ne pas spammer si plusieurs écritures échouent d'affilée.
+      if (e && (e.name === "QuotaExceededError" || e.code === 22) && !window.__tfQuotaWarned) {
+        window.__tfQuotaWarned = true;
+        alert("Attention : le stockage local du navigateur est plein, cette sauvegarde a peut-être échoué. Libère de la place (vidéos/clips notamment) ou utilise un autre navigateur.");
+      }
+      throw e;
+    }
+  };
+  Storage.prototype.removeItem = function (key) {
+    if (this !== window.localStorage) return rawStorage.removeItem.call(this, key);
+    return rawStorage.removeItem.call(this, scopedStorageKey(key));
+  };
 })();

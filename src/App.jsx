@@ -703,6 +703,41 @@ function readMatchFromCache(id) {
   return matchCache[id] || null;
 }
 
+// Charge dans matchCache les matchs d'une équipe/saison arbitraire (pas forcément l'active) —
+// nécessaire pour computeSeasonStats quand on compare avec une saison passée : sans ça, la base
+// IndexedDB de la saison comparée n'est jamais ouverte et readMatchFromCache renvoie null pour
+// tous ses matchs. Mémoïsé par scope pour ne pas rouvrir la même base à chaque appel.
+const matchScopeLoadPromises = {};
+function loadMatchesForScope(teamId, seasonId) {
+  if (teamId === getActiveTeamId() && seasonId === getActiveSeasonId()) return loadMatchCacheOnce();
+  const scopeKey = `${teamId}__${seasonId}`;
+  if (matchScopeLoadPromises[scopeKey]) return matchScopeLoadPromises[scopeKey];
+  matchScopeLoadPromises[scopeKey] = (async () => {
+    try {
+      const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open(matchesDbNameFor(teamId, seasonId), 2);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          if (!d.objectStoreNames.contains(MATCHES_STORE)) d.createObjectStore(MATCHES_STORE, { keyPath: "id" });
+          if (!d.objectStoreNames.contains(OBS_STORE)) d.createObjectStore(OBS_STORE, { keyPath: "id" });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      const all = await new Promise((resolve, reject) => {
+        const tx = db.transaction(MATCHES_STORE, "readonly");
+        const getReq = tx.objectStore(MATCHES_STORE).getAll();
+        getReq.onsuccess = () => resolve(getReq.result || []);
+        getReq.onerror = () => reject(getReq.error);
+      });
+      all.forEach((m) => { matchCache[m.id] = m; });
+    } catch (e) {
+      console.error("Erreur de chargement des matchs (saison comparée)", e);
+    }
+  })();
+  return matchScopeLoadPromises[scopeKey];
+}
+
 function computeRatingSuggestions(match) {
   const byPlayer = {};
   match.tags.forEach((t) => {
@@ -4291,7 +4326,8 @@ function AcademyScreen() {
 // IndexedDB, pas dans localStorage — le patch de scope par saison ne s'y applique donc pas ; seul
 // l'index des matchs (tf_matches_index, lui bien scopé) détermine quels matchs appartiennent à
 // quelle saison, et readMatchFromCache résout ensuite l'id contre le cache déjà chargé en mémoire.
-function computeSeasonStats(teamId, seasonId) {
+async function computeSeasonStats(teamId, seasonId) {
+  await loadMatchesForScope(teamId, seasonId);
   const record = { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, cartonsJaunes: 0, cartonsRouges: 0 };
   try {
     const index = JSON.parse(readScopedKeyFor(MATCHES_INDEX_KEY, teamId, seasonId) || "[]");
@@ -4334,13 +4370,15 @@ function RapportSaisonScreen({ setSection }) {
     try { setInjuries(JSON.parse(localStorage.getItem("tf_medical_injuries") || "[]")); } catch (e) {}
     try { setDevPlans(JSON.parse(localStorage.getItem("tf_development_plans") || "{}")); } catch (e) {}
     try { setStaff(JSON.parse(localStorage.getItem("tf_club_staff") || "[]")); } catch (e) {}
-    setSeasonRecord(computeSeasonStats(getActiveTeamId(), getActiveSeasonId()));
+    computeSeasonStats(getActiveTeamId(), getActiveSeasonId()).then(setSeasonRecord);
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (!compareSeasonId) { setCompareStats(null); return; }
-    setCompareStats(computeSeasonStats(getActiveTeamId(), compareSeasonId));
+    let cancelled = false;
+    computeSeasonStats(getActiveTeamId(), compareSeasonId).then((stats) => { if (!cancelled) setCompareStats(stats); });
+    return () => { cancelled = true; };
   }, [compareSeasonId]);
 
   if (!loaded) return <div className="empty-state">Chargement…</div>;
