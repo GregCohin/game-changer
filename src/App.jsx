@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Home, Target, Users, Trophy, BarChart, ClipboardList, FileText, Eye, Search, Activity, Megaphone, Shield, BookOpen, Sparkles, ChevronDown, HelpCircle, MessageSquare } from "lucide-react";
-import { generateCompilation } from "./videoCompiler";
+// generateCompilation est importé dynamiquement au moment de l'usage (voir runCompilation) plutôt
+// qu'ici : @ffmpeg/ffmpeg est un gros morceau du bundle principal, alors qu'il n'est nécessaire
+// que pour la fonctionnalité de compilation vidéo, utilisée par une minorité de sessions.
 import { ALL_STARTER_EXERCISES, STARTER_SESSIONS } from "./data/starterContent.js";
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
@@ -19604,6 +19606,7 @@ export default function App() {
     if (!videoFileRef.current || compilationJob || clipCenters.length === 0) return;
     setCompilationJob({ key, label, phase: "chargement du moteur vidéo", pct: 0 });
     try {
+      const { generateCompilation } = await import("./videoCompiler");
       const blob = await generateCompilation(videoFileRef.current, clipCenters, videoDuration, (p) => {
         setCompilationJob({ key, label, phase: p.phase, pct: p.pct });
       });
@@ -27068,6 +27071,7 @@ function ObservationScreen() {
     if (!videoFileRef.current || compilationJob || clipCenters.length === 0) return;
     setCompilationJob({ key, label, phase: "chargement du moteur vidéo", pct: 0 });
     try {
+      const { generateCompilation } = await import("./videoCompiler");
       const blob = await generateCompilation(videoFileRef.current, clipCenters, videoDuration, (p) => {
         setCompilationJob({ key, label, phase: p.phase, pct: p.pct });
       });
@@ -34988,4 +34992,11 @@ function TimelinePulse({ tags, possession, duration, currentTime, onSeek }) {
     </div>
   );
 }
+
+// Exportés pour que main.jsx puisse précharger les caches de matchs avant le premier rendu —
+// sans ça, tout écran qui lit readMatchFromCache/readObsMatchFromCache dans un effet monté avant
+// la fin du chargement IndexedDB (une course, pas garantie perdue mais pas garantie gagnée non
+// plus) affiche des statistiques à zéro qui ne se corrigent jamais, faute de recalcul déclenché
+// par la fin du chargement.
+export { loadMatchCacheOnce, loadObsMatchCacheOnce };
 
