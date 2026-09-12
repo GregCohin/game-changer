@@ -4,3 +4,14 @@ dist/
 .DS_Store
 .vercel
 .env*
+
+# video-pipeline (Python — extraction auto de données vidéo)
+video-pipeline/.venv/
+video-pipeline/vendor/
+video-pipeline/output/
+video-pipeline/*.pt
+video-pipeline/samples/
+video-pipeline/**/*.mp4
+video-pipeline/**/*.mov
+video-pipeline/**/*.avi
+video-pipeline/**/__pycache__/

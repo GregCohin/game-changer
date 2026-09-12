@@ -1,0 +1,12 @@
+numpy
+opencv-python
+scipy
+shapely
+pyyaml
+pillow
+torch
+torchvision
+ultralytics
+supervision
+trackers
+tqdm
