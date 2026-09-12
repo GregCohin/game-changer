@@ -12,6 +12,12 @@ import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWav
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
 import { CSS } from "./styles/css.js";
+import {
+  signInStaff, getStaffUser, onStaffAuthChange,
+  publishPortalSnapshot, pullPortalUpdates,
+  generateInvitationCode, listActiveCodesForPlayer, revokeInvitationCode,
+  listPlayerLinks, revokeLink,
+} from "./lib/portalSync.js";
 
 
 function ensureDefaultTeamAndSeason() {
@@ -5512,6 +5518,7 @@ const CLUB_GROUPS = [
       { id: "covoiturage", label: "Covoiturage" },
       { id: "benevolat", label: "Créneaux bénévoles" },
       { id: "sauvegarde", label: "Sauvegarde" },
+      { id: "portail-backend", label: "Portail parent (backend)" },
       { id: "calendrier", label: "Calendrier croisé" },
       { id: "evenements", label: "Événements" },
       { id: "labels", label: "Labels" },
@@ -5784,6 +5791,263 @@ function BackupScreen() {
         <div className="panel-heading" style={{ marginTop: 0 }}>Nettoyage des données</div>
         <NettoyageOrpheliesPanel />
       </div>
+    </div>
+  );
+}
+
+// Rassemble l'état local (localStorage + IndexedDB via readMatchFromCache) de l'équipe/saison
+// active dans la forme attendue par publishPortalSnapshot (src/lib/portalSync.js) — cette fonction
+// connaît les formes internes de l'app staff, portalSync.js ne connaît que du Postgres.
+function buildPortalSnapshot(teamId, seasonId) {
+  const roster = JSON.parse(localStorage.getItem("tf_roster") || "[]");
+  const devPlans = JSON.parse(localStorage.getItem("tf_development_plans") || "{}");
+  const programs = JSON.parse(localStorage.getItem("tf_individual_programs") || "{}");
+  const injuriesRaw = JSON.parse(localStorage.getItem("tf_medical_injuries") || "[]");
+  const sessionsRaw = JSON.parse(localStorage.getItem("tf_sessions") || "[]");
+  const faqRaw = JSON.parse(localStorage.getItem("tf_club_faq") || "[]");
+  const clubEventsRaw = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
+  const carpoolRaw = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
+  const forumThreadsRaw = JSON.parse(localStorage.getItem("tf_forum_threads") || "[]");
+  const comp = loadCompetitionsData();
+
+  const matchIndex = JSON.parse(localStorage.getItem(MATCHES_INDEX_KEY) || "[]");
+  const allFullMatches = matchIndex.map((m) => readMatchFromCache(m.id)).filter((m) => m && m.closed);
+
+  const players = roster.map((p) => ({
+    id: p.id, team_id: teamId, season_id: seasonId,
+    first_name: p.firstName || p.name || "", last_name: p.lastName || "", position: p.position || null,
+  }));
+
+  const developmentGoals = roster.flatMap((p) =>
+    (devPlans[p.id] || []).map((g) => ({ id: g.id, player_id: p.id, team_id: teamId, season_id: seasonId, label: g.title, status: g.status || null }))
+  );
+  const individualPrograms = roster.flatMap((p) =>
+    (programs[p.id] || []).map((pr) => ({ id: pr.id, player_id: p.id, team_id: teamId, season_id: seasonId, title: pr.title, content: pr }))
+  );
+  // Vue restreinte volontaire : statut RTP seulement, jamais le diagnostic/type de blessure.
+  const injuries = injuriesRaw.map((i) => ({
+    id: i.id, player_id: i.playerId, team_id: teamId, season_id: seasonId, status: i.status, rtp_stage: i.rtpStage || null,
+  }));
+  const sessions = sessionsRaw.map((s) => ({ id: s.id, team_id: teamId, season_id: seasonId, date: s.date, label: s.name || null }));
+  const faq = faqRaw.map((f) => ({ id: f.id, team_id: teamId, season_id: seasonId, question: f.question, answer: f.answer }));
+  const clubEvents = clubEventsRaw.map((e) => ({ id: e.id, title: e.name, date: e.date, location: null }));
+  const carpoolOffers = carpoolRaw.map((o) => ({
+    id: o.id, team_id: teamId, season_id: seasonId, driver_name: o.driverName, event_label: o.eventTitle, date: o.eventDate, seats_total: o.seats,
+  }));
+
+  const competitions = comp.competitions.map((c) => ({ id: c.id, team_id: teamId, season_id: seasonId, name: c.name }));
+  const fixtures = comp.competitions.flatMap((c) =>
+    c.fixtures.map((f) => ({ id: f.id, competition_id: c.id, team_id: teamId, season_id: seasonId, date: f.date, opponent: f.opponent, location: f.venue || null }))
+  );
+
+  const matches = allFullMatches.map((m) => ({ id: m.id, team_id: teamId, season_id: seasonId, name: m.name, date: m.date, closed: true }));
+  const matchStats = roster.flatMap((p) =>
+    computePlayerMatchStats(p.id, allFullMatches).map((s) => ({
+      match_id: s.matchId, player_id: p.id, buts: s.buts, passes_decisives: s.passesDecisives, highlights: s.highlights,
+    }))
+  );
+
+  const forumThreads = forumThreadsRaw.map((t) => ({
+    id: t.id, team_id: teamId, season_id: seasonId, title: t.title, type: t.type,
+    linked_event_title: t.linkedEventTitle || null, linked_event_date: t.linkedEventDate || null,
+    targetPlayerIds: t.type === "individuelle" ? (t.targetIndividuals || []) : undefined,
+  }));
+
+  return {
+    teamId, seasonId, players, developmentGoals, individualPrograms, injuries, sessions, faq,
+    clubEvents, carpoolOffers, competitions, fixtures, matches, matchStats, forumThreads,
+  };
+}
+
+function PortalBackendScreen() {
+  const [staffUser, setStaffUser] = useState(undefined); // undefined = pas encore su
+  const [email, setEmail] = useState("");
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [roster, setRoster] = useState([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [codes, setCodes] = useState([]);
+  const [links, setLinks] = useState([]);
+
+  useEffect(() => {
+    getStaffUser().then(setStaffUser);
+    const unsub = onStaffAuthChange((session) => setStaffUser(session?.user || null));
+    try { setRoster(JSON.parse(localStorage.getItem("tf_roster") || "[]")); } catch (e) {}
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!staffUser || !selectedPlayerId) { setCodes([]); setLinks([]); return; }
+    listActiveCodesForPlayer(selectedPlayerId).then(setCodes).catch(() => setCodes([]));
+    listPlayerLinks(selectedPlayerId).then(setLinks).catch(() => setLinks([]));
+  }, [staffUser, selectedPlayerId]);
+
+  async function handleSendLink(e) {
+    e.preventDefault();
+    setSendingLink(true);
+    try {
+      await signInStaff(email.trim());
+      setLinkSent(true);
+    } catch (err) {
+      alert("Échec de l'envoi : " + err.message);
+    }
+    setSendingLink(false);
+  }
+
+  async function handlePublish() {
+    setPublishing(true);
+    setStatusMsg("");
+    try {
+      const snapshot = buildPortalSnapshot(getActiveTeamId(), getActiveSeasonId());
+      await publishPortalSnapshot(snapshot);
+      const now = new Date().toISOString();
+      localStorage.setItem("tf_portal_last_publish", now);
+      setStatusMsg("Publié le " + new Date(now).toLocaleString("fr-FR"));
+    } catch (err) {
+      setStatusMsg("Échec de la publication : " + err.message);
+    }
+    setPublishing(false);
+  }
+
+  async function handlePull() {
+    setPulling(true);
+    setStatusMsg("");
+    try {
+      const teamId = getActiveTeamId(), seasonId = getActiveSeasonId();
+      const since = localStorage.getItem("tf_portal_last_pull") || null;
+      const { journalEntries, carpoolPassengers, forumMessages, pulledAt } = await pullPortalUpdates(teamId, seasonId, since);
+
+      if (journalEntries.length > 0) {
+        const journal = JSON.parse(localStorage.getItem("tf_player_journal") || "[]");
+        const existingIds = new Set(journal.map((j) => j.id));
+        localStorage.setItem("tf_player_journal", JSON.stringify([...journal, ...journalEntries.filter((j) => !existingIds.has(j.id))]));
+      }
+      if (carpoolPassengers.length > 0) {
+        const offers = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
+        carpoolPassengers.forEach(({ offerId, passengerName }) => {
+          const offer = offers.find((o) => o.id === offerId);
+          if (offer && !offer.passengers.includes(passengerName)) offer.passengers.push(passengerName);
+        });
+        localStorage.setItem("tf_club_carpool", JSON.stringify(offers));
+      }
+      if (forumMessages.length > 0) {
+        const messages = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
+        const existingIds = new Set(messages.map((m) => m.id));
+        localStorage.setItem("tf_forum_messages", JSON.stringify([...messages, ...forumMessages.filter((m) => !existingIds.has(m.id))]));
+      }
+
+      localStorage.setItem("tf_portal_last_pull", pulledAt);
+      setStatusMsg(`Récupéré : ${journalEntries.length} note(s) de journal, ${carpoolPassengers.length} covoiturage(s), ${forumMessages.length} message(s) de forum.`);
+    } catch (err) {
+      setStatusMsg("Échec de la récupération : " + err.message);
+    }
+    setPulling(false);
+  }
+
+  async function handleGenerateCode() {
+    try {
+      const code = await generateInvitationCode(selectedPlayerId, getActiveTeamId(), getActiveSeasonId());
+      setCodes(await listActiveCodesForPlayer(selectedPlayerId));
+      alert("Code généré : " + code);
+    } catch (err) {
+      alert("Échec : " + err.message);
+    }
+  }
+
+  async function handleRevokeCode(code) {
+    if (!confirm("Révoquer ce code ?")) return;
+    await revokeInvitationCode(code);
+    setCodes(await listActiveCodesForPlayer(selectedPlayerId));
+  }
+
+  async function handleRevokeLink(parentId) {
+    if (!confirm("Délier ce parent de ce joueur ?")) return;
+    await revokeLink(parentId, selectedPlayerId);
+    setLinks(await listPlayerLinks(selectedPlayerId));
+  }
+
+  if (staffUser === undefined) return <div className="empty-state">Chargement…</div>;
+
+  if (!staffUser) {
+    return (
+      <div className="stats-screen" style={{ maxWidth: 500, margin: "0 auto" }}>
+        <div className="stats-screen-header">
+          <div className="eyebrow">Club</div>
+          <h1>Portail parent (backend)</h1>
+          <p className="subtitle">Connecte-toi avec ton compte staff pour publier des données vers le portail parent et gérer les codes d'invitation.</p>
+        </div>
+        {linkSent ? (
+          <p>Lien de connexion envoyé à {email}. Vérifie ta boîte mail.</p>
+        ) : (
+          <form onSubmit={handleSendLink}>
+            <input type="email" required placeholder="ton.email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 10 }} />
+            <button className="btn btn-primary" disabled={sendingLink} type="submit">{sendingLink ? "Envoi…" : "Recevoir un lien de connexion"}</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="stats-screen" style={{ maxWidth: 700, margin: "0 auto" }}>
+      <div className="stats-screen-header">
+        <div className="eyebrow">Club</div>
+        <h1>Portail parent (backend)</h1>
+        <p className="subtitle">Connecté comme {staffUser.email}. Publie les données de l'équipe/saison active vers le portail parent, et gère les codes d'invitation par joueur.</p>
+      </div>
+
+      <div className="panel-heading">Synchronisation</div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        <button className="btn btn-primary" disabled={publishing} onClick={handlePublish}>
+          {publishing ? "Publication…" : "Publier vers le portail"}
+        </button>
+        <button className="btn btn-ghost" disabled={pulling} onClick={handlePull}>
+          {pulling ? "Récupération…" : "Récupérer les nouveautés"}
+        </button>
+      </div>
+      {statusMsg && <p className="hint">{statusMsg}</p>}
+
+      <div className="panel-heading" style={{ marginTop: 24 }}>Codes d'invitation par joueur</div>
+      <select value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)} style={{ width: "100%", padding: 8, marginBottom: 12 }}>
+        <option value="">— Choisir un joueur —</option>
+        {roster.map((p) => <option key={p.id} value={p.id}>{p.firstName || p.name} {p.lastName || ""}</option>)}
+      </select>
+
+      {selectedPlayerId && (
+        <>
+          <button className="btn btn-ghost btn-small" onClick={handleGenerateCode} style={{ marginBottom: 12 }}>+ Générer un code</button>
+
+          {codes.length > 0 && (
+            <div className="scouting-list" style={{ marginBottom: 16 }}>
+              {codes.map((c) => (
+                <div className="scouting-card" key={c.code}>
+                  <div className="scouting-info">
+                    <div className="scouting-name">{c.code}</div>
+                    <div className="scouting-meta">{c.use_count}/{c.max_uses} utilisation(s)</div>
+                  </div>
+                  <button className="btn btn-ghost btn-small" onClick={() => handleRevokeCode(c.code)}>Révoquer</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="panel-heading">Parents liés</div>
+          {links.length === 0 && <div className="empty-state">Aucun parent lié pour l'instant.</div>}
+          <div className="scouting-list">
+            {links.map((l) => (
+              <div className="scouting-card" key={l.parent_id}>
+                <div className="scouting-info">
+                  <div className="scouting-name">{l.parent_profiles?.display_name || l.parent_id.slice(0, 8)}</div>
+                </div>
+                <button className="btn btn-ghost btn-small" onClick={() => handleRevokeLink(l.parent_id)}>Délier</button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -6082,6 +6346,7 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
       {clubSubTab === "covoiturage" && <ClubCarpoolScreen />}
       {clubSubTab === "benevolat" && <ClubVolunteerSlotsScreen />}
       {clubSubTab === "sauvegarde" && <BackupScreen />}
+      {clubSubTab === "portail-backend" && <PortalBackendScreen />}
       {clubSubTab === "calendrier" && <ClubCrossCalendarScreen teams={teams} />}
       {clubSubTab === "labels" && <ClubCertificationsScreen />}
       {clubSubTab === "faq" && <ClubFaqScreen />}
