@@ -24567,6 +24567,37 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportPlayerNumbers() {
+    // Numéro de maillot -> joueur, tel que saisi dans Composition pour CE match (le numéro peut
+    // changer d'un match à l'autre, cf. match.playerAssignments). Sert de référence pour rattacher
+    // les identités suivies par le pipeline vidéo aux vrais joueurs — mais le pipeline ne lit pas
+    // les numéros sur les maillots (trop peu fiable à la résolution d'une vidéo amateur), donc ce
+    // fichier seul ne suffit pas : il faut aussi indiquer quelle trace du pipeline correspond à quel
+    // numéro (en observant la vidéo de contrôle --debug-overlay), une correspondance que le site ne
+    // peut pas connaître.
+    const findPlayer = (id) => roster.find((p) => p.id === id);
+    const namedAssignments = (assignments) =>
+      Object.fromEntries(
+        Object.entries(assignments || {}).map(([num, id]) => {
+          const p = findPlayer(id);
+          return [num, { id, name: p ? playerFullName(p) : null }];
+        })
+      );
+    const payload = {
+      A: namedAssignments(match.playerAssignments),
+      B: namedAssignments(match.opponentAssignments),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `numeros-joueurs-${match.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div style={{ marginTop: 20 }}>
       <button className="btn btn-ghost btn-small no-print" onClick={() => setExpanded((v) => !v)}>
@@ -24577,6 +24608,12 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
           <p className="radar-note">
             Ces statistiques nécessitent une analyse automatisée de la vidéo (tracking, vision par ordinateur) — impossibles à obtenir par tag manuel, quel que soit le temps investi. Cette section est prête à recevoir ce type de données dès que tu y as accès, via un fichier JSON structuré.
           </p>
+          {Object.keys(match.playerAssignments || {}).length > 0 && (
+            <>
+              <button className="btn btn-ghost btn-small" onClick={handleExportPlayerNumbers}>Exporter les numéros de maillot (pour le pipeline vidéo)</button>
+              <p className="hint" style={{ marginTop: 4, marginBottom: 10 }}>Numéro → joueur, tel que saisi dans Composition pour ce match. Ne suffit pas seul : le pipeline ne lit pas les numéros sur les maillots, il faut aussi lui indiquer quelle trace vidéo correspond à quel numéro en observant l'aperçu --debug-overlay.</p>
+            </>
+          )}
           {!data && (
             <>
               <button className="btn btn-ghost btn-small" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Importer des données de tracking (JSON)</button>
