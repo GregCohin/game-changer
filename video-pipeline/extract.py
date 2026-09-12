@@ -107,7 +107,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     cap.release()
     if overlay_writer is not None:
         overlay_writer.release()
-    return accumulators, team_frame_positions, total_sampled, calibrated_sampled
+    return accumulators, team_frame_positions, total_sampled, calibrated_sampled, tracker.reid
 
 
 def build_analytics(accumulators, team_frame_positions, total_sampled, roster_map):
@@ -174,7 +174,7 @@ if __name__ == "__main__":
         with open(args.roster) as fh:
             roster_map = json.load(fh)
 
-    accumulators, team_frame_positions, total_sampled, calibrated_sampled = run(
+    accumulators, team_frame_positions, total_sampled, calibrated_sampled, reid = run(
         args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds
     )
     analytics = build_analytics(accumulators, team_frame_positions, total_sampled, roster_map)
@@ -182,6 +182,8 @@ if __name__ == "__main__":
     with open(args.out, "w") as fh:
         json.dump(analytics, fh, ensure_ascii=False, indent=2)
 
+    print(f"Ré-identification : {reid.merges} fusion(s) sur {reid.opportunities} occasion(s) "
+          f"(trace jamais vue avec un candidat récent de la même équipe disponible).")
     calib_pct = round(100 * calibrated_sampled / total_sampled) if total_sampled else 0
     print(f"OK — {len(analytics['players'])} joueur(s) suivi(s) sur {total_sampled} frames "
           f"échantillonnées ({calib_pct}% calibrées) -> {args.out}")

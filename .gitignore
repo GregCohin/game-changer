@@ -9,7 +9,8 @@ dist/
 video-pipeline/.venv/
 video-pipeline/vendor/
 video-pipeline/output/
-video-pipeline/*.pt
+video-pipeline/weights/
+video-pipeline/**/*.pt
 video-pipeline/samples/
 video-pipeline/**/*.mp4
 video-pipeline/**/*.mov
