@@ -112,6 +112,12 @@ class Tracker:
         self.reid = ReIdentifier()
         self._last_seen = {}  # track_id ByteTrack -> (color, team), pour marquer "lost" au bon moment
         self._active_last_frame = set()
+        # Équipe verrouillée par identité canonique dès la 1re classification réussie : un maillot ne
+        # change pas de couleur en cours de match, donc on ne veut pas qu'un même joueur soit reclassé
+        # différemment (et donc fragmenté dans les accumulateurs) si une frame donnée classe mal sa
+        # couleur — repéré concrètement en testant sur un match réel noir/blanc, où la teinte HSV est
+        # peu fiable pour distinguer deux couleurs proches de l'achromatique.
+        self._known_team = {}
 
     def process_frame(self, frame_bgr, t_seconds):
         """Retourne (joueurs, position_ballon).
@@ -140,6 +146,10 @@ class Tracker:
             team = self.team_assigner.assign(color)
 
             canonical_id = self.reid.resolve(track_id, color, team, t_seconds)
+            if canonical_id in self._known_team:
+                team = self._known_team[canonical_id]
+            elif team is not None:
+                self._known_team[canonical_id] = team
             active_now.add(track_id)
             self._last_seen[track_id] = (color, team)
 

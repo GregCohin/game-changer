@@ -33,7 +33,7 @@ def _label(team, track_id):
     return f"{team or '?'}#{track_id}"
 
 
-def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None):
+def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None, start_seconds=0.0):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise SystemExit(f"Impossible d'ouvrir la vidéo : {video_path}")
@@ -42,7 +42,11 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_step = max(1, round(native_fps / sample_fps))
-    max_frames = int(max_seconds * native_fps) if max_seconds else total_frames
+
+    if start_seconds:
+        cap.set(cv2.CAP_PROP_POS_MSEC, start_seconds * 1000)
+    frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))  # position réelle après seek (keyframe le plus proche)
+    max_frames = frame_idx + int(max_seconds * native_fps) if max_seconds else total_frames
 
     calibrator = Calibrator(width, height, device=device)
     # frame_rate décrit la base de temps des `timestamp=` passés à chaque update() (le fps natif de
@@ -54,8 +58,8 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     accumulators = {}  # label -> TrackAccumulator
     team_frame_positions = defaultdict(list)  # "A"/"B" -> [[(x,y), ...], ...] par frame échantillonnée
     total_sampled = 0
-    frame_idx = 0
-    pbar = tqdm(total=min(total_frames, max_frames) // frame_step, desc="Extraction")
+    calibrated_sampled = 0  # nb de frames échantillonnées où la calibration a réussi (diagnostic)
+    pbar = tqdm(total=min(total_frames, max_frames - frame_idx) // frame_step, desc="Extraction")
 
     overlay_writer = None
     if debug_overlay_path:
@@ -76,6 +80,8 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
 
         players, _ball_xy = tracker.process_frame(frame, t)
         homography = calibrator.homography_pitch_to_image(frame)
+        if homography is not None:
+            calibrated_sampled += 1
 
         frame_positions_by_team = defaultdict(list)
         for p in players:
@@ -101,7 +107,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     cap.release()
     if overlay_writer is not None:
         overlay_writer.release()
-    return accumulators, team_frame_positions, total_sampled
+    return accumulators, team_frame_positions, total_sampled, calibrated_sampled
 
 
 def build_analytics(accumulators, team_frame_positions, total_sampled, roster_map):
@@ -151,6 +157,9 @@ if __name__ == "__main__":
     parser.add_argument("--max-seconds", type=float, default=None,
                          help="Limite la durée traitée, pour un test rapide sur un extrait avant "
                               "de lancer un match complet.")
+    parser.add_argument("--start-seconds", type=float, default=0.0,
+                         help="Démarre le traitement à ce point de la vidéo (pour un test sur un "
+                              "extrait qui évite l'avant-match).")
     parser.add_argument("--roster", default=None,
                          help="Chemin vers un JSON {'A': {'<numero>': '<playerId>'}, 'B': {...}}. "
                               "Omis -> sortie en identités anonymes (étape 1a).")
@@ -165,13 +174,14 @@ if __name__ == "__main__":
         with open(args.roster) as fh:
             roster_map = json.load(fh)
 
-    accumulators, team_frame_positions, total_sampled = run(
-        args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay
+    accumulators, team_frame_positions, total_sampled, calibrated_sampled = run(
+        args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds
     )
     analytics = build_analytics(accumulators, team_frame_positions, total_sampled, roster_map)
 
     with open(args.out, "w") as fh:
         json.dump(analytics, fh, ensure_ascii=False, indent=2)
 
+    calib_pct = round(100 * calibrated_sampled / total_sampled) if total_sampled else 0
     print(f"OK — {len(analytics['players'])} joueur(s) suivi(s) sur {total_sampled} frames "
-          f"échantillonnées -> {args.out}")
+          f"échantillonnées ({calib_pct}% calibrées) -> {args.out}")

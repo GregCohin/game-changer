@@ -7,6 +7,13 @@ SPRINT_SPEED_MS = 6.0          # m/s (~21.6 km/h) - seuil usuel pour compter un 
 HIGH_INTENSITY_SPEED_MS = 4.5  # m/s (~16.2 km/h) - seuil "haute intensité"
 ACCEL_THRESHOLD_MS2 = 2.5      # m/s^2 - seuil pour compter une accélération/décélération
 SPRINT_MIN_DURATION_S = 1.0    # un pic de vitesse isolé d'un seul échantillon ne compte pas
+# Vitesse humaine max plausible (record de sprint élite ~12.4 m/s) — au-delà, la variation de
+# position entre deux échantillons vient presque certainement d'une calibration ponctuellement
+# mauvaise (position "téléportée"), pas d'un vrai déplacement. Repéré concrètement en testant sur
+# une vraie vidéo de match : sans ce filtre, une seule frame mal calibrée peut produire des
+# vitesses de pointe à plusieurs centaines de km/h. Le segment est ignoré (ni distance ni vitesse),
+# pas juste plafonné, pour ne pas fausser la distance totale non plus.
+MAX_PLAUSIBLE_SPEED_MS = 10.5
 TEAM_SHAPE_MIN_PLAYERS = 8     # nb mini de joueurs d'une même équipe visibles simultanément pour
                                 # que la forme d'équipe de cette frame soit prise en compte
 
@@ -40,7 +47,10 @@ def _speed_series_ms(samples):
         dx_m = (x1 - x0) * PITCH_WIDTH_M
         dy_m = (y1 - y0) * PITCH_LENGTH_M
         dist_m = (dx_m ** 2 + dy_m ** 2) ** 0.5
-        speeds.append((t1, dist_m / dt, dist_m))
+        v = dist_m / dt
+        if v > MAX_PLAUSIBLE_SPEED_MS:
+            continue  # position "téléportée" (calibration ponctuellement mauvaise) - segment ignoré
+        speeds.append((t1, v, dist_m))
     return speeds  # [(t, vitesse_m_s, distance_segment_m), ...]
 
 
