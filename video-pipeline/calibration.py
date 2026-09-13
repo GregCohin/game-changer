@@ -54,6 +54,7 @@ class Calibrator:
         self.model_l.to(device).eval()
 
         self.cam = FramebyFrameCalib(iwidth=frame_width, iheight=frame_height, denormalize=True)
+        self._crash_count = 0  # cf. try/except ci-dessous — juste pour un avertissement one-shot
 
     def _cam_params(self, frame_bgr):
         frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
@@ -74,7 +75,21 @@ class Calibrator:
         kp_dict, lines_dict = complete_keypoints(kp_dict[0], lines_dict[0], w=w, h=h, normalize=True)
 
         self.cam.update(kp_dict, lines_dict)
-        return self.cam.heuristic_voting(refine_lines=self.pnl_refine)
+        try:
+            return self.cam.heuristic_voting(refine_lines=self.pnl_refine)
+        except Exception as e:
+            # PnLCalib (code tiers vendored) peut planter sur un jeu de points/lignes dégénéré pour
+            # une frame donnée (ex. cv2.calibrateCamera sur une frame avec très peu de repères
+            # détectés) — rencontré concrètement sur un match complet (99 min), jamais sur les
+            # extraits courts testés en local. Un run de plusieurs heures sans surveillance ne doit
+            # pas s'arrêter pour une seule frame dégénérée : traité comme un échec de calibration
+            # ordinaire (retourne None, déjà géré partout ailleurs), pas comme une erreur fatale.
+            self._crash_count += 1
+            if self._crash_count == 1:
+                print(f"Avertissement — calibration a levé une exception sur au moins une frame "
+                      f"({type(e).__name__}: {e}) ; traitée comme un échec de calibration normal, "
+                      f"le run continue. Pas de message pour les occurrences suivantes.")
+            return None
 
     def homography_pitch_to_image(self, frame_bgr):
         """3x3 : [Xc, Yc, 1] (mètres, origine au centre du terrain) -> [u, v, w] (pixels homogènes).
