@@ -135,9 +135,34 @@ def compute_player_physical(samples):
     }
 
 
+def _drop_implausible_points(samples):
+    """Écarte un point si le déplacement vers OU depuis un voisin immédiat dépasse la vitesse
+    humaine plausible — le même filtre que _speed_series_ms applique déjà aux stats agrégées
+    (distance, vitesse), mais qui ne touchait jusqu'ici pas la heatmap : un point "téléporté"
+    pouvait rester affiché même une fois exclu du calcul de distance/vitesse. Repéré concrètement
+    sur le premier match complet traité (des sauts à 27-40 m/s dans les points bruts d'une trace
+    par ailleurs déjà fusionnée par le regroupement global — signe probable d'une fusion encore
+    incorrecte de deux joueurs différents, cf. discussion avec Gregory)."""
+    if len(samples) < 2:
+        return samples
+    n = len(samples)
+    keep = [True] * n
+    for i in range(n - 1):
+        t0, x0, y0 = samples[i]
+        t1, x1, y1 = samples[i + 1]
+        dt = t1 - t0
+        if dt <= 0:
+            continue
+        dist_m = (((x1 - x0) * PITCH_WIDTH_M) ** 2 + ((y1 - y0) * PITCH_LENGTH_M) ** 2) ** 0.5
+        if dist_m / dt > MAX_PLAUSIBLE_SPEED_MS:
+            keep[i] = keep[i + 1] = False
+    return [s for s, k in zip(samples, keep) if k]
+
+
 def compute_heatmap_points(samples, max_points=200):
     """Sous-échantillonne si besoin — le site n'a pas besoin de milliers de points pour une
     heatmap lisible (generateMockAdvancedAnalytics() en génère ~20-30 par joueur)."""
+    samples = _drop_implausible_points(samples)
     if not samples:
         return []
     step = max(1, len(samples) // max_points)
