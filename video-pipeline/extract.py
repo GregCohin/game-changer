@@ -18,6 +18,8 @@ saisi dans le site) — étape 1b, sortie indexée par player.id réel.
 """
 import argparse
 import json
+import os
+import pickle
 from collections import defaultdict
 
 import cv2
@@ -33,7 +35,24 @@ def _label(team, track_id):
     return f"{team or '?'}#{track_id}"
 
 
-def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None, start_seconds=0.0):
+def _save_checkpoint(path, state):
+    """Écriture atomique (fichier temporaire puis renommage) pour ne jamais laisser un checkpoint
+    à moitié écrit si le process s'arrête pendant la sauvegarde — un run long (match complet sur
+    Colab) peut se faire couper à tout moment (déconnexion de session, mise en veille de la machine
+    qui héberge le navigateur)."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "wb") as fh:
+        pickle.dump(state, fh)
+    os.replace(tmp, path)
+
+
+def _load_checkpoint(path):
+    with open(path, "rb") as fh:
+        return pickle.load(fh)
+
+
+def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None, start_seconds=0.0,
+        checkpoint_path=None, checkpoint_every=300, resume=False):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise SystemExit(f"Impossible d'ouvrir la vidéo : {video_path}")
@@ -43,7 +62,30 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_step = max(1, round(native_fps / sample_fps))
 
-    if start_seconds:
+    # Reprise après coupure (déconnexion Colab, mise en veille de la machine qui héberge le
+    # navigateur — vécu deux fois en local pendant ce chantier) : un run long doit pouvoir repartir
+    # d'un checkpoint plutôt que de tout refaire depuis le début.
+    accumulators = {}
+    team_frame_positions = defaultdict(list)
+    total_sampled = 0
+    calibrated_sampled = 0
+    reid_merges = reid_opportunities = 0
+    resume_frame_idx = None
+    if resume and checkpoint_path and os.path.isfile(checkpoint_path):
+        state = _load_checkpoint(checkpoint_path)
+        accumulators = state["accumulators"]
+        team_frame_positions = defaultdict(list, state["team_frame_positions"])
+        total_sampled = state["total_sampled"]
+        calibrated_sampled = state["calibrated_sampled"]
+        reid_merges = state["reid_merges"]
+        reid_opportunities = state["reid_opportunities"]
+        resume_frame_idx = state["frame_idx"]
+        print(f"Reprise depuis le checkpoint : {total_sampled} frames déjà traitées, "
+              f"{len(accumulators)} traces en cours.")
+
+    if resume_frame_idx is not None:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, resume_frame_idx)
+    elif start_seconds:
         cap.set(cv2.CAP_PROP_POS_MSEC, start_seconds * 1000)
     frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))  # position réelle après seek (keyframe le plus proche)
     max_frames = frame_idx + int(max_seconds * native_fps) if max_seconds else total_frames
@@ -54,11 +96,11 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     # généralement plus basse) — les deux sont indépendants une fois qu'on fournit un timestamp
     # explicite. Les confondre fait échouer la confirmation de toute trace (vérifié empiriquement).
     tracker = Tracker(device=device, frame_rate=native_fps)
+    # Repartir d'un checkpoint perd l'état interne du tracker (couleurs d'équipe calibrées, galerie
+    # de traces "perdues" récemment) — recalibré en quelques secondes, effet secondaire mineur
+    # accepté plutôt que de sérialiser des modèles PyTorch entiers à chaque checkpoint.
+    tracker.reid.merges, tracker.reid.opportunities = reid_merges, reid_opportunities
 
-    accumulators = {}  # label -> TrackAccumulator
-    team_frame_positions = defaultdict(list)  # "A"/"B" -> [[(x,y), ...], ...] par frame échantillonnée
-    total_sampled = 0
-    calibrated_sampled = 0  # nb de frames échantillonnées où la calibration a réussi (diagnostic)
     pbar = tqdm(total=min(total_frames, max_frames - frame_idx) // frame_step, desc="Extraction")
 
     overlay_writer = None
@@ -97,6 +139,17 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
                         frame_positions_by_team[p["team"]].append(pos)
         for team, positions in frame_positions_by_team.items():
             team_frame_positions[team].append(positions)
+
+        if checkpoint_path and total_sampled % checkpoint_every == 0:
+            _save_checkpoint(checkpoint_path, {
+                "accumulators": accumulators,
+                "team_frame_positions": dict(team_frame_positions),
+                "total_sampled": total_sampled,
+                "calibrated_sampled": calibrated_sampled,
+                "reid_merges": tracker.reid.merges,
+                "reid_opportunities": tracker.reid.opportunities,
+                "frame_idx": frame_idx + 1,
+            })
 
         if overlay_writer is not None:
             overlay_writer.write(draw_debug_frame(frame, players, homography is not None, frame_positions_by_team))
@@ -175,6 +228,15 @@ if __name__ == "__main__":
                          help="Chemin d'une vidéo de contrôle (points suivis + mini-terrain calibré) "
                               "à générer en plus du JSON — pour le sanity-check visuel sur un extrait "
                               "court avant de lancer un match complet.")
+    parser.add_argument("--checkpoint", default=None,
+                         help="Chemin d'un fichier de reprise, sauvegardé régulièrement pendant le "
+                              "traitement — utile pour un run long (match complet) qui risque d'être "
+                              "coupé (déconnexion Colab, mise en veille de la machine). Idéalement "
+                              "sur un stockage qui survit à la session (ex. Google Drive monté).")
+    parser.add_argument("--checkpoint-every", type=int, default=300,
+                         help="Sauvegarde le checkpoint tous les N échantillons traités (def. 300).")
+    parser.add_argument("--resume", action="store_true",
+                         help="Reprend depuis --checkpoint s'il existe, au lieu de repartir de zéro.")
     args = parser.parse_args()
 
     roster_map = None
@@ -183,7 +245,8 @@ if __name__ == "__main__":
             roster_map = json.load(fh)
 
     accumulators, team_frame_positions, total_sampled, calibrated_sampled, reid = run(
-        args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds
+        args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds,
+        args.checkpoint, args.checkpoint_every, args.resume
     )
     n_before = len(accumulators)
     accumulators = cluster_tracks_globally(accumulators)
