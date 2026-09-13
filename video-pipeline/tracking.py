@@ -17,9 +17,13 @@ import cv2
 import numpy as np
 import torch
 import supervision as sv
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
 from ultralytics import YOLO
 from trackers import ByteTrackTracker
 from torchreid.reid.utils import FeatureExtractor
+
+from metrics import TrackAccumulator
 
 DEFAULT_DETECTION_WEIGHTS = Path(__file__).parent / "weights" / "yolov8m-640-football-players.pt"
 # Classes du modèle football dédié (Darkmyter/Football-Players-Tracking, YOLOv8m réentraîné sur le
@@ -34,6 +38,14 @@ REFEREE_CLASS = 3        # explicitement exclu du tracking
 REID_WEIGHTS = Path(__file__).parent / "weights" / "osnet_x0_25_msmt17.pt"
 REID_MAX_GAP_SECONDS = 90.0    # signal bien plus fiable que la couleur -> fenêtre élargie
 REID_EMBEDDING_MIN_SIM = 0.75  # similarité cosinus mini pour relier deux traces (cf. validation ci-dessus)
+# Regroupement global (cluster_tracks_globally) : seuil plus strict que REID_EMBEDDING_MIN_SIM.
+# La validation initiale (0.88 même trace / 0.59 traces différentes) mélangeait des paires de
+# n'importe quelle équipe — beaucoup faciles à distinguer par la seule couleur de maillot. Le
+# regroupement global ne compare QUE des joueurs de la MÊME équipe (le maillot ne différencie donc
+# plus rien), une tâche plus dure où deux joueurs différents peuvent être plus proches que prévu.
+# Repéré concrètement : avec 0.75 ici, plusieurs joueurs réels différents ont été fusionnés en une
+# seule trace (couverture résultante > 1.0, mathématiquement impossible — bug corrigé).
+REID_GLOBAL_MIN_SIM = 0.88
 
 
 def _shirt_color(frame_bgr, box):
@@ -190,7 +202,8 @@ class Tracker:
     def process_frame(self, frame_bgr, t_seconds):
         """Retourne (joueurs, position_ballon).
         joueurs = liste de {"track_id": id stable ré-identifié, "team": "A"/"B"/"autre"/None,
-                             "px": float, "py": float}  (px, py = pieds au sol, en pixels image)
+                             "px": float, "py": float, "embedding": array ou None}
+                             (px, py = pieds au sol, en pixels image)
         position_ballon = (px, py) en pixels, ou None si aucun ballon détecté cette frame."""
         # Arbitre volontairement absent de `classes` : jamais suivi comme joueur.
         result = self.model(frame_bgr, device=self.device, verbose=False,
@@ -229,6 +242,7 @@ class Tracker:
                 "team": team,
                 "px": float((box[0] + box[2]) / 2),
                 "py": float(box[3]),
+                "embedding": embedding,  # pour le regroupement global final (cf. cluster_tracks_globally)
             })
 
         for lost_id in self._active_last_frame - active_now:
@@ -243,3 +257,73 @@ class Tracker:
             ball_xy = (float((bx[0] + bx[2]) / 2), float((bx[1] + bx[3]) / 2))
 
         return out_players, ball_xy
+
+
+def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
+    """Regroupe après coup les traces qui appartiennent probablement au même joueur réel, en
+    comparant TOUTES les paires de traces du match (pas seulement celles proches dans le temps,
+    contrairement à ReIdentifier en flux). Nécessaire car la probabilité qu'AU MOINS UNE
+    ré-identification en flux échoue augmente avec le nombre de fois qu'un joueur sort du cadre —
+    sur un match complet, même un taux de réussite correct par tentative (~50-60%, mesuré) laisse
+    presque certainement passer au moins un échec (0.6^5 ≈ 8% de réussir 5 fois d'affilée). Un
+    passage global ne dépend plus de ce cumul : une seule comparaison finale par paire suffit,
+    indépendamment du nombre de ruptures survenues en flux.
+
+    Clustering à liaison complète (scipy), pas un simple union-find : un union-find fusionne dès
+    qu'une CHAÎNE de paires similaires existe (A~B, B~C -> A,C regroupés même si A et C sont très
+    différents), ce qui a produit en pratique des couvertures > 1.0 (plusieurs joueurs réels
+    fusionnés en une trace, détecté et corrigé). La liaison complète exige que TOUS les membres
+    d'un groupe restent proches les uns des autres, pas juste chaînés.
+
+    accumulators : dict label -> TrackAccumulator (label du type "A#18" — le préfixe avant "#" sert
+    de clé d'équipe, on ne regroupe jamais entre équipes différentes ; le maillot ne différencie
+    plus rien à l'intérieur d'une équipe, d'où un seuil plus strict que la ré-id en flux, cf.
+    REID_GLOBAL_MIN_SIM). Retourne un nouveau dict, même format, traces fusionnées quand pertinent."""
+    clusterable = [k for k, acc in accumulators.items()
+                   if acc.mean_embedding is not None and acc.time_range is not None]
+
+    by_team = {}
+    for k in clusterable:
+        by_team.setdefault(k.split("#", 1)[0], []).append(k)
+
+    merged = {}
+    for keys in by_team.values():
+        if len(keys) == 1:
+            merged[keys[0]] = accumulators[keys[0]]
+            continue
+
+        embeddings = np.stack([accumulators[k].mean_embedding for k in keys])
+        dist = 1.0 - embeddings @ embeddings.T  # cosine -> distance, embeddings déjà normalisés
+        ranges = [accumulators[k].time_range for k in keys]
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                (t1_min, t1_max), (t2_min, t2_max) = ranges[i], ranges[j]
+                if t1_min <= t2_max and t2_min <= t1_max:
+                    dist[i, j] = dist[j, i] = 10.0  # chevauchement temporel -> jamais le même joueur
+        np.fill_diagonal(dist, 0.0)
+
+        condensed = squareform(dist, checks=False)
+        tree = linkage(condensed, method="complete")
+        labels = fcluster(tree, t=1.0 - min_sim, criterion="distance")
+
+        groups = {}
+        for key, label in zip(keys, labels):
+            groups.setdefault(label, []).append(key)
+        for members in groups.values():
+            if len(members) == 1:
+                merged[members[0]] = accumulators[members[0]]
+                continue
+            combined = TrackAccumulator()
+            combined.team = accumulators[members[0]].team
+            for m in members:
+                combined.samples.extend(accumulators[m].samples)
+            combined.samples.sort(key=lambda s: s[0])
+            merged[members[0]] = combined
+
+    # Traces sans embedding exploitable (rare : tous les recadrages de cette trace ont échoué) —
+    # laissées telles quelles, non regroupables faute de signal.
+    for k, acc in accumulators.items():
+        if k not in clusterable:
+            merged[k] = acc
+
+    return merged

@@ -24,7 +24,7 @@ import cv2
 from tqdm import tqdm
 
 from calibration import Calibrator, image_to_pitch_norm
-from tracking import Tracker
+from tracking import Tracker, cluster_tracks_globally
 from metrics import TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape
 from overlay import draw_debug_frame
 
@@ -88,6 +88,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             key = _label(p["team"], p["track_id"])
             acc = accumulators.setdefault(key, TrackAccumulator())
             acc.add_seen(p["team"])
+            acc.add_embedding(p["embedding"])
             if homography is not None:
                 pos = image_to_pitch_norm(homography, p["px"], p["py"])
                 if pos is not None:
@@ -124,6 +125,13 @@ def build_analytics(accumulators, team_frame_positions, total_sampled, roster_ma
         # ressortir avec une couverture basse, pas 1.0 juste parce que les frames où on l'a vu
         # étaient toutes calibrables.
         coverage = round(len(acc.samples) / total_sampled, 3) if total_sampled else 0.0
+        if coverage > 1.0:
+            # Mathématiquement impossible sauf bug de regroupement (deux joueurs réels fusionnés
+            # en une trace, déjà rencontré une fois) — mieux vaut le signaler bruyamment que
+            # livrer silencieusement une donnée fausse.
+            print(f"ATTENTION — couverture impossible ({coverage}) pour {out_key}, "
+                  f"probable fusion incorrecte de deux joueurs distincts.")
+            coverage = min(coverage, 1.0)
         players_out[out_key] = {
             **physical,
             "heatmapPoints": compute_heatmap_points(acc.samples),
@@ -177,13 +185,16 @@ if __name__ == "__main__":
     accumulators, team_frame_positions, total_sampled, calibrated_sampled, reid = run(
         args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds
     )
+    n_before = len(accumulators)
+    accumulators = cluster_tracks_globally(accumulators)
     analytics = build_analytics(accumulators, team_frame_positions, total_sampled, roster_map)
 
     with open(args.out, "w") as fh:
         json.dump(analytics, fh, ensure_ascii=False, indent=2)
 
-    print(f"Ré-identification : {reid.merges} fusion(s) sur {reid.opportunities} occasion(s) "
+    print(f"Ré-identification en flux : {reid.merges} fusion(s) sur {reid.opportunities} occasion(s) "
           f"(trace jamais vue avec un candidat récent de la même équipe disponible).")
+    print(f"Regroupement global : {n_before} -> {len(accumulators)} traces.")
     calib_pct = round(100 * calibrated_sampled / total_sampled) if total_sampled else 0
     print(f"OK — {len(analytics['players'])} joueur(s) suivi(s) sur {total_sampled} frames "
           f"échantillonnées ({calib_pct}% calibrées) -> {args.out}")

@@ -3,6 +3,8 @@ emptyAdvancedAnalytics() (src/App.jsx:24349) — physique par joueur, heatmap, f
 Unités alignées sur generateMockAdvancedAnalytics() (src/App.jsx:24362) : distances en mètres,
 vitesse en km/h.
 """
+import numpy as np
+
 SPRINT_SPEED_MS = 6.0          # m/s (~21.6 km/h) - seuil usuel pour compter un "sprint"
 HIGH_INTENSITY_SPEED_MS = 4.5  # m/s (~16.2 km/h) - seuil "haute intensité"
 ACCEL_THRESHOLD_MS2 = 2.5      # m/s^2 - seuil pour compter une accélération/décélération
@@ -22,11 +24,14 @@ PITCH_LENGTH_M = 105.0
 
 
 class TrackAccumulator:
-    """Une instance par trace (un joueur suivi/ré-identifié sur tout le match)."""
+    """Une instance par trace (un joueur suivi/ré-identifié en flux sur tout le match — avant le
+    regroupement global final, cf. tracking.cluster_tracks_globally)."""
 
     def __init__(self):
         self.samples = []  # [(t_seconds, x_norm, y_norm), ...] triés par t, positions calibrées
         self.team = None
+        self._embedding_sum = None  # somme courante -> moyenne robuste, pas juste le dernier vu
+        self._embedding_count = 0
 
     def add_seen(self, team):
         if team and self.team is None:
@@ -34,6 +39,32 @@ class TrackAccumulator:
 
     def add_position(self, t, x_norm, y_norm):
         self.samples.append((t, x_norm, y_norm))
+
+    def add_embedding(self, embedding):
+        if embedding is None:
+            return
+        if self._embedding_sum is None:
+            self._embedding_sum = embedding.copy()
+        else:
+            self._embedding_sum += embedding
+        self._embedding_count += 1
+
+    @property
+    def mean_embedding(self):
+        """Embedding moyen sur toute la durée de la trace — plus robuste qu'un embedding pris sur
+        une seule frame pour le regroupement global (moins sensible à un angle/une occlusion
+        ponctuelle)."""
+        if self._embedding_sum is None:
+            return None
+        mean = self._embedding_sum / self._embedding_count
+        norm = np.linalg.norm(mean)
+        return mean / norm if norm > 0 else None
+
+    @property
+    def time_range(self):
+        if not self.samples:
+            return None
+        return self.samples[0][0], self.samples[-1][0]
 
 
 def _speed_series_ms(samples):
