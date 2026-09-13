@@ -19,8 +19,40 @@ MAX_PLAUSIBLE_SPEED_MS = 10.5
 TEAM_SHAPE_MIN_PLAYERS = 8     # nb mini de joueurs d'une même équipe visibles simultanément pour
                                 # que la forme d'équipe de cette frame soit prise en compte
 
+SMOOTH_WINDOW = 7  # nb d'échantillons (centré) pour le filtre médian anti-bruit de calibration -
+                    # valeur choisie empiriquement (3/5/7/9 testés sur le même extrait réel de 90s) :
+                    # meilleur résultat obtenu à 7 (couverture max 38%, vitesses redescendues à des
+                    # niveaux plausibles), gains marginaux/mitigés au-delà.
+
 PITCH_WIDTH_M = 68.0
 PITCH_LENGTH_M = 105.0
+
+
+def smooth_track_samples(samples, window=SMOOTH_WINDOW):
+    """Filtre médian (par axe, fenêtre glissante centrée) sur une trace continue — corrige le
+    vrai problème trouvé en testant sur un match complet : la calibration recalcule chaque frame
+    indépendamment (nécessaire pour une caméra qui bouge, cf. calibration.py), donc même un joueur
+    immobile peut voir sa position projetée sauter d'une frame à l'autre par simple instabilité du
+    calage terrain — PAS une confusion d'identité. Vérifié concrètement : une trace jamais fusionnée
+    ni découpée montrait des vitesses oscillant entre 0,9 et 42 m/s frame à frame ; un simple filtre
+    médian sur fenêtre 3 fait tomber l'écrasante majorité des segments sous le seuil humain plausible
+    (MAX_PLAUSIBLE_SPEED_MS), qui reste comme filet de sécurité pour ce qu'il en reste.
+
+    Ne suppose pas un échantillonnage régulier (un index-based, pas time-based) — approximation
+    acceptée : les trous (frames sans calibration) sont déjà rares individuellement dans une trace
+    continue, la fenêtre glissante par index reste une bonne approximation d'une fenêtre temporelle."""
+    if len(samples) < 3 or window < 3:
+        return samples
+    half = window // 2
+    smoothed = []
+    for i in range(len(samples)):
+        lo, hi = max(0, i - half), min(len(samples), i + half + 1)
+        window_slice = samples[lo:hi]
+        xs = sorted(s[1] for s in window_slice)
+        ys = sorted(s[2] for s in window_slice)
+        mid = len(window_slice) // 2
+        smoothed.append((samples[i][0], xs[mid], ys[mid]))
+    return smoothed
 
 
 class TrackAccumulator:

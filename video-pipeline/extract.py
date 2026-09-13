@@ -27,7 +27,10 @@ from tqdm import tqdm
 
 from calibration import Calibrator, image_to_pitch_norm
 from tracking import Tracker, cluster_tracks_globally, split_implausible_tracks
-from metrics import TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape
+from metrics import (
+    TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape,
+    smooth_track_samples,
+)
 from overlay import draw_debug_frame
 
 
@@ -248,6 +251,15 @@ if __name__ == "__main__":
         args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds,
         args.checkpoint, args.checkpoint_every, args.resume
     )
+    # Lissage AVANT toute détection de saut implausible : la calibration recalcule chaque frame
+    # indépendamment (nécessaire pour une caméra qui bouge), donc même un joueur immobile peut
+    # sauter d'une frame à l'autre par simple instabilité du calage terrain, pas par confusion
+    # d'identité — repéré concrètement sur un match complet (cf. discussion avec Gregory). Lisser en
+    # premier réduit les faux positifs des étapes suivantes (découpage, regroupement), qui restent
+    # un filet de sécurité utile pour les vraies confusions d'identité, pas le problème principal.
+    for acc in accumulators.values():
+        acc.samples = smooth_track_samples(acc.samples)
+
     n_before = len(accumulators)
     accumulators = split_implausible_tracks(accumulators)
     n_after_split = len(accumulators)
