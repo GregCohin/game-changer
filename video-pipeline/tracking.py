@@ -23,7 +23,7 @@ from ultralytics import YOLO
 from trackers import ByteTrackTracker
 from torchreid.reid.utils import FeatureExtractor
 
-from metrics import TrackAccumulator
+from metrics import TrackAccumulator, MAX_PLAUSIBLE_SPEED_MS, PITCH_WIDTH_M, PITCH_LENGTH_M
 
 DEFAULT_DETECTION_WEIGHTS = Path(__file__).parent / "weights" / "yolov8m-640-football-players.pt"
 # Classes du modèle football dédié (Darkmyter/Football-Players-Tracking, YOLOv8m réentraîné sur le
@@ -259,6 +259,69 @@ class Tracker:
         return out_players, ball_xy
 
 
+def _boundary_transition_plausible(acc_earlier, acc_later):
+    """Le passage direct entre le dernier point de la trace la plus ancienne et le premier point
+    de l'autre doit rester physiquement possible pour un humain (même limite que celle qui filtre
+    déjà les segments à l'intérieur d'une trace, cf. metrics.MAX_PLAUSIBLE_SPEED_MS) — sinon les
+    deux traces ne peuvent pas être le même joueur, quelle que soit la ressemblance d'apparence.
+
+    Repéré concrètement sur le premier match complet traité : une trace déjà passée par ce
+    regroupement affichait des sauts à 27-40 m/s entre deux points, largement au-dessus du possible
+    humain (record du monde ~10,4 m/s) — la seule similarité d'embedding ne suffit pas, deux joueurs
+    différents de la même équipe peuvent se ressembler assez pour dépasser le seuil."""
+    t0, x0, y0 = acc_earlier.samples[-1]
+    t1, x1, y1 = acc_later.samples[0]
+    dt = t1 - t0
+    if dt <= 0:
+        return False
+    dist_m = (((x1 - x0) * PITCH_WIDTH_M) ** 2 + ((y1 - y0) * PITCH_LENGTH_M) ** 2) ** 0.5
+    return dist_m / dt <= MAX_PLAUSIBLE_SPEED_MS
+
+
+def split_implausible_tracks(accumulators):
+    """À appeler AVANT cluster_tracks_globally() : coupe une trace en plusieurs morceaux partout où
+    un déplacement interne dépasse la vitesse humaine plausible. Une telle rupture signifie presque
+    certainement que la ré-identification EN FLUX (ReIdentifier, dans Tracker.process_frame) a déjà
+    relié à tort deux joueurs réels différents avant même d'atteindre le regroupement global — cette
+    étape-là ne peut décider que de fusionner ou non des traces déjà propres, pas réparer une trace
+    déjà contaminée à la source. Repéré concrètement sur le premier match complet traité : des sauts
+    de 27-40 m/s subsistaient dans des traces jamais passées par le regroupement global (donc jamais
+    vues par _boundary_transition_plausible), preuve que la contamination venait d'en amont.
+
+    Chaque morceau hérite du même embedding moyen que la trace d'origine — conserver un embedding
+    précis par morceau demanderait de garder celui de chaque frame individuellement plutôt qu'une
+    simple somme courante. Approximation acceptée : cluster_tracks_globally() revalidera de toute
+    façon chaque paire de morceaux avec la même contrainte physique avant de les refusionner."""
+    result = {}
+    for key, acc in accumulators.items():
+        if len(acc.samples) < 2:
+            result[key] = acc
+            continue
+
+        segments, current = [], [acc.samples[0]]
+        for prev, cur in zip(acc.samples, acc.samples[1:]):
+            dt = cur[0] - prev[0]
+            dist_m = (((cur[1] - prev[1]) * PITCH_WIDTH_M) ** 2
+                      + ((cur[2] - prev[2]) * PITCH_LENGTH_M) ** 2) ** 0.5
+            if dt > 0 and dist_m / dt > MAX_PLAUSIBLE_SPEED_MS:
+                segments.append(current)
+                current = []
+            current.append(cur)
+        segments.append(current)
+
+        if len(segments) == 1:
+            result[key] = acc
+            continue
+        for i, seg in enumerate(segments):
+            piece = TrackAccumulator()
+            piece.team = acc.team
+            piece.samples = seg
+            piece._embedding_sum = acc._embedding_sum
+            piece._embedding_count = acc._embedding_count
+            result[f"{key}~{i}"] = piece
+    return result
+
+
 def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
     """Regroupe après coup les traces qui appartiennent probablement au même joueur réel, en
     comparant TOUTES les paires de traces du match (pas seulement celles proches dans le temps,
@@ -274,6 +337,12 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
     différents), ce qui a produit en pratique des couvertures > 1.0 (plusieurs joueurs réels
     fusionnés en une trace, détecté et corrigé). La liaison complète exige que TOUS les membres
     d'un groupe restent proches les uns des autres, pas juste chaînés.
+
+    Deux véto absolus avant même de regarder la similarité d'apparence : chevauchement temporel
+    (impossible d'être la même personne à deux endroits en même temps), et transition physiquement
+    impossible entre la fin d'une trace et le début de l'autre (cf. _boundary_transition_plausible)
+    — repéré sur un vrai match complet : la seule similarité d'embedding, même à un seuil strict,
+    laisse passer des fusions entre deux joueurs différents mais qui se ressemblent.
 
     accumulators : dict label -> TrackAccumulator (label du type "A#18" — le préfixe avant "#" sert
     de clé d'équipe, on ne regroupe jamais entre équipes différentes ; le maillot ne différencie
@@ -294,12 +363,22 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
 
         embeddings = np.stack([accumulators[k].mean_embedding for k in keys])
         dist = 1.0 - embeddings @ embeddings.T  # cosine -> distance, embeddings déjà normalisés
+        # Deux morceaux issus d'un même split_implausible_tracks() héritent du même embedding
+        # exact (cf. ce module) : leur similarité peut ressortir infinitésimalement au-dessus de 1.0
+        # par imprécision flottante, ce qui produirait une distance négative — scipy refuse
+        # catégoriquement (ValueError) plutôt que de tolérer ce bruit numérique habituel.
+        dist = np.clip(dist, 0.0, None)
         ranges = [accumulators[k].time_range for k in keys]
         for i in range(len(keys)):
             for j in range(i + 1, len(keys)):
                 (t1_min, t1_max), (t2_min, t2_max) = ranges[i], ranges[j]
                 if t1_min <= t2_max and t2_min <= t1_max:
                     dist[i, j] = dist[j, i] = 10.0  # chevauchement temporel -> jamais le même joueur
+                    continue
+                acc_i, acc_j = accumulators[keys[i]], accumulators[keys[j]]
+                earlier, later = (acc_i, acc_j) if t1_max <= t2_min else (acc_j, acc_i)
+                if not _boundary_transition_plausible(earlier, later):
+                    dist[i, j] = dist[j, i] = 10.0  # transition physiquement impossible -> jamais fusionner
         np.fill_diagonal(dist, 0.0)
 
         condensed = squareform(dist, checks=False)

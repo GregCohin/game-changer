@@ -26,7 +26,7 @@ import cv2
 from tqdm import tqdm
 
 from calibration import Calibrator, image_to_pitch_norm
-from tracking import Tracker, cluster_tracks_globally
+from tracking import Tracker, cluster_tracks_globally, split_implausible_tracks
 from metrics import TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape
 from overlay import draw_debug_frame
 
@@ -249,7 +249,15 @@ if __name__ == "__main__":
         args.checkpoint, args.checkpoint_every, args.resume
     )
     n_before = len(accumulators)
+    accumulators = split_implausible_tracks(accumulators)
+    n_after_split = len(accumulators)
     accumulators = cluster_tracks_globally(accumulators)
+    n_after_cluster = len(accumulators)
+    # Filet de sécurité : le regroupement (fusions à 3+ morceaux, cas de transitivité pas encore
+    # entièrement tracé) peut réintroduire un saut interne implausible même après le découpage
+    # initial. Redécouper ici ne fait que séparer, jamais fusionner — sans risque, et garantit un
+    # résultat final propre par construction plutôt que de dépendre d'avoir trouvé la cause exacte.
+    accumulators = split_implausible_tracks(accumulators)
     analytics = build_analytics(accumulators, team_frame_positions, total_sampled, roster_map)
 
     with open(args.out, "w") as fh:
@@ -257,7 +265,9 @@ if __name__ == "__main__":
 
     print(f"Ré-identification en flux : {reid.merges} fusion(s) sur {reid.opportunities} occasion(s) "
           f"(trace jamais vue avec un candidat récent de la même équipe disponible).")
-    print(f"Regroupement global : {n_before} -> {len(accumulators)} traces.")
+    print(f"Découpage (traces contaminées par la ré-id en flux) : {n_before} -> {n_after_split} traces.")
+    print(f"Regroupement global : {n_after_split} -> {n_after_cluster} traces.")
+    print(f"Redécoupage final (filet de sécurité) : {n_after_cluster} -> {len(accumulators)} traces.")
     calib_pct = round(100 * calibrated_sampled / total_sampled) if total_sampled else 0
     print(f"OK — {len(analytics['players'])} joueur(s) suivi(s) sur {total_sampled} frames "
           f"échantillonnées ({calib_pct}% calibrées) -> {args.out}")
