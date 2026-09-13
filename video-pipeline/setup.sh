@@ -32,4 +32,15 @@ gdown.download('https://drive.google.com/uc?id=1Kkx2zW89jq_NETu4u42CFZTMVD5Hwm6e
 "
 fi
 
+# Détecteur football dédié (YOLOv8m réentraîné sur le jeu "football-players-detection" de Roboflow,
+# poids partagés par Darkmyter/Football-Players-Tracking) — détecte nettement plus de joueurs que
+# YOLO générique (COCO "person") sur des vidéos de match réelles, et sépare arbitre/gardien/joueur/
+# ballon nativement. Là aussi via gdown, pas de release GitHub.
+if [ ! -f weights/yolov8m-640-football-players.pt ]; then
+  .venv/bin/python -c "
+import gdown
+gdown.download('https://drive.google.com/uc?id=1GWvf50u4yTep9pcF_ReDajnISsUtzvln', 'weights/yolov8m-640-football-players.pt', quiet=False)
+"
+fi
+
 echo "Prêt. Active l'environnement avec : source video-pipeline/.venv/bin/activate"

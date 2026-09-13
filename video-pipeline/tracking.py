@@ -21,9 +21,15 @@ from ultralytics import YOLO
 from trackers import ByteTrackTracker
 from torchreid.reid.utils import FeatureExtractor
 
-PERSON_CLASS = 0
-BALL_CLASS = 32  # "sports ball" COCO — modèle générique pour la V1, à remplacer par un modèle
-                  # football dédié (ex. Roboflow Universe) une fois la mécanique validée.
+DEFAULT_DETECTION_WEIGHTS = Path(__file__).parent / "weights" / "yolov8m-640-football-players.pt"
+# Classes du modèle football dédié (Darkmyter/Football-Players-Tracking, YOLOv8m réentraîné sur le
+# jeu "football-players-detection" de Roboflow) — vérifiées directement via model.names, PAS l'ordre
+# du README. Détecte nettement plus de joueurs que YOLO générique + classe COCO "person" (jusqu'à
+# +60-70% sur des frames réelles testées) et sépare nativement arbitre/gardien/joueur/ballon, ce qui
+# permet d'exclure les arbitres du suivi plutôt que de les compter comme des joueurs.
+BALL_CLASS = 0
+PLAYER_CLASSES = [1, 2]  # goalkeeper, player — les deux comptent pour les stats physiques
+REFEREE_CLASS = 3        # explicitement exclu du tracking
 
 REID_WEIGHTS = Path(__file__).parent / "weights" / "osnet_x0_25_msmt17.pt"
 REID_MAX_GAP_SECONDS = 90.0    # signal bien plus fiable que la couleur -> fenêtre élargie
@@ -137,7 +143,12 @@ class ReIdentifier:
 
 
 class Tracker:
-    def __init__(self, model_path="yolov8n.pt", device="cpu", confidence=0.3, frame_rate=25.0):
+    def __init__(self, model_path=None, device="cpu", confidence=0.3, frame_rate=25.0):
+        model_path = model_path or str(DEFAULT_DETECTION_WEIGHTS)
+        if model_path == str(DEFAULT_DETECTION_WEIGHTS) and not DEFAULT_DETECTION_WEIGHTS.exists():
+            raise FileNotFoundError(
+                f"Poids de détection football manquants : {DEFAULT_DETECTION_WEIGHTS} — lance setup.sh."
+            )
         self.model = YOLO(model_path)
         self.device = device
         self.confidence = confidence
@@ -181,12 +192,13 @@ class Tracker:
         joueurs = liste de {"track_id": id stable ré-identifié, "team": "A"/"B"/"autre"/None,
                              "px": float, "py": float}  (px, py = pieds au sol, en pixels image)
         position_ballon = (px, py) en pixels, ou None si aucun ballon détecté cette frame."""
+        # Arbitre volontairement absent de `classes` : jamais suivi comme joueur.
         result = self.model(frame_bgr, device=self.device, verbose=False,
-                             classes=[PERSON_CLASS, BALL_CLASS])[0]
+                             classes=PLAYER_CLASSES + [BALL_CLASS])[0]
         detections = sv.Detections.from_ultralytics(result)
         detections = detections[detections.confidence > self.confidence]
 
-        people = detections[detections.class_id == PERSON_CLASS]
+        people = detections[np.isin(detections.class_id, PLAYER_CLASSES)]
         balls = detections[detections.class_id == BALL_CLASS]
         # `frame=` n'est pas utilisé par l'estimateur d'état par défaut (avertissement sinon) —
         # notre ReIdentifier gère la ré-identification par apparence séparément.
