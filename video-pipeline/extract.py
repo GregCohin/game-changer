@@ -23,10 +23,15 @@ import pickle
 from collections import defaultdict
 
 import cv2
+import numpy as np
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
 from tqdm import tqdm
 
 from calibration import Calibrator, image_to_pitch_norm
-from tracking import Tracker, cluster_tracks_globally, split_implausible_tracks
+from tracking import (
+    Tracker, cluster_tracks_globally, split_implausible_tracks, _boundary_transition_plausible,
+)
 from metrics import (
     TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape,
     smooth_track_samples,
@@ -146,7 +151,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             acc = accumulators.setdefault(key, TrackAccumulator())
             acc.add_seen(p["team"])
             acc.add_embedding(p["embedding"])
-            acc.update_thumbnail(frame, p["box"])
+            acc.update_thumbnail(t, frame, p["box"])
             if total_sampled % jersey_ocr_every_n == 0:
                 acc.add_jersey_reading(jersey_reader.read(frame, p["box"]))
             if homography is not None:
@@ -190,26 +195,67 @@ def _resolve_roster_merges(accumulators, roster_map):
     regroupement automatique n'a pas fusionné. Sans ce passage, ces traces s'écraseraient l'une
     l'autre dans players_out au lieu de s'additionner. Fusionne les échantillons bruts (même
     logique que cluster_tracks_globally) plutôt que de recombiner des stats déjà agrégées —
-    topSpeed/sprints/etc. ne s'additionnent pas correctement après coup."""
+    topSpeed/sprints/etc. ne s'additionnent pas correctement après coup.
+
+    Revalide chaque groupe avec la MÊME contrainte physique que le regroupement automatique
+    (chevauchement temporel / transition impossible) avant de fusionner — une identité humaine
+    reste une entrée sujette à erreur (numéro mal lu, ou vignettes identiques trompeuses avant le
+    correctif du 2026-09-14 qui faisait hériter la même image à des morceaux différents). Repéré
+    concrètement ce soir-là : un même numéro assigné à 13 traces qui se chevauchaient massivement
+    dans le temps (70 conflits sur 78 paires) — sans cette vérification, ç'aurait produit un
+    "joueur" à 9km parcourus et 136 sprints, statistiquement impossible."""
     if not roster_map:
         return accumulators
     groups = {}
     for key, acc in accumulators.items():
         team_prefix, num = key.split("#", 1)
         player_id = roster_map.get(team_prefix, {}).get(num)
-        groups.setdefault(player_id or key, []).append(acc)
+        groups.setdefault(player_id or key, []).append((key, acc))
 
     merged = {}
-    for out_key, accs in groups.items():
-        if len(accs) == 1:
-            merged[out_key] = accs[0]
+    for out_key, items in groups.items():
+        if len(items) == 1:
+            merged[out_key] = items[0][1]
             continue
-        combined = TrackAccumulator()
-        combined.team = accs[0].team
-        for acc in accs:
-            combined.samples.extend(acc.samples)
-        combined.samples.sort(key=lambda s: s[0])
-        merged[out_key] = combined
+
+        n = len(items)
+        dist = np.zeros((n, n))
+        for i in range(n):
+            for j in range(i + 1, n):
+                acc_i, acc_j = items[i][1], items[j][1]
+                if acc_i.time_range is None or acc_j.time_range is None:
+                    continue
+                (t0i, t1i), (t0j, t1j) = acc_i.time_range, acc_j.time_range
+                if t0i <= t1j and t0j <= t1i:
+                    incompatible = True
+                else:
+                    earlier, later = (acc_i, acc_j) if t1i <= t0j else (acc_j, acc_i)
+                    incompatible = not _boundary_transition_plausible(earlier, later)
+                dist[i, j] = dist[j, i] = 10.0 if incompatible else 0.0
+
+        labels = fcluster(linkage(squareform(dist, checks=False), method="complete"),
+                           t=5.0, criterion="distance")
+        subgroups = {}
+        for (key, acc), label in zip(items, labels):
+            subgroups.setdefault(label, []).append((key, acc))
+
+        if len(subgroups) > 1:
+            print(f"ATTENTION — \"{out_key}\" assigné à {n} traces mais {len(subgroups)} "
+                  f"sous-ensembles physiquement incompatibles entre eux détectés (tailles "
+                  f"{[len(g) for g in subgroups.values()]}) — probable confusion entre plusieurs "
+                  f"joueurs réels. Séparés plutôt que fusionnés à tort ; à vérifier manuellement.")
+
+        for i, sub_items in enumerate(subgroups.values()):
+            sub_key = out_key if len(subgroups) == 1 else f"{out_key}~conflit{i}"
+            if len(sub_items) == 1:
+                merged[sub_key] = sub_items[0][1]
+                continue
+            combined = TrackAccumulator()
+            combined.team = sub_items[0][1].team
+            for _, acc in sub_items:
+                combined.samples.extend(acc.samples)
+            combined.samples.sort(key=lambda s: s[0])
+            merged[sub_key] = combined
     return merged
 
 
@@ -268,10 +314,11 @@ def export_review_manifest(accumulators, out_dir, total_sampled):
             continue
         team_prefix = key.split("#", 1)[0]
         thumb_name = None
-        if acc.best_thumbnail is not None:
+        if acc.thumbnail_candidates:
+            best = max(acc.thumbnail_candidates, key=lambda c: c[1])
             thumb_name = f"{key.replace('#', '_').replace('~', '-')}.jpg"
             with open(os.path.join(thumb_dir, thumb_name), "wb") as fh:
-                fh.write(acc.best_thumbnail)
+                fh.write(best[2])
         entries.append({
             "key": key,
             "team": team_prefix if team_prefix in ("A", "B") else None,

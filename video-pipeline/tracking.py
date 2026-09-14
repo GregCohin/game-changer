@@ -23,7 +23,9 @@ from ultralytics import YOLO
 from trackers import ByteTrackTracker
 from torchreid.reid.utils import FeatureExtractor
 
-from metrics import TrackAccumulator, MAX_PLAUSIBLE_SPEED_MS, PITCH_WIDTH_M, PITCH_LENGTH_M
+from metrics import (
+    TrackAccumulator, MAX_PLAUSIBLE_SPEED_MS, PITCH_WIDTH_M, PITCH_LENGTH_M, THUMBNAIL_CANDIDATES_MAX,
+)
 
 DEFAULT_DETECTION_WEIGHTS = Path(__file__).parent / "weights" / "yolov8m-640-football-players.pt"
 # Classes du modèle football dédié (Darkmyter/Football-Players-Tracking, YOLOv8m réentraîné sur le
@@ -337,8 +339,11 @@ def split_implausible_tracks(accumulators):
             piece._embedding_sum = acc._embedding_sum
             piece._embedding_count = acc._embedding_count
             piece.jersey_readings = acc.jersey_readings
-            piece.best_thumbnail = acc.best_thumbnail
-            piece.best_box_height = acc.best_box_height
+            # Uniquement les candidats DANS la plage de ce morceau — un candidat hérité tel quel
+            # pourrait montrer un instant appartenant en réalité à un autre morceau (potentiellement
+            # un autre joueur, cf. update_thumbnail dans metrics.py).
+            t_start, t_end = seg[0][0], seg[-1][0]
+            piece.thumbnail_candidates = [c for c in acc.thumbnail_candidates if t_start <= c[0] <= t_end]
             result[f"{key}~{i}"] = piece
     return result
 
@@ -435,9 +440,13 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
             for m in members:
                 combined.samples.extend(accumulators[m].samples)
             combined.samples.sort(key=lambda s: s[0])
-            best_member = max(members, key=lambda m: accumulators[m].best_box_height)
-            combined.best_thumbnail = accumulators[best_member].best_thumbnail
-            combined.best_box_height = accumulators[best_member].best_box_height
+            # Ces morceaux sont ici confirmés comme le même joueur (contrainte physique déjà
+            # validée plus haut) - contrairement au découpage, tous leurs candidats restent valides
+            # pour la trace fusionnée.
+            for m in members:
+                combined.thumbnail_candidates.extend(accumulators[m].thumbnail_candidates)
+            combined.thumbnail_candidates.sort(key=lambda c: -c[1])
+            del combined.thumbnail_candidates[THUMBNAIL_CANDIDATES_MAX:]
             merged[members[0]] = combined
 
     # Traces sans embedding exploitable (rare : tous les recadrages de cette trace ont échoué) —

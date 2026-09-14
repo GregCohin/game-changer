@@ -27,6 +27,11 @@ SMOOTH_WINDOW = 7  # nb d'échantillons (centré) pour le filtre médian anti-br
                     # meilleur résultat obtenu à 7 (couverture max 38%, vitesses redescendues à des
                     # niveaux plausibles), gains marginaux/mitigés au-delà.
 
+THUMBNAIL_CANDIDATES_MAX = 8  # nb de vignettes candidates gardées par trace (cf. TrackAccumulator.
+                               # update_thumbnail) - assez pour qu'un découpage ultérieur retrouve
+                               # presque toujours un candidat dans la plage de temps de chaque
+                               # morceau, sans faire grossir le checkpoint de façon excessive.
+
 PITCH_WIDTH_M = 68.0
 PITCH_LENGTH_M = 105.0
 
@@ -76,8 +81,7 @@ class TrackAccumulator:
         self._embedding_sum = None  # somme courante -> moyenne robuste, pas juste le dernier vu
         self._embedding_count = 0
         self.jersey_readings = []  # [(numero:str, confiance:float), ...] cf. jersey_ocr.JerseyReader
-        self.best_thumbnail = None  # bytes JPEG - meilleure vignette rencontrée (cf. update_thumbnail)
-        self.best_box_height = 0.0
+        self.thumbnail_candidates = []  # [(t, box_height, jpeg_bytes), ...] cf. update_thumbnail
 
     def add_seen(self, team):
         if team and self.team is None:
@@ -99,22 +103,40 @@ class TrackAccumulator:
         if reading is not None:
             self.jersey_readings.append(reading)
 
-    def update_thumbnail(self, frame_bgr, box):
-        """Garde la vignette du plan le plus large rencontré sur cette trace (la boîte la plus haute
-        en pixels = le joueur le plus net/gros à l'écran) - pour l'outil de revue humaine, où une
-        image reconnaissable compte plus qu'une image "moyenne" ou la toute première rencontrée."""
+    def update_thumbnail(self, t, frame_bgr, box):
+        """Garde jusqu'à THUMBNAIL_CANDIDATES_MAX vignettes candidates (plan le plus large = boîte
+        la plus haute en pixels), chacune horodatée. Nécessaire pour survivre à un découpage
+        ultérieur (split_implausible_tracks) : un seul "meilleur" global, hérité tel quel par
+        chaque morceau, montrerait la MÊME image sur des morceaux qui peuvent être des joueurs
+        différents (c'est justement pour ça qu'ils sont découpés) - repéré concrètement le
+        2026-09-14 : Gregory a cohéremment donné le même numéro à des traces qui partageaient une
+        vignette identique héritée, alors que ces traces se chevauchaient dans le temps (donc ne
+        pouvaient pas être la même personne). Garder plusieurs candidats horodatés permet à chaque
+        morceau de reprendre la meilleure vignette DANS SA PROPRE plage de temps."""
         x1, y1, x2, y2 = box
         h = y2 - y1
-        if h <= self.best_box_height:
+        cands = self.thumbnail_candidates
+        if len(cands) >= THUMBNAIL_CANDIDATES_MAX and h <= min(c[1] for c in cands):
             return
-        x1, y1 = max(0, int(x1) - 10), max(0, int(y1) - 10)
-        x2, y2 = min(frame_bgr.shape[1], int(x2) + 10), min(frame_bgr.shape[0], int(y2) + 10)
-        if x2 <= x1 or y2 <= y1:
+        x1c, y1c = max(0, int(x1) - 10), max(0, int(y1) - 10)
+        x2c, y2c = min(frame_bgr.shape[1], int(x2) + 10), min(frame_bgr.shape[0], int(y2) + 10)
+        if x2c <= x1c or y2c <= y1c:
             return
-        ok, buf = cv2.imencode(".jpg", frame_bgr[y1:y2, x1:x2], [cv2.IMWRITE_JPEG_QUALITY, 85])
-        if ok:
-            self.best_box_height = h
-            self.best_thumbnail = buf.tobytes()
+        ok, buf = cv2.imencode(".jpg", frame_bgr[y1c:y2c, x1c:x2c], [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if not ok:
+            return
+        cands.append((t, h, buf.tobytes()))
+        cands.sort(key=lambda c: -c[1])
+        del cands[THUMBNAIL_CANDIDATES_MAX:]
+
+    def best_thumbnail_in_range(self, t_start, t_end):
+        """Meilleure vignette (plus grosse boîte) parmi celles dont l'horodatage tombe dans
+        [t_start, t_end] - None si aucun candidat n'est tombé dans cette plage précise (préférable à
+        une vignette empruntée à une autre plage, potentiellement trompeuse)."""
+        in_range = [c for c in self.thumbnail_candidates if t_start <= c[0] <= t_end]
+        if not in_range:
+            return None
+        return max(in_range, key=lambda c: c[1])[2]
 
     @property
     def majority_jersey(self):
