@@ -31,7 +31,7 @@ from metrics import (
     TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape,
     smooth_track_samples,
 )
-from overlay import draw_debug_frame
+from overlay import draw_debug_frame, DebugVideoWriter
 
 
 def _label(team, track_id):
@@ -108,9 +108,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
 
     overlay_writer = None
     if debug_overlay_path:
-        overlay_writer = cv2.VideoWriter(
-            debug_overlay_path, cv2.VideoWriter_fourcc(*"mp4v"), sample_fps, (width, height)
-        )
+        overlay_writer = DebugVideoWriter(debug_overlay_path, sample_fps, width, height)
 
     while True:
         ret, frame = cap.read()
