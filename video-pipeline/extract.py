@@ -36,12 +36,15 @@ from jersey_ocr import JerseyReader
 
 # Taux de détection réel mesuré sur extrait (seuils EasyOCR assouplis, cf. jersey_ocr.py) : ~1-2%
 # des tentatives seulement aboutissent à une lecture exploitable (numéro rarement visible/net -
-# joueur de dos, en mouvement, loin caméra) - même les traces les plus longues du match n'auraient
-# pas assez de tentatives pour atteindre un vote majoritaire (JERSEY_MIN_CONFIDENT_READS) si on
-# sous-échantillonne encore l'OCR en plus de l'échantillonnage vidéo déjà réduit. D'où 1 (aucun
-# sous-échantillonnage) plutôt qu'un débit réduit comme pour d'autres signaux - le surcoût mesuré
-# reste faible (l'OCR ne domine pas le temps de calcul face à détection/tracking/calibration).
-JERSEY_OCR_EVERY_N = 1
+# joueur de dos, en mouvement, loin caméra). Testé sur deux extraits (3 min et 12 min) : à ce taux,
+# la fusion automatique par numéro n'a quasiment aucune occasion de jouer (490 -> 492 traces, effet
+# net nul voire négatif) - contrairement au recadrage de l'embedding (cf. REID_CROP_Y_START_FRAC
+# dans tracking.py), qui lui réduit vraiment la fragmentation. L'OCR reste utile pour la REVUE
+# assistée (suggestion affichée à l'humain, cf. --review-out) mais coûte ~60-75% de temps de calcul
+# en plus à débit 1 - pas justifié sur un run complet (13h+) pour un gain automatique non confirmé.
+# D'où un débit configurable : élevé (quasi désactivé) par défaut sur un run long, réduit
+# explicitement (--jersey-ocr-every-n 1) sur un run court dédié à la revue.
+JERSEY_OCR_EVERY_N_DEFAULT = 1000000
 
 
 def _label(team, track_id):
@@ -65,7 +68,7 @@ def _load_checkpoint(path):
 
 
 def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None, start_seconds=0.0,
-        checkpoint_path=None, checkpoint_every=300, resume=False):
+        checkpoint_path=None, checkpoint_every=300, resume=False, jersey_ocr_every_n=JERSEY_OCR_EVERY_N_DEFAULT):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise SystemExit(f"Impossible d'ouvrir la vidéo : {video_path}")
@@ -144,7 +147,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             acc.add_seen(p["team"])
             acc.add_embedding(p["embedding"])
             acc.update_thumbnail(frame, p["box"])
-            if total_sampled % JERSEY_OCR_EVERY_N == 0:
+            if total_sampled % jersey_ocr_every_n == 0:
                 acc.add_jersey_reading(jersey_reader.read(frame, p["box"]))
             if homography is not None:
                 pos = image_to_pitch_norm(homography, p["px"], p["py"])
@@ -288,6 +291,12 @@ if __name__ == "__main__":
                          help="Sauvegarde le checkpoint tous les N échantillons traités (def. 300).")
     parser.add_argument("--resume", action="store_true",
                          help="Reprend depuis --checkpoint s'il existe, au lieu de repartir de zéro.")
+    parser.add_argument("--jersey-ocr-every-n", type=int, default=JERSEY_OCR_EVERY_N_DEFAULT,
+                         help="Lit le numéro de maillot 1 frame échantillonnée sur N (par joueur). "
+                              "Par défaut quasi désactivé (coûte ~60-75%% de temps de calcul à N=1, "
+                              "cf. commentaire plus haut) - mettre 1 pour un run court dédié à la "
+                              "revue assistée (--review-out), où la suggestion affichée à l'humain "
+                              "vaut le coût sur une durée courte.")
     parser.add_argument("--review-out", default=None,
                          help="Dossier où écrire vignettes + manifest.json pour l'outil de "
                               "rattachement assisté (une entrée par trace d'au moins "
@@ -301,7 +310,7 @@ if __name__ == "__main__":
 
     accumulators, team_frame_positions, total_sampled, calibrated_sampled, reid = run(
         args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds,
-        args.checkpoint, args.checkpoint_every, args.resume
+        args.checkpoint, args.checkpoint_every, args.resume, args.jersey_ocr_every_n
     )
     # Lissage AVANT toute détection de saut implausible : la calibration recalcule chaque frame
     # indépendamment (nécessaire pour une caméra qui bouge), donc même un joueur immobile peut

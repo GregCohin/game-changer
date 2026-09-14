@@ -48,12 +48,14 @@ REID_EMBEDDING_MIN_SIM = 0.75  # similarité cosinus mini pour relier deux trace
 REID_GLOBAL_MIN_SIM = 0.88
 
 # Part supérieure de la boîte exclue du crop envoyé à l'embedding de ré-identification (0.0 = boîte
-# entière). Hypothèse à valider : OSNet (entraîné sur des piétons en vêtements variés) est dominé par
-# la couleur/texture du maillot, qui ne différencie RIEN entre deux coéquipiers - contrairement à un
-# contexte piéton où le vêtement est justement le signal le plus discriminant. Exclure le maillot
-# (tête+épaules+torse) et ne garder que hanches/jambes pourrait forcer le modèle à s'appuyer sur des
-# traits plus individuels (morphologie, démarche). Cf. tests comparatifs avant/après changement.
-REID_CROP_Y_START_FRAC = 0.0
+# entière). Hypothèse validée par test comparatif direct (2026-09-14, même extrait de 12 min) :
+# OSNet (entraîné sur des piétons en vêtements variés) était dominé par la couleur/texture du
+# maillot, qui ne différencie RIEN entre deux coéquipiers - contrairement à un contexte piéton où le
+# vêtement est justement le signal le plus discriminant. Exclure le maillot (tête+épaules+torse) et
+# ne garder que hanches/jambes force le modèle à s'appuyer sur des traits plus individuels
+# (morphologie, démarche) : 490 -> 398 traces après regroupement sur le même extrait (-19%), premier
+# levier de cette soirée à réduire réellement la fragmentation plutôt que de la déplacer.
+REID_CROP_Y_START_FRAC = 0.4
 
 
 def _shirt_color(frame_bgr, box):
