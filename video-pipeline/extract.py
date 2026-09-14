@@ -182,28 +182,57 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     return accumulators, team_frame_positions, total_sampled, calibrated_sampled, tracker.reid
 
 
+def _resolve_roster_merges(accumulators, roster_map):
+    """Regroupe les traces qui pointent vers le MÊME joueur une fois le roster appliqué. Nécessaire
+    depuis l'outil de revue assistée : il attribue un numéro par trace indépendamment, donc
+    plusieurs traces différentes reçoivent légitimement le même numéro dès que Gregory identifie
+    deux fragments comme le même joueur — c'est précisément comme ça que la revue comble ce que le
+    regroupement automatique n'a pas fusionné. Sans ce passage, ces traces s'écraseraient l'une
+    l'autre dans players_out au lieu de s'additionner. Fusionne les échantillons bruts (même
+    logique que cluster_tracks_globally) plutôt que de recombiner des stats déjà agrégées —
+    topSpeed/sprints/etc. ne s'additionnent pas correctement après coup."""
+    if not roster_map:
+        return accumulators
+    groups = {}
+    for key, acc in accumulators.items():
+        team_prefix, num = key.split("#", 1)
+        player_id = roster_map.get(team_prefix, {}).get(num)
+        groups.setdefault(player_id or key, []).append(acc)
+
+    merged = {}
+    for out_key, accs in groups.items():
+        if len(accs) == 1:
+            merged[out_key] = accs[0]
+            continue
+        combined = TrackAccumulator()
+        combined.team = accs[0].team
+        for acc in accs:
+            combined.samples.extend(acc.samples)
+        combined.samples.sort(key=lambda s: s[0])
+        merged[out_key] = combined
+    return merged
+
+
 def build_analytics(accumulators, team_frame_positions, total_sampled, roster_map):
+    accumulators = _resolve_roster_merges(accumulators, roster_map)
     players_out = {}
     for key, acc in accumulators.items():
         physical = compute_player_physical(acc.samples)
         if physical is None:
             continue
-        team_prefix, num = key.split("#", 1)
-        player_id = roster_map.get(team_prefix, {}).get(num) if roster_map else None
-        out_key = player_id or key
         # Couverture = fraction du match (échantillonné) où CE joueur a pu être positionné —
         # pas fraction de ses seules apparitions à l'écran. Un joueur souvent hors champ doit
         # ressortir avec une couverture basse, pas 1.0 juste parce que les frames où on l'a vu
         # étaient toutes calibrables.
         coverage = round(len(acc.samples) / total_sampled, 3) if total_sampled else 0.0
         if coverage > 1.0:
-            # Mathématiquement impossible sauf bug de regroupement (deux joueurs réels fusionnés
-            # en une trace, déjà rencontré une fois) — mieux vaut le signaler bruyamment que
-            # livrer silencieusement une donnée fausse.
-            print(f"ATTENTION — couverture impossible ({coverage}) pour {out_key}, "
+            # Mathématiquement impossible sauf fusion incorrecte (deux joueurs réels fusionnés en
+            # un seul, déjà rencontré) — mieux vaut le signaler bruyamment que livrer silencieusement
+            # une donnée fausse.
+            print(f"ATTENTION — couverture impossible ({coverage}) pour {key}, "
                   f"probable fusion incorrecte de deux joueurs distincts.")
             coverage = min(coverage, 1.0)
-        players_out[out_key] = {
+        players_out[key] = {
             **physical,
             "heatmapPoints": compute_heatmap_points(acc.samples),
             "visibleCoverage": coverage,
