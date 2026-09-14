@@ -3,6 +3,8 @@ emptyAdvancedAnalytics() (src/App.jsx:24349) — physique par joueur, heatmap, f
 Unités alignées sur generateMockAdvancedAnalytics() (src/App.jsx:24362) : distances en mètres,
 vitesse en km/h.
 """
+from collections import Counter
+
 import numpy as np
 
 SPRINT_SPEED_MS = 6.0          # m/s (~21.6 km/h) - seuil usuel pour compter un "sprint"
@@ -26,6 +28,14 @@ SMOOTH_WINDOW = 7  # nb d'échantillons (centré) pour le filtre médian anti-br
 
 PITCH_WIDTH_M = 68.0
 PITCH_LENGTH_M = 105.0
+
+# Vote majoritaire du numéro de maillot (jersey_ocr.JerseyReader) - seuils pour qu'une trace obtienne
+# un numéro "confiant" utilisable comme contrainte de regroupement (tracking.cluster_tracks_globally).
+# Une seule lecture, même à confiance individuelle correcte, ne suffit jamais (cf. jersey_ocr.py) :
+# il faut un vrai consensus sur plusieurs lectures indépendantes.
+JERSEY_MIN_CONFIDENT_READS = 3
+JERSEY_MIN_READ_CONFIDENCE = 0.5
+JERSEY_MIN_AGREEMENT = 0.6  # part des lectures confiantes qui doivent tomber sur le même numéro
 
 
 def smooth_track_samples(samples, window=SMOOTH_WINDOW):
@@ -64,6 +74,7 @@ class TrackAccumulator:
         self.team = None
         self._embedding_sum = None  # somme courante -> moyenne robuste, pas juste le dernier vu
         self._embedding_count = 0
+        self.jersey_readings = []  # [(numero:str, confiance:float), ...] cf. jersey_ocr.JerseyReader
 
     def add_seen(self, team):
         if team and self.team is None:
@@ -80,6 +91,26 @@ class TrackAccumulator:
         else:
             self._embedding_sum += embedding
         self._embedding_count += 1
+
+    def add_jersey_reading(self, reading):
+        if reading is not None:
+            self.jersey_readings.append(reading)
+
+    @property
+    def majority_jersey(self):
+        """Numéro de maillot si un consensus net se dégage sur cette trace, sinon None (pas assez
+        de lectures confiantes, ou lectures trop partagées entre plusieurs numéros pour trancher) —
+        cf. JERSEY_MIN_* ci-dessus. Volontairement conservateur : ce champ sert de contrainte dure
+        au regroupement (deux numéros confiants différents -> jamais le même joueur), une fausse
+        confiance coûterait plus cher qu'une trace laissée sans numéro."""
+        confident = [(n, c) for n, c in self.jersey_readings if c >= JERSEY_MIN_READ_CONFIDENCE]
+        if len(confident) < JERSEY_MIN_CONFIDENT_READS:
+            return None
+        counts = Counter(n for n, _ in confident)
+        number, count = counts.most_common(1)[0]
+        if count / len(confident) < JERSEY_MIN_AGREEMENT:
+            return None
+        return number
 
     @property
     def mean_embedding(self):

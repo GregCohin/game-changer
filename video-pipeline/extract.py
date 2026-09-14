@@ -32,6 +32,16 @@ from metrics import (
     smooth_track_samples,
 )
 from overlay import draw_debug_frame, DebugVideoWriter
+from jersey_ocr import JerseyReader
+
+# Taux de détection réel mesuré sur extrait (seuils EasyOCR assouplis, cf. jersey_ocr.py) : ~1-2%
+# des tentatives seulement aboutissent à une lecture exploitable (numéro rarement visible/net -
+# joueur de dos, en mouvement, loin caméra) - même les traces les plus longues du match n'auraient
+# pas assez de tentatives pour atteindre un vote majoritaire (JERSEY_MIN_CONFIDENT_READS) si on
+# sous-échantillonne encore l'OCR en plus de l'échantillonnage vidéo déjà réduit. D'où 1 (aucun
+# sous-échantillonnage) plutôt qu'un débit réduit comme pour d'autres signaux - le surcoût mesuré
+# reste faible (l'OCR ne domine pas le temps de calcul face à détection/tracking/calibration).
+JERSEY_OCR_EVERY_N = 1
 
 
 def _label(team, track_id):
@@ -99,6 +109,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     # généralement plus basse) — les deux sont indépendants une fois qu'on fournit un timestamp
     # explicite. Les confondre fait échouer la confirmation de toute trace (vérifié empiriquement).
     tracker = Tracker(device=device, frame_rate=native_fps)
+    jersey_reader = JerseyReader(device=device)
     # Repartir d'un checkpoint perd l'état interne du tracker (couleurs d'équipe calibrées, galerie
     # de traces "perdues" récemment) — recalibré en quelques secondes, effet secondaire mineur
     # accepté plutôt que de sérialiser des modèles PyTorch entiers à chaque checkpoint.
@@ -132,6 +143,8 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             acc = accumulators.setdefault(key, TrackAccumulator())
             acc.add_seen(p["team"])
             acc.add_embedding(p["embedding"])
+            if total_sampled % JERSEY_OCR_EVERY_N == 0:
+                acc.add_jersey_reading(jersey_reader.read(frame, p["box"]))
             if homography is not None:
                 pos = image_to_pitch_norm(homography, p["px"], p["py"])
                 if pos is not None:

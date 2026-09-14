@@ -11,5 +11,6 @@ ultralytics
 supervision
 trackers
 torchreid
+easyocr
 gdown
 tqdm

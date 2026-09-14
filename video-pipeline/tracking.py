@@ -202,8 +202,8 @@ class Tracker:
     def process_frame(self, frame_bgr, t_seconds):
         """Retourne (joueurs, position_ballon).
         joueurs = liste de {"track_id": id stable ré-identifié, "team": "A"/"B"/"autre"/None,
-                             "px": float, "py": float, "embedding": array ou None}
-                             (px, py = pieds au sol, en pixels image)
+                             "px": float, "py": float, "box": (x1,y1,x2,y2), "embedding": array ou None}
+                             (px, py = pieds au sol, en pixels image ; box = boîte détectée brute)
         position_ballon = (px, py) en pixels, ou None si aucun ballon détecté cette frame."""
         # Arbitre volontairement absent de `classes` : jamais suivi comme joueur.
         result = self.model(frame_bgr, device=self.device, verbose=False,
@@ -242,6 +242,7 @@ class Tracker:
                 "team": team,
                 "px": float((box[0] + box[2]) / 2),
                 "py": float(box[3]),
+                "box": tuple(float(v) for v in box),
                 "embedding": embedding,  # pour le regroupement global final (cf. cluster_tracks_globally)
             })
 
@@ -318,6 +319,7 @@ def split_implausible_tracks(accumulators):
             piece.samples = seg
             piece._embedding_sum = acc._embedding_sum
             piece._embedding_count = acc._embedding_count
+            piece.jersey_readings = acc.jersey_readings
             result[f"{key}~{i}"] = piece
     return result
 
@@ -379,6 +381,23 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
                 earlier, later = (acc_i, acc_j) if t1_max <= t2_min else (acc_j, acc_i)
                 if not _boundary_transition_plausible(earlier, later):
                     dist[i, j] = dist[j, i] = 10.0  # transition physiquement impossible -> jamais fusionner
+
+        # Numéro de maillot (vote majoritaire, cf. TrackAccumulator.majority_jersey) : contrainte
+        # complémentaire à l'apparence, forte précisément là où l'apparence est aveugle (deux
+        # coéquipiers en maillot identique mais numéros différents, cf. jersey_ocr.py). Deux numéros
+        # confiants différents -> jamais le même joueur, quelle que soit la similarité d'embedding.
+        # Deux numéros confiants identiques -> fusion forcée (dist=0) SAUF si déjà vétoée ci-dessus
+        # (temps/physique restent prioritaires : un OCR d'accord des deux côtés ne rend pas une
+        # téléportation possible).
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                if dist[i, j] >= 10.0:
+                    continue
+                num_i = accumulators[keys[i]].majority_jersey
+                num_j = accumulators[keys[j]].majority_jersey
+                if num_i is None or num_j is None:
+                    continue
+                dist[i, j] = dist[j, i] = 0.0 if num_i == num_j else 10.0
         np.fill_diagonal(dist, 0.0)
 
         condensed = squareform(dist, checks=False)
