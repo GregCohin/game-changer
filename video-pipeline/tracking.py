@@ -47,6 +47,14 @@ REID_EMBEDDING_MIN_SIM = 0.75  # similarité cosinus mini pour relier deux trace
 # seule trace (couverture résultante > 1.0, mathématiquement impossible — bug corrigé).
 REID_GLOBAL_MIN_SIM = 0.88
 
+# Part supérieure de la boîte exclue du crop envoyé à l'embedding de ré-identification (0.0 = boîte
+# entière). Hypothèse à valider : OSNet (entraîné sur des piétons en vêtements variés) est dominé par
+# la couleur/texture du maillot, qui ne différencie RIEN entre deux coéquipiers - contrairement à un
+# contexte piéton où le vêtement est justement le signal le plus discriminant. Exclure le maillot
+# (tête+épaules+torse) et ne garder que hanches/jambes pourrait forcer le modèle à s'appuyer sur des
+# traits plus individuels (morphologie, démarche). Cf. tests comparatifs avant/après changement.
+REID_CROP_Y_START_FRAC = 0.0
+
 
 def _shirt_color(frame_bgr, box):
     """Couleur moyenne (HSV) du tiers supérieur de la boîte — approxime le maillot plutôt que le short.
@@ -69,6 +77,13 @@ def _crop(frame_bgr, box):
     if x2 <= x1 or y2 <= y1:
         return None
     return frame_bgr[y1:y2, x1:x2]
+
+
+def _reid_crop(frame_bgr, box):
+    """Crop envoyé à l'embedding de ré-identification — cf. REID_CROP_Y_START_FRAC ci-dessus."""
+    x1, y1, x2, y2 = box
+    y1 = y1 + (y2 - y1) * REID_CROP_Y_START_FRAC
+    return _crop(frame_bgr, (x1, y1, x2, y2))
 
 
 class TeamAssigner:
@@ -188,7 +203,7 @@ class Tracker:
         en un seul appel batché — nettement plus rapide que boîte par boîte."""
         crops, valid = [], []
         for i in indices:
-            c = _crop(frame_bgr, boxes[i])
+            c = _reid_crop(frame_bgr, boxes[i])
             if c is not None:
                 crops.append(cv2.cvtColor(c, cv2.COLOR_BGR2RGB))
                 valid.append(i)
@@ -320,6 +335,8 @@ def split_implausible_tracks(accumulators):
             piece._embedding_sum = acc._embedding_sum
             piece._embedding_count = acc._embedding_count
             piece.jersey_readings = acc.jersey_readings
+            piece.best_thumbnail = acc.best_thumbnail
+            piece.best_box_height = acc.best_box_height
             result[f"{key}~{i}"] = piece
     return result
 
@@ -416,6 +433,9 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
             for m in members:
                 combined.samples.extend(accumulators[m].samples)
             combined.samples.sort(key=lambda s: s[0])
+            best_member = max(members, key=lambda m: accumulators[m].best_box_height)
+            combined.best_thumbnail = accumulators[best_member].best_thumbnail
+            combined.best_box_height = accumulators[best_member].best_box_height
             merged[members[0]] = combined
 
     # Traces sans embedding exploitable (rare : tous les recadrages de cette trace ont échoué) —

@@ -143,6 +143,7 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             acc = accumulators.setdefault(key, TrackAccumulator())
             acc.add_seen(p["team"])
             acc.add_embedding(p["embedding"])
+            acc.update_thumbnail(frame, p["box"])
             if total_sampled % JERSEY_OCR_EVERY_N == 0:
                 acc.add_jersey_reading(jersey_reader.read(frame, p["box"]))
             if homography is not None:
@@ -219,6 +220,42 @@ def build_analytics(accumulators, team_frame_positions, total_sampled, roster_ma
     }
 
 
+MIN_SAMPLES_FOR_REVIEW = 5  # trace en dessous -> fragment trop court pour valoir une revue humaine
+
+
+def export_review_manifest(accumulators, out_dir, total_sampled):
+    """Écrit une vignette + une fiche par trace assez couverte pour valoir une revue humaine —
+    matière première de l'outil de rattachement assisté (cf. discussion du 2026-09-14 : l'auto à
+    100% a une limite réelle sur cette vidéo, ceci sert à s'en rapprocher via confirmation humaine
+    plutôt qu'à continuer d'aveugler l'automatique)."""
+    thumb_dir = os.path.join(out_dir, "thumbnails")
+    os.makedirs(thumb_dir, exist_ok=True)
+    entries = []
+    for key, acc in accumulators.items():
+        if len(acc.samples) < MIN_SAMPLES_FOR_REVIEW:
+            continue
+        team_prefix = key.split("#", 1)[0]
+        thumb_name = None
+        if acc.best_thumbnail is not None:
+            thumb_name = f"{key.replace('#', '_').replace('~', '-')}.jpg"
+            with open(os.path.join(thumb_dir, thumb_name), "wb") as fh:
+                fh.write(acc.best_thumbnail)
+        entries.append({
+            "key": key,
+            "team": team_prefix if team_prefix in ("A", "B") else None,
+            "samples": len(acc.samples),
+            "coverage": round(len(acc.samples) / total_sampled, 3) if total_sampled else 0.0,
+            "timeRange": list(acc.time_range) if acc.time_range else None,
+            "majorityJersey": acc.majority_jersey,
+            "jerseyReadings": [[n, round(c, 2)] for n, c in acc.jersey_readings],
+            "thumbnail": f"thumbnails/{thumb_name}" if thumb_name else None,
+        })
+    entries.sort(key=lambda e: -e["samples"])
+    with open(os.path.join(out_dir, "manifest.json"), "w") as fh:
+        json.dump(entries, fh, ensure_ascii=False, indent=2)
+    return len(entries)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--video", required=True)
@@ -251,6 +288,10 @@ if __name__ == "__main__":
                          help="Sauvegarde le checkpoint tous les N échantillons traités (def. 300).")
     parser.add_argument("--resume", action="store_true",
                          help="Reprend depuis --checkpoint s'il existe, au lieu de repartir de zéro.")
+    parser.add_argument("--review-out", default=None,
+                         help="Dossier où écrire vignettes + manifest.json pour l'outil de "
+                              "rattachement assisté (une entrée par trace d'au moins "
+                              f"{MIN_SAMPLES_FOR_REVIEW} échantillons). Omis -> pas d'export.")
     args = parser.parse_args()
 
     roster_map = None
@@ -294,3 +335,8 @@ if __name__ == "__main__":
     calib_pct = round(100 * calibrated_sampled / total_sampled) if total_sampled else 0
     print(f"OK — {len(analytics['players'])} joueur(s) suivi(s) sur {total_sampled} frames "
           f"échantillonnées ({calib_pct}% calibrées) -> {args.out}")
+
+    if args.review_out:
+        n_review = export_review_manifest(accumulators, args.review_out, total_sampled)
+        print(f"Revue assistée : {n_review} trace(s) exportée(s) (vignettes + manifest.json) "
+              f"-> {args.review_out}")

@@ -5,6 +5,7 @@ vitesse en km/h.
 """
 from collections import Counter
 
+import cv2
 import numpy as np
 
 SPRINT_SPEED_MS = 6.0          # m/s (~21.6 km/h) - seuil usuel pour compter un "sprint"
@@ -75,6 +76,8 @@ class TrackAccumulator:
         self._embedding_sum = None  # somme courante -> moyenne robuste, pas juste le dernier vu
         self._embedding_count = 0
         self.jersey_readings = []  # [(numero:str, confiance:float), ...] cf. jersey_ocr.JerseyReader
+        self.best_thumbnail = None  # bytes JPEG - meilleure vignette rencontrée (cf. update_thumbnail)
+        self.best_box_height = 0.0
 
     def add_seen(self, team):
         if team and self.team is None:
@@ -95,6 +98,23 @@ class TrackAccumulator:
     def add_jersey_reading(self, reading):
         if reading is not None:
             self.jersey_readings.append(reading)
+
+    def update_thumbnail(self, frame_bgr, box):
+        """Garde la vignette du plan le plus large rencontré sur cette trace (la boîte la plus haute
+        en pixels = le joueur le plus net/gros à l'écran) - pour l'outil de revue humaine, où une
+        image reconnaissable compte plus qu'une image "moyenne" ou la toute première rencontrée."""
+        x1, y1, x2, y2 = box
+        h = y2 - y1
+        if h <= self.best_box_height:
+            return
+        x1, y1 = max(0, int(x1) - 10), max(0, int(y1) - 10)
+        x2, y2 = min(frame_bgr.shape[1], int(x2) + 10), min(frame_bgr.shape[0], int(y2) + 10)
+        if x2 <= x1 or y2 <= y1:
+            return
+        ok, buf = cv2.imencode(".jpg", frame_bgr[y1:y2, x1:x2], [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if ok:
+            self.best_box_height = h
+            self.best_thumbnail = buf.tobytes()
 
     @property
     def majority_jersey(self):
