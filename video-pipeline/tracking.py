@@ -56,10 +56,14 @@ REID_GLOBAL_MIN_SIM = 0.88
 # gardien/arbitre vs joueur de champ, quand leur couleur de maillot a été mal classée une frame
 # donnée). Un follow-cam qui recadre/zoome en continu fait sortir et rentrer les joueurs du cadre très
 # souvent (~19000 tentatives de ré-id sur un seul match), largement assez d'occasions pour qu'un seuil
-# trop permissif contamine une bonne partie des traces. Valeur par défaut laissée à 0.75 tant que
-# 0.88 (même seuil que le regroupement global, pour la même raison) n'a pas été validé sur un extrait
-# court — cf. --reid-min-sim, configurable en CLI justement pour cette comparaison sans éditer le code.
-REID_EMBEDDING_MIN_SIM = 0.75
+# trop permissif contamine une bonne partie des traces. Comparé sur un même extrait de 8 min : 0.75
+# seul (314 traces finales, 2-5/8 mélanges observés) vs 0.88 seul (1030 traces, 1/8) vs 0.80 combiné
+# aux critères multi-facteurs ci-dessous (673 traces, 2/8) — ce dernier retenu comme défaut, propreté
+# proche de 0.88 seul avec un tiers de traces en moins à revoir. --reid-min-sim reste configurable en
+# CLI pour retester si besoin (le filet de sécurité et le bouton "ignorer" de l'outil de revue restent
+# nécessaires quel que soit le seuil : une partie de la contamination vient du tracker lui-même, qui
+# peut changer d'identité en interne avant même d'atteindre ce code).
+REID_EMBEDDING_MIN_SIM = 0.80
 
 # Signature couleur complémentaire à l'embedding (cf. ReIdentifier.resolve, _appearance_color) :
 # cheveux + peau + chaussures, PAS le maillot (déjà utilisé séparément pour l'équipe, ne
