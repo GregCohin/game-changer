@@ -299,13 +299,17 @@ def build_analytics(accumulators, team_frame_positions, total_sampled, roster_ma
 
 
 MIN_SAMPLES_FOR_REVIEW = 5  # trace en dessous -> fragment trop court pour valoir une revue humaine
+REVIEW_THUMBNAILS_PER_TRACE = 3  # cf. TrackAccumulator.select_review_thumbnails
 
 
 def export_review_manifest(accumulators, out_dir, total_sampled):
-    """Écrit une vignette + une fiche par trace assez couverte pour valoir une revue humaine —
+    """Écrit une vignette (composite de plusieurs crops, cf. TrackAccumulator.
+    composite_review_thumbnail) + une fiche par trace assez couverte pour valoir une revue humaine —
     matière première de l'outil de rattachement assisté (cf. discussion du 2026-09-14 : l'auto à
     100% a une limite réelle sur cette vidéo, ceci sert à s'en rapprocher via confirmation humaine
-    plutôt qu'à continuer d'aveugler l'automatique)."""
+    plutôt qu'à continuer d'aveugler l'automatique). Vignette composite (pas une seule image) depuis
+    la revue du 2026-09-15 : sans numéro de maillot lisible à l'OCR sur cette vidéo, une seule image
+    ne suffit pas toujours à distinguer deux joueurs qui se ressemblent."""
     thumb_dir = os.path.join(out_dir, "thumbnails")
     os.makedirs(thumb_dir, exist_ok=True)
     entries = []
@@ -314,11 +318,11 @@ def export_review_manifest(accumulators, out_dir, total_sampled):
             continue
         team_prefix = key.split("#", 1)[0]
         thumb_name = None
-        if acc.thumbnail_candidates:
-            best = max(acc.thumbnail_candidates, key=lambda c: c[1])
+        composite = acc.composite_review_thumbnail(REVIEW_THUMBNAILS_PER_TRACE)
+        if composite is not None:
             thumb_name = f"{key.replace('#', '_').replace('~', '-')}.jpg"
             with open(os.path.join(thumb_dir, thumb_name), "wb") as fh:
-                fh.write(best[2])
+                fh.write(composite)
         entries.append({
             "key": key,
             "team": team_prefix if team_prefix in ("A", "B") else None,
@@ -335,10 +339,35 @@ def export_review_manifest(accumulators, out_dir, total_sampled):
     return len(entries)
 
 
+def manifest_from_checkpoint(checkpoint_path, review_out):
+    """Reconstruit le manifeste de revue (vignettes + fiches) à partir d'un checkpoint existant, sans
+    retraiter la vidéo (aucune inférence détection/tracking/calibration à refaire). Utile pour
+    régénérer la revue après un changement qui ne touche QUE l'export (ex. passage à plusieurs
+    vignettes par trace le 2026-09-15) sans relancer un run complet de plusieurs heures. Rejoue
+    exactement la même séquence de post-traitement que main() (lissage, découpage, regroupement,
+    redécoupage) sur les accumulateurs bruts du checkpoint."""
+    state = _load_checkpoint(checkpoint_path)
+    accumulators = state["accumulators"]
+    total_sampled = state["total_sampled"]
+    for acc in accumulators.values():
+        acc.samples = smooth_track_samples(acc.samples)
+    accumulators = split_implausible_tracks(accumulators)
+    accumulators = cluster_tracks_globally(accumulators)
+    accumulators = split_implausible_tracks(accumulators)
+    n_review = export_review_manifest(accumulators, review_out, total_sampled)
+    print(f"Revue assistée (depuis checkpoint) : {len(accumulators)} trace(s) au total, "
+          f"{n_review} exportée(s) (vignettes + manifest.json) -> {review_out}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--video", required=True)
-    parser.add_argument("--out", required=True)
+    parser.add_argument("--video", default=None, help="Requis sauf avec --from-checkpoint.")
+    parser.add_argument("--out", default=None, help="Requis sauf avec --from-checkpoint.")
+    parser.add_argument("--from-checkpoint", default=None,
+                         help="Régénère UNIQUEMENT --review-out à partir d'un checkpoint existant, "
+                              "sans retraiter la vidéo (aucune inférence à refaire) — utile après un "
+                              "changement qui ne touche que l'export de revue. Incompatible avec "
+                              "--video/--out/--roster (ignorés) ; --review-out devient requis.")
     parser.add_argument("--sample-fps", type=float, default=5.0,
                          help="Fréquence d'échantillonnage en images/s (def. 5) — pas besoin du "
                               "25-30 im/s natif pour ces métriques.")
@@ -378,6 +407,15 @@ if __name__ == "__main__":
                               "rattachement assisté (une entrée par trace d'au moins "
                               f"{MIN_SAMPLES_FOR_REVIEW} échantillons). Omis -> pas d'export.")
     args = parser.parse_args()
+
+    if args.from_checkpoint:
+        if not args.review_out:
+            raise SystemExit("--from-checkpoint requiert --review-out.")
+        manifest_from_checkpoint(args.from_checkpoint, args.review_out)
+        raise SystemExit(0)
+
+    if not args.video or not args.out:
+        raise SystemExit("--video et --out sont requis (sauf avec --from-checkpoint).")
 
     roster_map = None
     if args.roster:

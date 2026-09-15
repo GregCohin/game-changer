@@ -138,6 +138,56 @@ class TrackAccumulator:
             return None
         return max(in_range, key=lambda c: c[1])[2]
 
+    def composite_review_thumbnail(self, n=3):
+        """Vignette de revue = jusqu'à n crops étalés dans le temps, assemblés côte à côte en UNE
+        seule image (un seul fichier à stocker/uploader par trace, pas n) - une seule vignette ne
+        suffit pas toujours à distinguer deux joueurs qui se ressemblent : cf. revue du 2026-09-15,
+        aucun numéro de maillot n'est lisible par OCR sur cette vidéo, donc la revue humaine reposait
+        sur la seule reconnaissance visuelle d'une image isolée par trace, ce qui a produit un
+        regroupement massif de traces en réalité différentes sous les numéros des joueurs les plus
+        reconnaissables. Répartition par plage de TEMPS (pas juste les n meilleures par qualité de
+        boîte) : les meilleures vignettes par qualité peuvent toutes venir d'un même passage proche
+        caméra et se ressembler autant qu'une seule image - inutile pour la revue. Retourne None si
+        la trace n'a aucun candidat (jamais censé arriver pour une trace assez longue pour être
+        proposée à la revue, mais pas de raison de planter dessus)."""
+        cands = self.thumbnail_candidates
+        if not cands:
+            return None
+        if len(cands) <= n:
+            chosen = sorted(cands, key=lambda c: c[0])
+        else:
+            t_min = min(c[0] for c in cands)
+            t_max = max(c[0] for c in cands)
+            span = t_max - t_min
+            if span <= 0:
+                chosen = [max(cands, key=lambda c: c[1])]
+            else:
+                buckets = [[] for _ in range(n)]
+                for c in cands:
+                    idx = min(n - 1, int((c[0] - t_min) / span * n))
+                    buckets[idx].append(c)
+                chosen = sorted((max(b, key=lambda c: c[1]) for b in buckets if b), key=lambda c: c[0])
+
+        imgs = [im for im in (cv2.imdecode(np.frombuffer(c[2], dtype=np.uint8), cv2.IMREAD_COLOR)
+                               for c in chosen) if im is not None]
+        if not imgs:
+            return None
+        if len(imgs) == 1:
+            composite = imgs[0]
+        else:
+            target_h = min(im.shape[0] for im in imgs)
+            resized = [cv2.resize(im, (max(1, int(im.shape[1] * target_h / im.shape[0])), target_h))
+                       for im in imgs]
+            sep = np.full((target_h, 3, 3), 255, dtype=np.uint8)
+            parts = []
+            for i, im in enumerate(resized):
+                if i:
+                    parts.append(sep)
+                parts.append(im)
+            composite = np.hstack(parts)
+        ok, buf = cv2.imencode(".jpg", composite, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return buf.tobytes() if ok else None
+
     @property
     def majority_jersey(self):
         """Numéro de maillot si un consensus net se dégage sur cette trace, sinon None (pas assez
