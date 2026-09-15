@@ -78,14 +78,24 @@ class TrackAccumulator:
     def __init__(self):
         self.samples = []  # [(t_seconds, x_norm, y_norm), ...] triés par t, positions calibrées
         self.team = None
+        self.is_goalkeeper = None  # cf. add_class - signal quasi-sûr (classe YOLO dédiée), pas deviné
         self._embedding_sum = None  # somme courante -> moyenne robuste, pas juste le dernier vu
         self._embedding_count = 0
+        self._color_sum = None  # idem pour la signature couleur cheveux/peau/chaussures - cf. add_color
+        self._color_count = 0
         self.jersey_readings = []  # [(numero:str, confiance:float), ...] cf. jersey_ocr.JerseyReader
         self.thumbnail_candidates = []  # [(t, box_height, jpeg_bytes), ...] cf. update_thumbnail
 
     def add_seen(self, team):
         if team and self.team is None:
             self.team = team
+
+    def add_class(self, is_goalkeeper):
+        """Verrouille gardien/joueur de champ dès la 1re lecture, comme add_seen pour l'équipe - un
+        gardien ne redevient pas joueur de champ en cours de match (cf. tracking._match_class_ids :
+        classe YOLO dédiée, pas une couleur devinée)."""
+        if is_goalkeeper is not None and self.is_goalkeeper is None:
+            self.is_goalkeeper = is_goalkeeper
 
     def add_position(self, t, x_norm, y_norm):
         self.samples.append((t, x_norm, y_norm))
@@ -98,6 +108,18 @@ class TrackAccumulator:
         else:
             self._embedding_sum += embedding
         self._embedding_count += 1
+
+    def add_color(self, color_vec):
+        """Signature couleur (cheveux+peau+chaussures, cf. tracking._appearance_color) - moyenne
+        courante comme add_embedding, pour la même raison (moins sensible à un angle/une frame
+        ponctuellement mal exposée qu'une seule lecture)."""
+        if color_vec is None:
+            return
+        if self._color_sum is None:
+            self._color_sum = color_vec.copy()
+        else:
+            self._color_sum += color_vec
+        self._color_count += 1
 
     def add_jersey_reading(self, reading):
         if reading is not None:
@@ -214,6 +236,16 @@ class TrackAccumulator:
         mean = self._embedding_sum / self._embedding_count
         norm = np.linalg.norm(mean)
         return mean / norm if norm > 0 else None
+
+    @property
+    def mean_color(self):
+        """Signature couleur moyenne (cheveux+peau+chaussures, cf. tracking._appearance_color) sur
+        toute la durée de la trace — même raisonnement que mean_embedding. Pas normalisée (contrairement
+        à mean_embedding) : ce sont des valeurs HSV brutes comparées par distance euclidienne, pas par
+        similarité cosinus, cf. TeamAssigner.assign qui suit déjà ce même principe."""
+        if self._color_sum is None:
+            return None
+        return self._color_sum / self._color_count
 
     @property
     def time_range(self):

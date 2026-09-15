@@ -34,13 +34,13 @@ DEFAULT_DETECTION_WEIGHTS = Path(__file__).parent / "weights" / "yolov8m-640-foo
 # +60-70% sur des frames réelles testées) et sépare nativement arbitre/gardien/joueur/ballon, ce qui
 # permet d'exclure les arbitres du suivi plutôt que de les compter comme des joueurs.
 BALL_CLASS = 0
+GOALKEEPER_CLASS = 1
 PLAYER_CLASSES = [1, 2]  # goalkeeper, player — les deux comptent pour les stats physiques
 REFEREE_CLASS = 3        # explicitement exclu du tracking
 
 REID_WEIGHTS = Path(__file__).parent / "weights" / "osnet_x0_25_msmt17.pt"
 REID_MAX_GAP_SECONDS = 90.0    # signal bien plus fiable que la couleur -> fenêtre élargie
-REID_EMBEDDING_MIN_SIM = 0.75  # similarité cosinus mini pour relier deux traces (cf. validation ci-dessus)
-# Regroupement global (cluster_tracks_globally) : seuil plus strict que REID_EMBEDDING_MIN_SIM.
+# Regroupement global (cluster_tracks_globally) : seuil plus strict que la ré-id en flux ci-dessous.
 # La validation initiale (0.88 même trace / 0.59 traces différentes) mélangeait des paires de
 # n'importe quelle équipe — beaucoup faciles à distinguer par la seule couleur de maillot. Le
 # regroupement global ne compare QUE des joueurs de la MÊME équipe (le maillot ne différencie donc
@@ -48,6 +48,35 @@ REID_EMBEDDING_MIN_SIM = 0.75  # similarité cosinus mini pour relier deux trace
 # Repéré concrètement : avec 0.75 ici, plusieurs joueurs réels différents ont été fusionnés en une
 # seule trace (couverture résultante > 1.0, mathématiquement impossible — bug corrigé).
 REID_GLOBAL_MIN_SIM = 0.88
+# Ré-id EN FLUX (ReIdentifier.resolve, cf. classe ci-dessous) : laissé à 0.75 par erreur alors que
+# resolve() ne compare QUE des candidats de la MÊME équipe (cf. `info["team"] != team` plus bas) —
+# exactement le cas "plus dur" décrit ci-dessus pour REID_GLOBAL_MIN_SIM, jamais corrigé ici. Repéré
+# le 2026-09-15 en repassant en revue les vignettes : sur un échantillon de 8 traces prises au hasard
+# sur le match complet, 5 mélangeaient des images de personnes différentes (parfois même
+# gardien/arbitre vs joueur de champ, quand leur couleur de maillot a été mal classée une frame
+# donnée). Un follow-cam qui recadre/zoome en continu fait sortir et rentrer les joueurs du cadre très
+# souvent (~19000 tentatives de ré-id sur un seul match), largement assez d'occasions pour qu'un seuil
+# trop permissif contamine une bonne partie des traces. Valeur par défaut laissée à 0.75 tant que
+# 0.88 (même seuil que le regroupement global, pour la même raison) n'a pas été validé sur un extrait
+# court — cf. --reid-min-sim, configurable en CLI justement pour cette comparaison sans éditer le code.
+REID_EMBEDDING_MIN_SIM = 0.75
+
+# Signature couleur complémentaire à l'embedding (cf. ReIdentifier.resolve, _appearance_color) :
+# cheveux + peau + chaussures, PAS le maillot (déjà utilisé séparément pour l'équipe, ne
+# différencierait rien de plus entre coéquipiers). Idée de Gregory le 2026-09-15, suite au constat
+# que l'embedding seul confond trop souvent deux coéquipiers qui se ressemblent (cf. plus haut).
+# Distance euclidienne HSV brute (même principe que TeamAssigner.assign, pas une similarité cosinus
+# comme l'embedding) : candidat rejeté si la distance dépasse ce seuil, MÊME si l'embedding est
+# proche - un filtre supplémentaire, pas un remplacement. Valeur de départ raisonnable, pas calibrée
+# avec la même rigueur empirique que les seuils ci-dessus faute de temps le 2026-09-15 - à affiner si
+# les faux rejets (deux mêmes traces jamais reliées) semblent trop fréquents.
+REID_COLOR_MAX_DIST = 60.0
+# Bandes verticales (fraction de la hauteur de boîte) où échantillonner chaque signal - tête en haut,
+# pieds en bas, comme un corps humain debout. Approximatif (pas de détection de visage dédiée) mais
+# suffisant pour un signal d'appoint à l'embedding, pas le signal principal.
+HAIR_Y_RANGE = (0.0, 0.12)
+SKIN_Y_RANGE = (0.12, 0.22)   # sous la ligne de cheveux ~ visage/cou
+SHOE_Y_RANGE = (0.92, 1.0)
 
 # Part supérieure de la boîte exclue du crop envoyé à l'embedding de ré-identification (0.0 = boîte
 # entière). Hypothèse validée par test comparatif direct (2026-09-14, même extrait de 12 min) :
@@ -60,18 +89,71 @@ REID_GLOBAL_MIN_SIM = 0.88
 REID_CROP_Y_START_FRAC = 0.4
 
 
+def _region_color(frame_bgr, box, y_range):
+    """Couleur moyenne (HSV) d'une bande horizontale de la boîte, à la fraction de hauteur y_range
+    (0=haut, 1=bas) — brique commune à _shirt_color et aux signaux de ré-identification complémentaires
+    (_hair_color, _skin_color, _shoe_color)."""
+    x1, y1, x2, y2 = [float(v) for v in box]
+    h = y2 - y1
+    ys, ye = int(y1 + h * y_range[0]), int(y1 + h * y_range[1])
+    x1, ys = max(0, int(x1)), max(0, ys)
+    x2, ye = min(frame_bgr.shape[1], int(x2)), min(frame_bgr.shape[0], ye)
+    if x2 <= x1 or ye <= ys:
+        return None
+    crop = frame_bgr[ys:ye, x1:x2]
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    return hsv.reshape(-1, 3).mean(axis=0)
+
+
 def _shirt_color(frame_bgr, box):
     """Couleur moyenne (HSV) du tiers supérieur de la boîte — approxime le maillot plutôt que le short.
     Sert uniquement à l'affectation d'équipe (TeamAssigner), pas à la ré-identification individuelle."""
-    x1, y1, x2, y2 = [int(v) for v in box]
-    y2_shirt = y1 + max(1, (y2 - y1) // 3)
-    x1, y1 = max(0, x1), max(0, y1)
-    x2, y2_shirt = min(frame_bgr.shape[1], x2), min(frame_bgr.shape[0], y2_shirt)
-    if x2 <= x1 or y2_shirt <= y1:
+    return _region_color(frame_bgr, box, (0.0, 1 / 3))
+
+
+def _appearance_color(frame_bgr, box):
+    """Signature couleur individuelle (cheveux + peau + chaussures) pour la ré-identification - cf.
+    REID_COLOR_MAX_DIST. Concatène 3 lectures HSV (9 valeurs) plutôt qu'une seule pour couvrir 3
+    zones indépendantes du maillot (déjà utilisé ailleurs) ; None si l'une des 3 zones sort du cadre
+    ou est trop petite (boîte tronquée en bord d'image) - un signal partiel serait trompeur pour une
+    distance euclidienne sur des dimensions manquantes."""
+    hair = _region_color(frame_bgr, box, HAIR_Y_RANGE)
+    skin = _region_color(frame_bgr, box, SKIN_Y_RANGE)
+    shoe = _region_color(frame_bgr, box, SHOE_Y_RANGE)
+    if hair is None or skin is None or shoe is None:
         return None
-    crop = frame_bgr[y1:y2_shirt, x1:x2]
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    return hsv.reshape(-1, 3).mean(axis=0)
+    return np.concatenate([hair, skin, shoe])
+
+
+def _iou_matrix(a, b):
+    """IoU entre chaque paire de boîtes (xyxy) de a (N,4) et b (M,4) -> matrice (N,M)."""
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    x1 = np.maximum(a[:, None, 0], b[None, :, 0])
+    y1 = np.maximum(a[:, None, 1], b[None, :, 1])
+    x2 = np.minimum(a[:, None, 2], b[None, :, 2])
+    y2 = np.minimum(a[:, None, 3], b[None, :, 3])
+    inter = np.clip(x2 - x1, 0, None) * np.clip(y2 - y1, 0, None)
+    area_a = np.clip(a[:, 2] - a[:, 0], 0, None) * np.clip(a[:, 3] - a[:, 1], 0, None)
+    area_b = np.clip(b[:, 2] - b[:, 0], 0, None) * np.clip(b[:, 3] - b[:, 1], 0, None)
+    union = area_a[:, None] + area_b[None, :] - inter
+    return np.where(union > 0, inter / union, 0.0)
+
+
+def _match_class_ids(tracked_xyxy, people_xyxy, people_class_id):
+    """Associe chaque boîte suivie à la classe YOLO (gardien/joueur) de la détection d'origine la
+    plus proche (IoU) sur cette même frame. Nécessaire car ByteTrackTracker.update() ne fait PAS
+    suivre class_id sur sa sortie - vérifié directement dans le code installé (trackers/core/base.py,
+    la propriété tracked_objects documente explicitement que class_id y reste None ; update() ne le
+    mentionne pas non plus en sortie). Retourne {indice dans tracked_xyxy: class_id} - absent si
+    aucune détection d'origine ne recouvre assez la boîte suivie (IoU <= 0.5, rare : boîte lissée par
+    le filtre de Kalman entre deux détections réelles)."""
+    if len(people_xyxy) == 0 or len(tracked_xyxy) == 0:
+        return {}
+    ious = _iou_matrix(tracked_xyxy, people_xyxy)
+    best = ious.argmax(axis=1)
+    best_iou = ious[np.arange(len(tracked_xyxy)), best]
+    return {i: int(people_class_id[best[i]]) for i in range(len(tracked_xyxy)) if best_iou[i] > 0.5}
 
 
 def _crop(frame_bgr, box):
@@ -127,8 +209,10 @@ class ReIdentifier:
     Reste imparfait (deux joueurs très similaires d'apparence peuvent se confondre), mais nettement
     plus fiable qu'un simple appariement de couleur moyenne — cf. validation en tête de fichier."""
 
-    def __init__(self):
-        self.lost = {}    # canonical_id -> {"embedding", "team", "t"}
+    def __init__(self, min_sim=REID_EMBEDDING_MIN_SIM, color_max_dist=REID_COLOR_MAX_DIST):
+        self.min_sim = min_sim
+        self.color_max_dist = color_max_dist
+        self.lost = {}    # canonical_id -> {"embedding", "team", "is_gk", "color", "t"}
         self.remap = {}   # id ByteTrack -> canonical_id déjà résolu
         # Diagnostic : combien de fois resolve() a effectivement retrouvé un candidat, vs combien de
         # fois une trace ByteTrack jamais vue avait au moins un candidat récent de la même équipe
@@ -141,24 +225,36 @@ class ReIdentifier:
     def canonical(self, track_id):
         return self.remap.get(track_id, track_id)
 
-    def mark_lost(self, track_id, embedding, team, t):
+    def mark_lost(self, track_id, embedding, team, is_gk, color, t):
         if embedding is None:
             return
-        self.lost[self.canonical(track_id)] = {"embedding": embedding, "team": team, "t": t}
+        self.lost[self.canonical(track_id)] = {
+            "embedding": embedding, "team": team, "is_gk": is_gk, "color": color, "t": t,
+        }
 
-    def resolve(self, track_id, embedding, team, t):
+    def resolve(self, track_id, embedding, team, is_gk, color, t):
         """Trace ByteTrack jamais vue jusqu'ici : cherche un candidat perdu récemment, même équipe,
-        embedding proche. Sinon la trace reste nouvelle (nouveau joueur, ou ré-identification ratée)."""
+        même statut gardien/joueur (véto absolu, cf. GOALKEEPER_CLASS - un gardien ne redevient pas
+        joueur de champ), embedding proche ET signature couleur cheveux/peau/chaussures proche quand
+        les deux sont disponibles (cf. REID_COLOR_MAX_DIST - filtre supplémentaire, pas un
+        remplacement de l'embedding qui reste le signal principal). Sinon la trace reste nouvelle
+        (nouveau joueur, ou ré-identification ratée)."""
         if track_id in self.remap:
             return self.remap[track_id]
         candidate_seen = False
-        best_cid, best_sim = None, REID_EMBEDDING_MIN_SIM
+        best_cid, best_sim = None, self.min_sim
         for cid, info in list(self.lost.items()):
             if t - info["t"] > REID_MAX_GAP_SECONDS:
                 del self.lost[cid]
                 continue
             if embedding is None or info["team"] != team:
                 continue
+            if info["is_gk"] is not None and is_gk is not None and info["is_gk"] != is_gk:
+                continue
+            if info["color"] is not None and color is not None:
+                color_dist = float(np.linalg.norm(color - info["color"]))
+                if color_dist > self.color_max_dist:
+                    continue
             candidate_seen = True
             sim = float(np.dot(embedding, info["embedding"]))  # vecteurs déjà normalisés
             if sim > best_sim:
@@ -174,7 +270,8 @@ class ReIdentifier:
 
 
 class Tracker:
-    def __init__(self, model_path=None, device="cpu", confidence=0.3, frame_rate=25.0):
+    def __init__(self, model_path=None, device="cpu", confidence=0.3, frame_rate=25.0,
+                 reid_min_sim=REID_EMBEDDING_MIN_SIM, reid_color_max_dist=REID_COLOR_MAX_DIST):
         model_path = model_path or str(DEFAULT_DETECTION_WEIGHTS)
         if model_path == str(DEFAULT_DETECTION_WEIGHTS) and not DEFAULT_DETECTION_WEIGHTS.exists():
             raise FileNotFoundError(
@@ -185,8 +282,8 @@ class Tracker:
         self.confidence = confidence
         self.byte_track = ByteTrackTracker(frame_rate=frame_rate, lost_track_buffer=int(frame_rate * 3))
         self.team_assigner = TeamAssigner()
-        self.reid = ReIdentifier()
-        self._last_seen = {}  # track_id ByteTrack -> (embedding, team), pour marquer "lost" au bon moment
+        self.reid = ReIdentifier(min_sim=reid_min_sim, color_max_dist=reid_color_max_dist)
+        self._last_seen = {}  # track_id ByteTrack -> (embedding, team, is_gk, color), pour "lost"
         self._active_last_frame = set()
         # Équipe verrouillée par identité canonique dès la 1re classification réussie : un maillot ne
         # change pas de couleur en cours de match, donc on ne veut pas qu'un même joueur soit reclassé
@@ -221,7 +318,8 @@ class Tracker:
     def process_frame(self, frame_bgr, t_seconds):
         """Retourne (joueurs, position_ballon).
         joueurs = liste de {"track_id": id stable ré-identifié, "team": "A"/"B"/"autre"/None,
-                             "px": float, "py": float, "box": (x1,y1,x2,y2), "embedding": array ou None}
+                             "px": float, "py": float, "box": (x1,y1,x2,y2), "embedding": array ou None,
+                             "is_goalkeeper": bool ou None, "color": array ou None}
                              (px, py = pieds au sol, en pixels image ; box = boîte détectée brute)
         position_ballon = (px, py) en pixels, ou None si aucun ballon détecté cette frame."""
         # Arbitre volontairement absent de `classes` : jamais suivi comme joueur.
@@ -238,23 +336,28 @@ class Tracker:
 
         confirmed = [i for i, tid in enumerate(tracked.tracker_id) if tid is not None and tid >= 0]
         embeddings = self._embeddings(frame_bgr, tracked.xyxy, confirmed)
+        # ByteTrackTracker ne fait pas suivre class_id (cf. _match_class_ids) - retrouvé par IoU avec
+        # les détections d'origine de cette même frame pour distinguer gardien/joueur de champ.
+        class_ids = _match_class_ids(tracked.xyxy[confirmed] if confirmed else [], people.xyxy, people.class_id)
 
         active_now = set()
         out_players = []
-        for i in confirmed:
+        for idx, i in enumerate(confirmed):
             box, track_id = tracked.xyxy[i], int(tracked.tracker_id[i])
             embedding = embeddings.get(i)
-            color = _shirt_color(frame_bgr, box)
-            self.team_assigner.observe(color)
-            team = self.team_assigner.assign(color)
+            shirt = _shirt_color(frame_bgr, box)
+            self.team_assigner.observe(shirt)
+            team = self.team_assigner.assign(shirt)
+            is_gk = (class_ids.get(idx) == GOALKEEPER_CLASS) if idx in class_ids else None
+            color = _appearance_color(frame_bgr, box)
 
-            canonical_id = self.reid.resolve(track_id, embedding, team, t_seconds)
+            canonical_id = self.reid.resolve(track_id, embedding, team, is_gk, color, t_seconds)
             if canonical_id in self._known_team:
                 team = self._known_team[canonical_id]
             elif team is not None:
                 self._known_team[canonical_id] = team
             active_now.add(track_id)
-            self._last_seen[track_id] = (embedding, team)
+            self._last_seen[track_id] = (embedding, team, is_gk, color)
 
             out_players.append({
                 "track_id": canonical_id,
@@ -263,11 +366,13 @@ class Tracker:
                 "py": float(box[3]),
                 "box": tuple(float(v) for v in box),
                 "embedding": embedding,  # pour le regroupement global final (cf. cluster_tracks_globally)
+                "is_goalkeeper": is_gk,
+                "color": color,
             })
 
         for lost_id in self._active_last_frame - active_now:
-            embedding, team = self._last_seen.get(lost_id, (None, None))
-            self.reid.mark_lost(lost_id, embedding, team, t_seconds)
+            embedding, team, is_gk, color = self._last_seen.get(lost_id, (None, None, None, None))
+            self.reid.mark_lost(lost_id, embedding, team, is_gk, color, t_seconds)
         self._active_last_frame = active_now
 
         ball_xy = None
@@ -335,9 +440,12 @@ def split_implausible_tracks(accumulators):
         for i, seg in enumerate(segments):
             piece = TrackAccumulator()
             piece.team = acc.team
+            piece.is_goalkeeper = acc.is_goalkeeper
             piece.samples = seg
             piece._embedding_sum = acc._embedding_sum
             piece._embedding_count = acc._embedding_count
+            piece._color_sum = acc._color_sum
+            piece._color_count = acc._color_count
             piece.jersey_readings = acc.jersey_readings
             # Uniquement les candidats DANS la plage de ce morceau — un candidat hérité tel quel
             # pourrait montrer un instant appartenant en réalité à un autre morceau (potentiellement
@@ -406,6 +514,23 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
                 if not _boundary_transition_plausible(earlier, later):
                     dist[i, j] = dist[j, i] = 10.0  # transition physiquement impossible -> jamais fusionner
 
+        # Gardien/joueur de champ (cf. GOALKEEPER_CLASS, add_class) : même véto absolu que l'équipe -
+        # un gardien ne redevient pas joueur de champ en cours de match. Puis signature couleur
+        # cheveux/peau/chaussures (cf. REID_COLOR_MAX_DIST) : filtre supplémentaire à l'embedding
+        # plutôt qu'un remplacement, même principe qu'en ré-id en flux (cf. ReIdentifier.resolve).
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                if dist[i, j] >= 10.0:
+                    continue
+                gk_i, gk_j = accumulators[keys[i]].is_goalkeeper, accumulators[keys[j]].is_goalkeeper
+                if gk_i is not None and gk_j is not None and gk_i != gk_j:
+                    dist[i, j] = dist[j, i] = 10.0
+                    continue
+                color_i, color_j = accumulators[keys[i]].mean_color, accumulators[keys[j]].mean_color
+                if color_i is not None and color_j is not None:
+                    if float(np.linalg.norm(color_i - color_j)) > REID_COLOR_MAX_DIST:
+                        dist[i, j] = dist[j, i] = 10.0
+
         # Numéro de maillot (vote majoritaire, cf. TrackAccumulator.majority_jersey) : contrainte
         # complémentaire à l'apparence, forte précisément là où l'apparence est aveugle (deux
         # coéquipiers en maillot identique mais numéros différents, cf. jersey_ocr.py). Deux numéros
@@ -437,8 +562,10 @@ def cluster_tracks_globally(accumulators, min_sim=REID_GLOBAL_MIN_SIM):
                 continue
             combined = TrackAccumulator()
             combined.team = accumulators[members[0]].team
+            combined.is_goalkeeper = accumulators[members[0]].is_goalkeeper
             for m in members:
                 combined.samples.extend(accumulators[m].samples)
+                combined.add_color(accumulators[m].mean_color)
             combined.samples.sort(key=lambda s: s[0])
             # Ces morceaux sont ici confirmés comme le même joueur (contrainte physique déjà
             # validée plus haut) - contrairement au découpage, tous leurs candidats restent valides

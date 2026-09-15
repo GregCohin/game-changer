@@ -31,6 +31,7 @@ from tqdm import tqdm
 from calibration import Calibrator, image_to_pitch_norm
 from tracking import (
     Tracker, cluster_tracks_globally, split_implausible_tracks, _boundary_transition_plausible,
+    REID_EMBEDDING_MIN_SIM, REID_COLOR_MAX_DIST,
 )
 from metrics import (
     TrackAccumulator, compute_player_physical, compute_heatmap_points, compute_team_shape,
@@ -73,7 +74,8 @@ def _load_checkpoint(path):
 
 
 def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=None, start_seconds=0.0,
-        checkpoint_path=None, checkpoint_every=300, resume=False, jersey_ocr_every_n=JERSEY_OCR_EVERY_N_DEFAULT):
+        checkpoint_path=None, checkpoint_every=300, resume=False, jersey_ocr_every_n=JERSEY_OCR_EVERY_N_DEFAULT,
+        reid_min_sim=REID_EMBEDDING_MIN_SIM, reid_color_max_dist=REID_COLOR_MAX_DIST):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise SystemExit(f"Impossible d'ouvrir la vidéo : {video_path}")
@@ -116,7 +118,8 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
     # la vidéo), pas la fréquence à laquelle on appelle update() (fréquence d'échantillonnage,
     # généralement plus basse) — les deux sont indépendants une fois qu'on fournit un timestamp
     # explicite. Les confondre fait échouer la confirmation de toute trace (vérifié empiriquement).
-    tracker = Tracker(device=device, frame_rate=native_fps)
+    tracker = Tracker(device=device, frame_rate=native_fps, reid_min_sim=reid_min_sim,
+                       reid_color_max_dist=reid_color_max_dist)
     jersey_reader = JerseyReader(device=device)
     # Repartir d'un checkpoint perd l'état interne du tracker (couleurs d'équipe calibrées, galerie
     # de traces "perdues" récemment) — recalibré en quelques secondes, effet secondaire mineur
@@ -151,6 +154,8 @@ def run(video_path, sample_fps, device, max_seconds=None, debug_overlay_path=Non
             acc = accumulators.setdefault(key, TrackAccumulator())
             acc.add_seen(p["team"])
             acc.add_embedding(p["embedding"])
+            acc.add_class(p["is_goalkeeper"])
+            acc.add_color(p["color"])
             acc.update_thumbnail(t, frame, p["box"])
             if total_sampled % jersey_ocr_every_n == 0:
                 acc.add_jersey_reading(jersey_reader.read(frame, p["box"]))
@@ -406,6 +411,16 @@ if __name__ == "__main__":
                          help="Dossier où écrire vignettes + manifest.json pour l'outil de "
                               "rattachement assisté (une entrée par trace d'au moins "
                               f"{MIN_SAMPLES_FOR_REVIEW} échantillons). Omis -> pas d'export.")
+    parser.add_argument("--reid-min-sim", type=float, default=REID_EMBEDDING_MIN_SIM,
+                         help="Similarité cosinus mini pour que la ré-id EN FLUX relie une trace qui "
+                              "réapparaît à une identité perdue récemment (def. "
+                              f"{REID_EMBEDDING_MIN_SIM}, cf. commentaire dans tracking.py — laissé "
+                              "permissif par erreur, à valider plus strict avant de changer le défaut).")
+    parser.add_argument("--reid-color-max-dist", type=float, default=REID_COLOR_MAX_DIST,
+                         help="Distance HSV (cheveux+peau+chaussures) maxi pour accepter un "
+                              f"rapprochement en ré-id EN FLUX ou au regroupement global (def. "
+                              f"{REID_COLOR_MAX_DIST}, cf. commentaire REID_COLOR_MAX_DIST dans "
+                              "tracking.py) — filtre en plus de l'embedding, jamais à sa place.")
     args = parser.parse_args()
 
     if args.from_checkpoint:
@@ -424,7 +439,8 @@ if __name__ == "__main__":
 
     accumulators, team_frame_positions, total_sampled, calibrated_sampled, reid = run(
         args.video, args.sample_fps, args.device, args.max_seconds, args.debug_overlay, args.start_seconds,
-        args.checkpoint, args.checkpoint_every, args.resume, args.jersey_ocr_every_n
+        args.checkpoint, args.checkpoint_every, args.resume, args.jersey_ocr_every_n, args.reid_min_sim,
+        args.reid_color_max_dist
     )
     # Lissage AVANT toute détection de saut implausible : la calibration recalcule chaque frame
     # indépendamment (nécessaire pour une caméra qui bouge), donc même un joueur immobile peut
