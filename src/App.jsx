@@ -20248,7 +20248,12 @@ function PlayerAssignmentEditor({ roster, assignments, setAssignments, playerMin
       <div className="assignment-list">
         {roster.map((p) => {
           const hasNumber = !!numberByRosterId[p.id];
-          const pm = playerMinutes[p.id] || { starter: false, minutes: "" };
+          // playerMinutes est optionnel (cf. usage dans HomeScreen -> "+ Nouveau match", où le
+          // suivi titulaire/minutes n'a pas encore de sens avant que le match existe) - accès
+          // non protégé plantait tout l'écran dès qu'un effectif non vide était présent, repéré
+          // par Gregory le 2026-09-16 (écran noir en production, jamais en local avec un effectif
+          // vide).
+          const pm = (playerMinutes && playerMinutes[p.id]) || { starter: false, minutes: "" };
           const risk = riskBadgeFor(p.id);
           const adequacy = adequacyBadgeFor(p);
           return (
@@ -20600,8 +20605,34 @@ function TestHistoryEditor({ testDef, entries, setEntries }) {
   );
 }
 
+// Le pipeline vidéo peut ne pas réussir à fusionner toutes les traces d'un joueur en une seule
+// entrée : quand des traces assignées au même joueur se révèlent physiquement incompatibles entre
+// elles (même joueur à deux endroits en même temps, cf. filet de sécurité côté pipeline), il les
+// garde séparées sous "<id>~conflit0", "<id>~conflit1", etc. plutôt que de fusionner à tort. Sans
+// ce repli, ces joueurs (souvent les plus suivis, donc les plus vus dans les vignettes de revue)
+// apparaissaient sans aucune donnée physique alors qu'elle existe, juste fragmentée. Repéré par
+// Gregory le 2026-09-16 sur un vrai match importé.
+function playerAdvancedAnalytics(players, playerId) {
+  if (!players) return null;
+  if (players[playerId]) return players[playerId];
+  const fragments = Object.keys(players).filter((k) => k.startsWith(`${playerId}~`)).map((k) => players[k]);
+  if (fragments.length === 0) return null;
+  return {
+    distanceCovered: fragments.reduce((s, f) => s + (f.distanceCovered || 0), 0),
+    sprints: fragments.reduce((s, f) => s + (f.sprints || 0), 0),
+    topSpeed: Math.max(0, ...fragments.map((f) => f.topSpeed || 0)),
+    highIntensityDistance: fragments.reduce((s, f) => s + (f.highIntensityDistance || 0), 0),
+    accelerations: fragments.reduce((s, f) => s + (f.accelerations || 0), 0),
+    decelerations: fragments.reduce((s, f) => s + (f.decelerations || 0), 0),
+    heatmapPoints: fragments.flatMap((f) => f.heatmapPoints || []),
+    visibleCoverage: fragments.reduce((s, f) => s + (f.visibleCoverage || 0), 0),
+  };
+}
+
 function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
-  const withData = allFullMatches.filter((m) => m.advancedAnalytics && m.advancedAnalytics.players && m.advancedAnalytics.players[playerId]);
+  const withData = allFullMatches
+    .map((m) => ({ m, d: m.advancedAnalytics && playerAdvancedAnalytics(m.advancedAnalytics.players, playerId) }))
+    .filter(({ d }) => d);
 
   if (withData.length === 0) {
     return (
@@ -20612,8 +20643,7 @@ function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
     );
   }
 
-  const chartData = withData.map((m) => {
-    const d = m.advancedAnalytics.players[playerId];
+  const chartData = withData.map(({ m, d }) => {
     return { date: formatDateFr(m.date), distance: d.distanceCovered, sprints: d.sprints, vitesse: d.topSpeed };
   });
 
