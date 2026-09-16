@@ -344,24 +344,24 @@ def export_review_manifest(accumulators, out_dir, total_sampled):
     return len(entries)
 
 
-def manifest_from_checkpoint(checkpoint_path, review_out):
-    """Reconstruit le manifeste de revue (vignettes + fiches) à partir d'un checkpoint existant, sans
-    retraiter la vidéo (aucune inférence détection/tracking/calibration à refaire). Utile pour
-    régénérer la revue après un changement qui ne touche QUE l'export (ex. passage à plusieurs
-    vignettes par trace le 2026-09-15) sans relancer un run complet de plusieurs heures. Rejoue
-    exactement la même séquence de post-traitement que main() (lissage, découpage, regroupement,
-    redécoupage) sur les accumulateurs bruts du checkpoint."""
+def _replay_from_checkpoint(checkpoint_path):
+    """Charge un checkpoint et rejoue exactement la même séquence de post-traitement que main()
+    (lissage, découpage, regroupement, redécoupage) sur les accumulateurs bruts, SANS retraiter la
+    vidéo (aucune inférence détection/tracking/calibration à refaire). Utile pour régénérer la revue
+    ou les statistiques finales (ex. après application tardive de --roster, cf. discussion du
+    2026-09-16 : le rattachement aux vrais joueurs suit souvent de plusieurs jours l'export du site,
+    pas la peine de relancer un run de plusieurs heures juste pour l'appliquer) sans relancer un run
+    complet."""
     state = _load_checkpoint(checkpoint_path)
     accumulators = state["accumulators"]
+    team_frame_positions = state["team_frame_positions"]
     total_sampled = state["total_sampled"]
     for acc in accumulators.values():
         acc.samples = smooth_track_samples(acc.samples)
     accumulators = split_implausible_tracks(accumulators)
     accumulators = cluster_tracks_globally(accumulators)
     accumulators = split_implausible_tracks(accumulators)
-    n_review = export_review_manifest(accumulators, review_out, total_sampled)
-    print(f"Revue assistée (depuis checkpoint) : {len(accumulators)} trace(s) au total, "
-          f"{n_review} exportée(s) (vignettes + manifest.json) -> {review_out}")
+    return accumulators, team_frame_positions, total_sampled
 
 
 if __name__ == "__main__":
@@ -369,10 +369,12 @@ if __name__ == "__main__":
     parser.add_argument("--video", default=None, help="Requis sauf avec --from-checkpoint.")
     parser.add_argument("--out", default=None, help="Requis sauf avec --from-checkpoint.")
     parser.add_argument("--from-checkpoint", default=None,
-                         help="Régénère UNIQUEMENT --review-out à partir d'un checkpoint existant, "
-                              "sans retraiter la vidéo (aucune inférence à refaire) — utile après un "
-                              "changement qui ne touche que l'export de revue. Incompatible avec "
-                              "--video/--out/--roster (ignorés) ; --review-out devient requis.")
+                         help="Régénère --review-out et/ou --out (avec --roster si fourni) à partir "
+                              "d'un checkpoint existant, sans retraiter la vidéo (aucune inférence à "
+                              "refaire) — utile après un changement qui ne touche que l'export de "
+                              "revue, ou pour appliquer/mettre à jour --roster une fois l'export du "
+                              "site disponible. --video est ignoré ; au moins un de --review-out/--out "
+                              "est requis.")
     parser.add_argument("--sample-fps", type=float, default=5.0,
                          help="Fréquence d'échantillonnage en images/s (def. 5) — pas besoin du "
                               "25-30 im/s natif pour ces métriques.")
@@ -424,9 +426,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.from_checkpoint:
-        if not args.review_out:
-            raise SystemExit("--from-checkpoint requiert --review-out.")
-        manifest_from_checkpoint(args.from_checkpoint, args.review_out)
+        if not args.review_out and not args.out:
+            raise SystemExit("--from-checkpoint requiert --review-out et/ou --out.")
+        accumulators, team_frame_positions, total_sampled = _replay_from_checkpoint(args.from_checkpoint)
+        if args.review_out:
+            n_review = export_review_manifest(accumulators, args.review_out, total_sampled)
+            print(f"Revue assistée (depuis checkpoint) : {len(accumulators)} trace(s) au total, "
+                  f"{n_review} exportée(s) (vignettes + manifest.json) -> {args.review_out}")
+        if args.out:
+            roster_map = None
+            if args.roster:
+                with open(args.roster) as fh:
+                    roster_map = json.load(fh)
+            analytics = build_analytics(accumulators, team_frame_positions, total_sampled, roster_map)
+            with open(args.out, "w") as fh:
+                json.dump(analytics, fh, ensure_ascii=False, indent=2)
+            print(f"OK (depuis checkpoint) — {len(analytics['players'])} joueur(s) -> {args.out}")
         raise SystemExit(0)
 
     if not args.video or not args.out:
