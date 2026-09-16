@@ -24605,17 +24605,30 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
     // fichier seul ne suffit pas : il faut aussi indiquer quelle trace du pipeline correspond à quel
     // numéro (en observant la vidéo de contrôle --debug-overlay), une correspondance que le site ne
     // peut pas connaître.
-    const findPlayer = (id) => roster.find((p) => p.id === id);
-    const namedAssignments = (assignments) =>
+    const namedFromRoster = (assignments) =>
       Object.fromEntries(
         Object.entries(assignments || {}).map(([num, id]) => {
-          const p = findPlayer(id);
+          const p = roster.find((r) => r.id === id);
           return [num, { id, name: p ? playerFullName(p) : null }];
         })
       );
+    // Côté adverse, les identités viennent du scouting (tf_scouting, cf. OpponentAssignmentEditor),
+    // pas de `roster` (l'effectif de SON PROPRE club) - chercher un id adverse dans `roster` ne
+    // trouvait jamais rien, le nom ressortait toujours null même une fois la Composition adverse
+    // remplie. Repéré le 2026-09-16 en répondant à Gregory sur l'identification de l'équipe adverse.
+    let scouted = [];
+    try { scouted = JSON.parse(localStorage.getItem("tf_scouting") || "[]"); } catch (e) {}
+    const norm = (s) => (s || "").trim().toLowerCase();
+    const namedFromScouting = (assignments) =>
+      Object.fromEntries(
+        Object.entries(assignments || {}).map(([num, id]) => {
+          const p = scouted.find((s) => s.id === id && norm(s.club) === norm(match.opponent));
+          return [num, { id, name: p ? p.name : null }];
+        })
+      );
     const payload = {
-      A: namedAssignments(match.playerAssignments),
-      B: namedAssignments(match.opponentAssignments),
+      A: namedFromRoster(match.playerAssignments),
+      B: namedFromScouting(match.opponentAssignments),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
