@@ -20629,6 +20629,14 @@ function playerAdvancedAnalytics(players, playerId) {
   };
 }
 
+// visibleCoverage (0-1) : part du match où le pipeline a pu suivre le joueur à l'image — absent des
+// imports CSV GPS/capteurs, qui couvrent le match entier.
+function formatTrackedShare(cov) {
+  return typeof cov === "number" && cov > 0 ? `${(cov * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : "—";
+}
+
+const TRACKED_SHARE_HINT = "« Visible » = part du match où le joueur a été suivi à l'image (caméra suiveuse). Distance, sprints et vitesse ne portent que sur ces moments : sous-estimation du match complet, d'autant plus forte que ce pourcentage est bas. La vitesse de pointe est la valeur la plus sensible au bruit de calibration — à prendre avec prudence.";
+
 function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
   const withData = allFullMatches
     .map((m) => ({ m, d: m.advancedAnalytics && playerAdvancedAnalytics(m.advancedAnalytics.players, playerId) }))
@@ -20650,17 +20658,36 @@ function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
   return (
     <div className="new-match-card" style={{ marginTop: 14 }}>
       <div className="panel-heading" style={{ marginTop: 0 }}>Charge physique en match</div>
-      <div className="chart-wrap" style={{ height: 220 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-            <CartesianGrid stroke="#26362C" strokeDasharray="3 3" />
-            <XAxis dataKey="date" tick={{ fill: "#8FA599", fontSize: 10 }} />
-            <YAxis tick={{ fill: "#8FA599", fontSize: 11 }} />
-            <Tooltip contentStyle={{ background: "#182A21", border: "1px solid #26362C", borderRadius: 6, color: "#EEF3EC" }} />
-            <Line type="monotone" dataKey="distance" name="Distance (m)" stroke="#E3B23C" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="table-scroll">
+        <table className="stat-table">
+          <thead><tr><th>Match</th><th>Distance</th><th>Sprints</th><th>Vitesse max</th><th>Visible (% match)</th></tr></thead>
+          <tbody>
+            {withData.map(({ m, d }) => (
+              <tr key={m.id}>
+                <td>{formatDateFr(m.date)}{m.name ? ` · ${m.name}` : ""}</td>
+                <td>{d.distanceCovered} m</td>
+                <td>{d.sprints}</td>
+                <td>{d.topSpeed} km/h</td>
+                <td>{formatTrackedShare(d.visibleCoverage)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+      {withData.some(({ d }) => d.visibleCoverage > 0) && <p className="hint" style={{ textAlign: "left" }}>{TRACKED_SHARE_HINT}</p>}
+      {withData.length >= 2 && (
+        <div className="chart-wrap" style={{ height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+              <CartesianGrid stroke="#26362C" strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fill: "#8FA599", fontSize: 10 }} />
+              <YAxis tick={{ fill: "#8FA599", fontSize: 11 }} />
+              <Tooltip contentStyle={{ background: "#182A21", border: "1px solid #26362C", borderRadius: 6, color: "#EEF3EC" }} />
+              <Line type="monotone" dataKey="distance" name="Distance (m)" stroke="#E3B23C" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
@@ -24541,6 +24568,7 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
   const gpsCsvInputRef = useRef(null);
 
   function handleFile(file) {
+    if (data && !window.confirm("Remplacer les données de tracking déjà importées pour ce match par celles de ce fichier ?")) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -24641,6 +24669,15 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
     URL.revokeObjectURL(url);
   }
 
+  // Le fichier du pipeline est indexé par l'identifiant de chaque joueur au moment de l'export des
+  // numéros de maillot : si l'effectif a été recréé depuis, plus aucun joueur ne correspond et les
+  // données restent invisibles sans qu'aucune erreur ne s'affiche — repéré par Gregory le
+  // 2026-09-18 (import "réussi" mais aucune donnée physique retrouvée dans le site).
+  const recognizedRows = data
+    ? (roster || []).map((p) => ({ p, d: playerAdvancedAnalytics(data.players, p.id) })).filter(({ d }) => d)
+    : [];
+  const dataNotMatchingRoster = !!data && recognizedRows.length === 0 && Object.keys(data.players || {}).length > 0;
+
   return (
     <div style={{ marginTop: 20 }}>
       <button className="btn btn-ghost btn-small no-print" onClick={() => setExpanded((v) => !v)}>
@@ -24657,19 +24694,43 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
               <p className="hint" style={{ marginTop: 4, marginBottom: 10 }}>Numéro → joueur, tel que saisi dans Composition pour ce match. Ne suffit pas seul : le pipeline ne lit pas les numéros sur les maillots, il faut aussi lui indiquer quelle trace vidéo correspond à quel numéro en observant l'aperçu --debug-overlay.</p>
             </>
           )}
-          {!data && (
-            <>
-              <button className="btn btn-ghost btn-small" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Importer des données de tracking (JSON)</button>
-              <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; }} />
-              {roster && roster.length > 0 && (
-                <button className="btn btn-ghost btn-small" style={{ marginLeft: 8 }} onClick={handleGenerateMock}>🧪 Générer des données de démo</button>
-              )}
-            </>
-          )}
-          <button className="btn btn-ghost btn-small" style={{ marginLeft: data ? 0 : 8 }} onClick={() => gpsCsvInputRef.current && gpsCsvInputRef.current.click()}>Importer CSV GPS/capteurs</button>
-          <input ref={gpsCsvInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleGpsCsvFile(e.target.files[0]); e.target.value = ""; }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <button className="btn btn-ghost btn-small" onClick={() => fileInputRef.current && fileInputRef.current.click()}>{data ? "Remplacer les données de tracking (JSON)" : "Importer des données de tracking (JSON)"}</button>
+            <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; }} />
+            {!data && roster && roster.length > 0 && (
+              <button className="btn btn-ghost btn-small" onClick={handleGenerateMock}>🧪 Générer des données de démo</button>
+            )}
+            <button className="btn btn-ghost btn-small" onClick={() => gpsCsvInputRef.current && gpsCsvInputRef.current.click()}>Importer CSV GPS/capteurs</button>
+            <input ref={gpsCsvInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleGpsCsvFile(e.target.files[0]); e.target.value = ""; }} />
+          </div>
           <p className="hint" style={{ marginTop: 4 }}>Format attendu (en-tête obligatoire) : {GPS_CSV_COLUMNS.join(",")}</p>
           {data && <p className="hint" style={{ marginTop: 0 }}>Données importées le {data.importedAt ? formatDateFr(data.importedAt.slice(0, 10)) : "?"} (source : {data.source || "non précisée"}).</p>}
+          {dataNotMatchingRoster && (
+            <p className="hint" style={{ textAlign: "left", color: "var(--crimson)" }}>
+              ⚠ Aucun joueur de l'effectif actuel n'est reconnu dans ces données : les identifiants du fichier ne correspondent pas à ton effectif (effectif recréé depuis l'export des numéros de maillot ?). Refais l'export des numéros de maillot, régénère le fichier avec, puis utilise « Remplacer les données de tracking ».
+            </p>
+          )}
+          {recognizedRows.length > 0 && (
+            <>
+              <div className="table-scroll" style={{ marginTop: 10 }}>
+                <table className="stat-table">
+                  <thead><tr><th>Joueur</th><th>Distance</th><th>Sprints</th><th>Vitesse max</th><th>Visible (% match)</th></tr></thead>
+                  <tbody>
+                    {recognizedRows.map(({ p, d }) => (
+                      <tr key={p.id}>
+                        <td>{playerFullName(p)}</td>
+                        <td>{d.distanceCovered} m</td>
+                        <td>{d.sprints}</td>
+                        <td>{d.topSpeed} km/h</td>
+                        <td>{formatTrackedShare(d.visibleCoverage)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {recognizedRows.some(({ d }) => d.visibleCoverage > 0) && <p className="hint" style={{ textAlign: "left" }}>{TRACKED_SHARE_HINT}</p>}
+            </>
+          )}
 
           <div className="scouting-list" style={{ marginTop: 10 }}>
             {ADVANCED_ANALYTICS_CATEGORIES.map((cat) => {
@@ -25234,7 +25295,11 @@ function ReportsScreen({ matches }) {
     const next = { ...m, advancedAnalytics: analytics };
     writeMatch(next);
     setAllFullMatches((prev) => prev.map((x) => (x.id === matchId ? next : x)));
-    alert("Données d'analyse avancée importées pour ce match.");
+    const recognized = roster.filter((p) => playerAdvancedAnalytics(analytics.players, p.id)).length;
+    const total = Object.keys(analytics.players || {}).length;
+    alert(total > 0 && recognized === 0
+      ? "Données importées, mais AUCUN joueur de l'effectif n'est reconnu : les identifiants du fichier ne correspondent pas à ton effectif actuel. Refais l'export des numéros de maillot, régénère le fichier avec, puis remplace l'import."
+      : `Données d'analyse avancée importées pour ce match. ${recognized} joueur(s) de l'effectif reconnu(s).`);
   }
   function saveClubComment(matchId, comment) {
     const m = obsMatches.find((x) => x.id === matchId);
