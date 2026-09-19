@@ -18,7 +18,11 @@ export function ParentApp() {
     if (session === undefined || session === null) return;
     // Nom affichable pour que le staff puisse identifier les parents liés (écran "parents liés à
     // ce joueur") sans jamais avoir besoin d'accéder à auth.users, non exposé par l'API publique.
-    supabase.from("parent_profiles").upsert({ id: session.user.id, display_name: session.user.email }, { onConflict: "id" });
+    // Le .then() est indispensable : un builder supabase-js n'envoie sa requête qu'à l'await/then.
+    supabase
+      .from("parent_profiles")
+      .upsert({ id: session.user.id, display_name: session.user.email }, { onConflict: "id" })
+      .then(({ error }) => { if (error) console.error("Profil parent non enregistré", error); });
     getLinkedPlayers()
       .then((list) => {
         setPlayers(list);
