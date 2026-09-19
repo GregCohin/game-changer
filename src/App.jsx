@@ -20637,6 +20637,76 @@ function formatTrackedShare(cov) {
 
 const TRACKED_SHARE_HINT = "« Visible » = part du match où le joueur a été suivi à l'image (caméra suiveuse). Distance, sprints et vitesse ne portent que sur ces moments : sous-estimation du match complet, d'autant plus forte que ce pourcentage est bas. La vitesse de pointe est la valeur la plus sensible au bruit de calibration — à prendre avec prudence.";
 
+// Forme d'équipe issue du tracking, en fractions 0-1 du terrain : hauteur du bloc = position moyenne des joueurs de
+// champ entre leur propre but (0) et le but adverse (1) ; largeur = écart entre les joueurs les plus écartés ;
+// profondeur = écart entre le joueur le plus reculé et le plus avancé. `team.detail` (optionnel) apporte les
+// découpages par mi-temps, l'adversaire et la part du match réellement mesurée.
+function teamShapeRows(team) {
+  if (!team || team.avgBlockHeight == null) return null;
+  const cell = (v, m) => (typeof v === "number" ? `${Math.round(v * 100)} %${typeof m === "number" ? ` (${Math.round(m)} m)` : ""}` : "—");
+  const row = (label, s) => (s ? { label, h: cell(s.blockHeight, s.blockHeightM), w: cell(s.width, s.widthM), d: cell(s.depth, s.depthM) } : null);
+  const det = team.detail || {};
+  const ours = det.ours || {};
+  const opp = det.opponent || {};
+  return [
+    row("Notre équipe — match", ours.match || { blockHeight: team.avgBlockHeight, width: team.avgWidth, depth: team.avgDepth }),
+    row("Notre équipe — 1re mi-temps", ours.half1),
+    row("Notre équipe — 2e mi-temps", ours.half2),
+    row("Adversaire — match", opp.match),
+    row("Adversaire — 1re mi-temps", opp.half1),
+    row("Adversaire — 2e mi-temps", opp.half2),
+  ].filter(Boolean);
+}
+
+// Un fichier d'import ne remplace que les rubriques qu'il contient : un fichier « forme d'équipe » seul ne doit pas
+// effacer les données physiques par joueur déjà importées (et inversement).
+function mergeAdvancedAnalytics(existing, incoming) {
+  if (!existing) return incoming;
+  const hasPlayers = incoming.players && Object.keys(incoming.players).length > 0;
+  const hasTeam = incoming.team && incoming.team.avgBlockHeight != null;
+  const sources = [existing.source, incoming.source].filter((x, i, a) => x && a.indexOf(x) === i);
+  return {
+    ...incoming,
+    source: sources.join(" + "),
+    players: hasPlayers ? incoming.players : (existing.players || {}),
+    team: hasTeam ? incoming.team : (existing.team || incoming.team),
+    passNetwork: (incoming.passNetwork || []).length > 0 ? incoming.passNetwork : (existing.passNetwork || []),
+    preciseEvents: (incoming.preciseEvents || []).length > 0 ? incoming.preciseEvents : (existing.preciseEvents || []),
+  };
+}
+
+const TEAM_SHAPE_DEFINITIONS = "Hauteur : position moyenne des joueurs de champ entre leur but (0 %) et le but adverse (100 %). Largeur : écart entre les joueurs les plus écartés, en % de la largeur du terrain. Profondeur : écart entre le plus reculé et le plus avancé, en % de la longueur. Gardiens exclus.";
+
+// Phrase de fiabilité : précise seulement quand le fichier décrit sa mesure (team.detail, avec sa propre note de
+// précision, mise à jour dans le fichier sans redéployer le site) ; sinon, avertissement générique.
+function teamShapeMeasureNote(team) {
+  const det = team && team.detail;
+  if (det && typeof det.coverage === "number" && det.minPlayers) {
+    return `Mesuré sur ${Math.round(det.coverage * 100)} % du match (images où au moins ${det.minPlayers} joueurs de champ sont suivis)${det.note ? ` ; ${det.note}` : "."}`;
+  }
+  return "Mesuré uniquement sur les moments où assez de joueurs de l'équipe sont visibles à l'image : estimation partielle du match.";
+}
+
+function TeamShapeCard({ team }) {
+  const rows = teamShapeRows(team);
+  if (!rows) return null;
+  return (
+    <>
+      <div className="table-scroll" style={{ marginTop: 10 }}>
+        <table className="stat-table">
+          <thead><tr><th>Forme d'équipe</th><th>Hauteur</th><th>Largeur</th><th>Profondeur</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label}><td>{r.label}</td><td>{r.h}</td><td>{r.w}</td><td>{r.d}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="hint" style={{ textAlign: "left" }}>{teamShapeMeasureNote(team)} {TEAM_SHAPE_DEFINITIONS}</p>
+    </>
+  );
+}
+
 function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
   const withData = allFullMatches
     .map((m) => ({ m, d: m.advancedAnalytics && playerAdvancedAnalytics(m.advancedAnalytics.players, playerId) }))
@@ -24568,12 +24638,12 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
   const gpsCsvInputRef = useRef(null);
 
   function handleFile(file) {
-    if (data && !window.confirm("Remplacer les données de tracking déjà importées pour ce match par celles de ce fichier ?")) return;
+    if (data && !window.confirm("Ce fichier remplace les rubriques qu'il contient (joueurs, forme d'équipe…) ; les autres rubriques déjà importées pour ce match sont conservées. Continuer ?")) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        onImport(parsed);
+        onImport(mergeAdvancedAnalytics(data, parsed));
       } catch (e) {
         alert("Fichier invalide — vérifie le format JSON.");
       }
@@ -24731,6 +24801,7 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
               {recognizedRows.some(({ d }) => d.visibleCoverage > 0) && <p className="hint" style={{ textAlign: "left" }}>{TRACKED_SHARE_HINT}</p>}
             </>
           )}
+          {data && <TeamShapeCard team={data.team} />}
 
           <div className="scouting-list" style={{ marginTop: 10 }}>
             {ADVANCED_ANALYTICS_CATEGORIES.map((cat) => {
@@ -25297,9 +25368,10 @@ function ReportsScreen({ matches }) {
     setAllFullMatches((prev) => prev.map((x) => (x.id === matchId ? next : x)));
     const recognized = roster.filter((p) => playerAdvancedAnalytics(analytics.players, p.id)).length;
     const total = Object.keys(analytics.players || {}).length;
+    const hasTeamShape = !!(analytics.team && analytics.team.avgBlockHeight != null);
     alert(total > 0 && recognized === 0
       ? "Données importées, mais AUCUN joueur de l'effectif n'est reconnu : les identifiants du fichier ne correspondent pas à ton effectif actuel. Refais l'export des numéros de maillot, régénère le fichier avec, puis remplace l'import."
-      : `Données d'analyse avancée importées pour ce match. ${recognized} joueur(s) de l'effectif reconnu(s).`);
+      : `Données d'analyse avancée importées pour ce match.${total > 0 ? ` ${recognized} joueur(s) de l'effectif reconnu(s).` : ""}${hasTeamShape ? " Forme d'équipe disponible." : ""}`);
   }
   function saveClubComment(matchId, comment) {
     const m = obsMatches.find((x) => x.id === matchId);
