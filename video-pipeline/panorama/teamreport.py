@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from panorama import teamload as LD
 from panorama import teamshape as S
 from panorama import track as T
 
@@ -94,7 +95,15 @@ def main():
             "fullTeam": {"blockHeight": ours["dix_joueurs"]["fraction"]["hauteur"], "width": ours["dix_joueurs"]["fraction"]["largeur"], "depth": ours["dix_joueurs"]["fraction"]["profondeur"], "coverage": ours["dix_joueurs"]["part_du_match"]},
         },
     }
-    site = {"source": "Pipeline vidéo (panoramique Veo) — forme d'équipe", "importedAt": None, "players": {}, "team": team, "passNetwork": [], "preciseEvents": []}
+    what = "forme d'équipe"
+    charge = T.OUT / "resultat_charge_detail.json"
+    if charge.exists():                                   # produit par python -m panorama.teamload (plusieurs minutes)
+        ch = json.load(open(charge))
+        team["detail"]["load"] = LD.site_block(ch["periodes"], ch["etendueMethode"])
+        what += " et charge physique"
+    else:
+        print("charge physique absente du fichier : lancer d'abord python -m panorama.teamload")
+    site = {"source": f"Pipeline vidéo (panoramique Veo) — {what}", "importedAt": None, "players": {}, "team": team, "passNetwork": [], "preciseEvents": []}
     json.dump(site, open(T.OUT / "resultat_equipe.json", "w"), ensure_ascii=False, indent=1)
     print(json.dumps(out, ensure_ascii=False, indent=1))
 

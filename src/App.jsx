@@ -20714,8 +20714,11 @@ function mergeAdvancedAnalytics(existing, incoming) {
   if (!existing) return incoming;
   const hasPlayers = incoming.players && Object.keys(incoming.players).length > 0;
   const hasTeam = incoming.team && incoming.team.avgBlockHeight != null;
-  const sources = (existing.source || "").split(" + ").filter(Boolean);
-  if (incoming.source && !sources.includes(incoming.source)) sources.push(incoming.source);
+  // Une nouvelle version d'un même pipeline (même texte avant « — ») remplace l'ancienne mention au lieu de s'y ajouter.
+  const family = (s) => s.split(" — ")[0];
+  const inSource = typeof incoming.source === "string" ? incoming.source : "";
+  const sources = (existing.source || "").split(" + ").filter(Boolean).filter((s) => !inSource || s === inSource || family(s) !== family(inSource));
+  if (inSource && !sources.includes(inSource)) sources.push(inSource);
   return {
     ...incoming,
     source: sources.join(" + "),
@@ -20809,6 +20812,138 @@ function TeamShapeCard({ team }) {
       )}
       <ul className="hint" style={{ textAlign: "left", paddingLeft: 18, margin: "8px 0 0" }}>
         {TEAM_SHAPE_LEGEND.map(([term, text]) => (<li key={term}><span style={{ fontWeight: 700 }}>{term}</span> : {text}</li>))}
+      </ul>
+    </>
+  );
+}
+
+// Charge physique d'équipe issue du tracking (team.detail.load). Les taux sont rapportés à un joueur de champ SUIVI et à
+// une minute SUIVIE — jamais à la durée du match : le suivi ne couvre qu'une partie du temps-joueur, et la part mesurée est
+// affichée avec chaque ligne. Le fichier importé porte ses propres fourchettes, marges de méthode et texte de fiabilité.
+function teamLoadOf(team) {
+  const load = team && team.detail && team.detail.load;
+  if (!load || typeof load !== "object") return null;
+  const measured = ["ours", "opponent"].some((g) => load[g] && load[g].match && typeof load[g].match.distancePerMin === "number");
+  return measured ? load : null;
+}
+
+function frNumber(v, digits = 0) {
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function teamLoadRows(team) {
+  const load = teamLoadOf(team);
+  if (!load) return null;
+  const range = (ci) => (Array.isArray(ci) && ci.length === 2 && ci.every((x) => typeof x === "number") ? `fourchette ${frNumber(ci[0])} à ${frNumber(ci[1])}` : null);
+  const perMin = (v, digits) => (typeof v === "number" ? `${frNumber(v, digits)} m/min` : "—");
+  const share = (part, whole) => (typeof part === "number" && typeof whole === "number" && whole > 0 ? `${Math.round((part / whole) * 100)} % de la distance` : null);
+  const row = (group, label, s) => (s && typeof s.distancePerMin === "number" ? {
+    group, label,
+    dist: perMin(s.distancePerMin, 0), distSub: range(s.ci95 && s.ci95.distancePerMin),
+    hi: perMin(s.hiPerMin, 1), hiSub: share(s.hiPerMin, s.distancePerMin),
+    sprint: perMin(s.sprintPerMin, 1), sprintSub: share(s.sprintPerMin, s.distancePerMin),
+    seen: typeof s.measuredPlayerMin === "number" ? `${frNumber(s.measuredPlayerMin)} min-joueur` : "—",
+    seenSub: typeof s.coverage === "number" ? `${Math.round(s.coverage * 100)} % du temps-joueur` : null,
+  } : null);
+  const ours = load.ours || {};
+  const opp = load.opponent || {};
+  return [
+    row("ours", "Match entier", ours.match),
+    row("ours", "1re mi-temps", ours.half1),
+    row("ours", "2e mi-temps", ours.half2),
+    row("opp", "Match entier", opp.match),
+    row("opp", "1re mi-temps", opp.half1),
+    row("opp", "2e mi-temps", opp.half2),
+  ].filter(Boolean);
+}
+
+const TEAM_LOAD_GROUPS = { ours: "Notre équipe", opp: "Adversaire" };
+const TEAM_LOAD_METRICS = [["distancePerMin", "Distance"], ["hiPerMin", "Haute intensité"], ["sprintPerMin", "Sprint"]];
+
+// Écart nous / adversaire sur le match entier. « Établi » seulement si toute la fourchette d'échantillonnage dépasse aussi
+// la marge de méthode du fichier (variation du résultat selon les réglages du lissage et du classement des équipes).
+function teamLoadComparisons(team) {
+  const load = teamLoadOf(team);
+  const diff = load && load.diffPct && load.diffPct.match;
+  if (!diff) return [];
+  const margins = (load.methodPct && load.methodPct.diffPoints) || {};
+  const pct = (v) => {
+    const r = Math.round(v);
+    return r === 0 ? "0 %" : `${r > 0 ? "+" : "−"}${Math.abs(r)} %`;
+  };
+  return TEAM_LOAD_METRICS.map(([key, label]) => {
+    const v = diff[key];
+    const ci = diff.ci95 && diff.ci95[key];
+    if (typeof v !== "number" || !Array.isArray(ci) || ci.length !== 2) return null;
+    const margin = typeof margins[key] === "number" ? margins[key] : 0;
+    const established = Math.min(...ci) > margin || Math.max(...ci) < -margin;
+    return { label, text: `${label} : ${pct(v)} (de ${pct(ci[0])} à ${pct(ci[1])})`, established, verdict: established ? "écart établi" : "pas d'écart établi" };
+  }).filter(Boolean);
+}
+
+function teamLoadLegend(load) {
+  const k = (load && load.thresholdsKmh) || {};
+  const hi = typeof k.highIntensity === "number" ? frNumber(k.highIntensity, 1) : "16,2";
+  const sp = typeof k.sprint === "number" ? frNumber(k.sprint, 1) : "21,6";
+  return [
+    ["Distance", "mètres parcourus par un joueur de champ pendant une minute suivie, en moyenne sur l'équipe (gardien exclu). 100 m/min font environ 9 km sur 90 minutes."],
+    ["Haute intensité", `part de cette distance parcourue à plus de ${hi} km/h, en mètres par minute suivie.`],
+    ["Sprint", `même mesure au-delà de ${sp} km/h.`],
+    ["Suivi", "minutes-joueur réellement mesurées et part du temps-joueur théorique (10 joueurs de champ pendant toute la période). Le reste n'est pas mesuré : joueur non suivi, contact avec un autre joueur, équipe incertaine."],
+    ["Fourchette", "incertitude due à l'échantillonnage seul (blocs de 5 minutes rééchantillonnés) ; la marge de méthode, indiquée sous le tableau, s'y ajoute."],
+  ];
+}
+
+function TeamLoadCard({ team }) {
+  const rows = teamLoadRows(team);
+  if (!rows) return null;
+  const load = teamLoadOf(team);
+  const comparisons = teamLoadComparisons(team);
+  const k = load.thresholdsKmh || {};
+  const subTh = { display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, whiteSpace: "normal", maxWidth: 140, marginTop: 2 };
+  const subTd = { display: "block", fontSize: 11, color: "var(--ink-muted)", whiteSpace: "normal", maxWidth: 150 };
+  const pad = { padding: "8px 7px" };
+  const cell = (main, sub) => (<td style={pad}><div style={{ fontWeight: 600 }}>{main}</div>{sub && <span style={subTd}>{sub}</span>}</td>);
+  const above = (v, fallback) => (typeof v === "number" ? `au-delà de ${frNumber(v, 1)} km/h` : fallback);
+  return (
+    <>
+      <div className="table-scroll" style={{ marginTop: 10 }}>
+        <table className="stat-table">
+          <thead>
+            <tr>
+              <th style={pad}>Charge physique</th>
+              <th style={pad}>Distance<span style={subTh}>par joueur et par minute suivie</span></th>
+              <th style={pad}>Haute intensité<span style={subTh}>{above(k.highIntensity, "course rapide")}</span></th>
+              <th style={pad}>Sprint<span style={subTh}>{above(k.sprint, "course très rapide")}</span></th>
+              <th style={pad}>Suivi<span style={subTh}>temps réellement mesuré</span></th>
+            </tr>
+          </thead>
+          {["ours", "opp"].map((g) => {
+            const list = rows.filter((r) => r.group === g);
+            if (list.length === 0) return null;
+            return (
+              <tbody key={g}>
+                <tr><td colSpan={5} style={{ ...pad, fontWeight: 700, fontSize: 12, whiteSpace: "normal", background: "rgba(176,106,135,0.08)" }}>{TEAM_LOAD_GROUPS[g]}</td></tr>
+                {list.map((r) => (
+                  <tr key={r.label}><td style={pad}>{r.label}</td>{cell(r.dist, r.distSub)}{cell(r.hi, r.hiSub)}{cell(r.sprint, r.sprintSub)}{cell(r.seen, r.seenSub)}</tr>
+                ))}
+              </tbody>
+            );
+          })}
+        </table>
+      </div>
+      {comparisons.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>Écart entre notre équipe et l'adversaire (match entier)</div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 12 }}>
+            {comparisons.map((c) => (<li key={c.label}>{c.text} — <span style={{ fontWeight: 700 }}>{c.verdict}</span></li>))}
+          </ul>
+        </div>
+      )}
+      {load.note && <p className="hint" style={{ textAlign: "left" }}>{load.note}</p>}
+      <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700 }}>Comment lire ces chiffres</div>
+      <ul className="hint" style={{ textAlign: "left", paddingLeft: 18, margin: "4px 0 0" }}>
+        {teamLoadLegend(load).map(([term, text]) => (<li key={term}><span style={{ fontWeight: 700 }}>{term}</span> : {text}</li>))}
       </ul>
     </>
   );
@@ -20918,6 +21053,12 @@ function TrackingStatsTab({ roster, rawFullMatches }) {
         <div className="panel-heading" style={{ marginTop: 0 }}>Équipe — {label(selected)}</div>
         {hasTeam ? <TeamShapeCard team={data.team} /> : <p className="radar-note">Pas de forme d'équipe pour ce match.</p>}
       </div>
+      {teamLoadOf(data.team) && (
+        <div className="new-match-card" style={{ marginTop: 14 }}>
+          <div className="panel-heading" style={{ marginTop: 0 }}>Charge physique de l'équipe — {label(selected)}</div>
+          <TeamLoadCard team={data.team} />
+        </div>
+      )}
       {teamMatches.length > 1 && (
         <div className="new-match-card" style={{ marginTop: 14 }}>
           <div className="panel-heading" style={{ marginTop: 0 }}>Forme d'équipe, match par match (notre équipe, match entier)</div>
@@ -24965,6 +25106,7 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
     : [];
   const dataNotMatchingRoster = !!data && recognizedRows.length === 0 && Object.keys(data.players || {}).length > 0;
   const hasTeamShape = !!data && !!data.team && data.team.avgBlockHeight != null;
+  const hasTeamLoad = !!data && teamLoadOf(data.team) !== null;
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -25000,7 +25142,7 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
           )}
           {data && (recognizedRows.length > 0 || hasTeamShape) && (
             <p className="hint" style={{ textAlign: "left" }}>
-              {[recognizedRows.length > 0 ? `${recognizedRows.length} joueur(s) de l'effectif reconnu(s)` : null, hasTeamShape ? "forme d'équipe disponible" : null].filter(Boolean).join(" · ")}
+              {[recognizedRows.length > 0 ? `${recognizedRows.length} joueur(s) de l'effectif reconnu(s)` : null, hasTeamShape ? "forme d'équipe disponible" : null, hasTeamLoad ? "charge physique d'équipe disponible" : null].filter(Boolean).join(" · ")}
               . À consulter dans Statistiques → Tracking vidéo.
             </p>
           )}
@@ -25573,7 +25715,7 @@ function ReportsScreen({ matches }) {
     const hasTeamShape = !!(analytics.team && analytics.team.avgBlockHeight != null);
     alert(total > 0 && recognized === 0
       ? "Données importées, mais AUCUN joueur de l'effectif n'est reconnu : les identifiants du fichier ne correspondent pas à ton effectif actuel. Refais l'export des numéros de maillot, régénère le fichier avec, puis remplace l'import."
-      : `Données d'analyse avancée importées pour ce match.${total > 0 ? ` ${recognized} joueur(s) de l'effectif reconnu(s).` : ""}${hasTeamShape ? " Forme d'équipe disponible." : ""}`);
+      : `Données d'analyse avancée importées pour ce match.${total > 0 ? ` ${recognized} joueur(s) de l'effectif reconnu(s).` : ""}${hasTeamShape ? " Forme d'équipe disponible." : ""}${teamLoadOf(analytics.team) ? " Charge physique d'équipe disponible." : ""}`);
   }
   function saveClubComment(matchId, comment) {
     const m = obsMatches.find((x) => x.id === matchId);
