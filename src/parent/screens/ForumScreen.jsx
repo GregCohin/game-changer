@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { getForumThreads, getThreadMessages, postForumMessage } from "../lib/api";
-import { useAuth } from "../AuthContext";
+
+// Nom affiché sous les messages d'un parent. Jamais l'email : dans un sujet d'équipe, tous les
+// parents lisent les messages des autres. Seul le prénom de l'enfant concerné, comme dans un groupe
+// de club classique.
+function parentDisplayName(player) {
+  const firstName = (player.first_name || "").trim().split(/\s+/)[0];
+  return firstName ? `Parent de ${firstName}` : "Parent";
+}
 
 export function ForumScreen({ player }) {
-  const { session } = useAuth();
   const [threads, setThreads] = useState(null);
   const [openThreadId, setOpenThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -24,7 +30,7 @@ export function ForumScreen({ player }) {
   async function handleReply(e) {
     e.preventDefault();
     if (!reply.trim()) return;
-    await postForumMessage(openThreadId, reply.trim(), session.user.email);
+    await postForumMessage(openThreadId, reply.trim(), parentDisplayName(player));
     setReply("");
     getThreadMessages(openThreadId).then(setMessages);
   }
@@ -40,7 +46,8 @@ export function ForumScreen({ player }) {
         <h2 style={styles.h2}>{thread?.title}</h2>
         {messages.map((m) => (
           <div key={m.id} style={styles.card}>
-            <strong>{m.author_kind === "staff" ? m.author_name : m.author_name}</strong>
+            <strong>{m.author_name}</strong>
+            {m.author_kind === "staff" && <span style={styles.badge}>Staff</span>}
             <p>{m.content}</p>
           </div>
         ))}

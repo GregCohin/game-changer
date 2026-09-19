@@ -66,6 +66,12 @@ async function replaceUnscoped(table, rows) {
   }
 }
 
+function chunk(array, size) {
+  const out = [];
+  for (let i = 0; i < array.length; i += size) out.push(array.slice(i, i + size));
+  return out;
+}
+
 async function upsertOnly(table, rows, onConflict = "id") {
   if (rows.length === 0) return;
   const { error } = await supabaseStaff.from(table).upsert(rows, { onConflict });
@@ -130,6 +136,22 @@ export async function publishPortalSnapshot(snapshot) {
         "thread_id,parent_id"
       );
     }
+  }
+
+  // Messages écrits par le staff. Le tableau local tf_forum_messages mélange messages du staff et
+  // messages de parents ramenés par pullPortalUpdates : on écarte tout identifiant déjà connu comme
+  // message de PARENT (la base refuserait de toute façon d'en changer l'auteur, mais autant ne pas
+  // faire échouer toute la publication pour ça).
+  const threadIds = new Set(snapshot.forumThreads.map((t) => t.id));
+  const staffMessages = (snapshot.forumMessages || []).filter((m) => threadIds.has(m.thread_id));
+  const parentAuthoredIds = new Set();
+  for (const ids of chunk(staffMessages.map((m) => m.id), 50)) {
+    const { data, error } = await supabaseStaff.from("forum_messages").select("id").eq("author_kind", "parent").in("id", ids);
+    if (error) throw error;
+    (data || []).forEach((row) => parentAuthoredIds.add(row.id));
+  }
+  for (const rows of chunk(staffMessages.filter((m) => !parentAuthoredIds.has(m.id)), 200)) {
+    await upsertOnly("forum_messages", rows);
   }
 
   return { publishedAt: new Date().toISOString() };

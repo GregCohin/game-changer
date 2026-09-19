@@ -26,7 +26,16 @@ export function PortailScreen({ player }) {
   }
 
   async function handleJoinCarpool(offerId) {
-    await joinCarpool(offerId, player.id, `${player.first_name} ${player.last_name}`);
+    try {
+      await joinCarpool(offerId, player.id, `${player.first_name} ${player.last_name}`.trim());
+    } catch (err) {
+      // La base refuse une offre complète (trigger) ou un enfant déjà inscrit (contrainte d'unicité).
+      alert(
+        err.code === "23505" ? "Cet enfant est déjà inscrit à ce covoiturage."
+        : /complète/i.test(err.message) ? "Désolé, cette offre de covoiturage vient d'être complète."
+        : "Inscription impossible : " + err.message
+      );
+    }
     setRefreshKey((k) => k + 1);
   }
 

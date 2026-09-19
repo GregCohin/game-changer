@@ -5808,6 +5808,7 @@ function buildPortalSnapshot(teamId, seasonId) {
   const clubEventsRaw = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
   const carpoolRaw = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
   const forumThreadsRaw = JSON.parse(localStorage.getItem("tf_forum_threads") || "[]");
+  const forumMessagesRaw = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
   const comp = loadCompetitionsData();
 
   const matchIndex = JSON.parse(localStorage.getItem(MATCHES_INDEX_KEY) || "[]");
@@ -5853,9 +5854,19 @@ function buildPortalSnapshot(teamId, seasonId) {
     targetPlayerIds: t.type === "individuelle" ? (t.targetIndividuals || []) : undefined,
   }));
 
+  // Tous les messages locaux, marqués « staff » : portalSync écarte ceux qui sont déjà connus côté
+  // Supabase comme messages de parents (ramenés par « Récupérer les nouveautés »). Les pièces
+  // jointes (exercices, clips) ne sont pas publiées.
+  const forumMessages = forumMessagesRaw
+    .filter((m) => m && m.threadId && m.content)
+    .map((m) => ({
+      id: m.id, thread_id: m.threadId, author_kind: "staff", author_name: m.authorName || "Staff",
+      parent_id: null, content: m.content, at: new Date(m.at || Date.now()).toISOString(),
+    }));
+
   return {
     teamId, seasonId, players, developmentGoals, individualPrograms, injuries, sessions, faq,
-    clubEvents, carpoolOffers, competitions, fixtures, matches, matchStats, forumThreads,
+    clubEvents, carpoolOffers, competitions, fixtures, matches, matchStats, forumThreads, forumMessages,
   };
 }
 
