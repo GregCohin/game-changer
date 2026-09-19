@@ -211,12 +211,24 @@ export async function revokeInvitationCode(code) {
 
 export async function listPlayerLinks(playerId) {
   await requireStaff();
-  const { data, error } = await supabaseStaff
+  const { data: links, error } = await supabaseStaff
     .from("parent_player_links")
-    .select("parent_id, linked_at, parent_profiles(display_name)")
+    .select("parent_id, linked_at")
     .eq("player_id", playerId);
   if (error) throw error;
-  return data || [];
+  if (!links || links.length === 0) return [];
+
+  // Deux requêtes plutôt qu'une jointure PostgREST : parent_player_links et parent_profiles
+  // référencent chacune auth.users, mais pas l'une l'autre — il n'y a donc aucune relation à
+  // joindre (erreur PGRST200). On garde la forme { parent_profiles: { display_name } } attendue
+  // par l'écran staff.
+  const { data: profiles, error: profilesError } = await supabaseStaff
+    .from("parent_profiles")
+    .select("id, display_name")
+    .in("id", links.map((l) => l.parent_id));
+  if (profilesError) throw profilesError;
+  const nameById = Object.fromEntries((profiles || []).map((p) => [p.id, p.display_name]));
+  return links.map((l) => ({ ...l, parent_profiles: { display_name: nameById[l.parent_id] ?? null } }));
 }
 
 export async function revokeLink(parentId, playerId) {
