@@ -20714,7 +20714,8 @@ function mergeAdvancedAnalytics(existing, incoming) {
   if (!existing) return incoming;
   const hasPlayers = incoming.players && Object.keys(incoming.players).length > 0;
   const hasTeam = incoming.team && incoming.team.avgBlockHeight != null;
-  const sources = [existing.source, incoming.source].filter((x, i, a) => x && a.indexOf(x) === i);
+  const sources = (existing.source || "").split(" + ").filter(Boolean);
+  if (incoming.source && !sources.includes(incoming.source)) sources.push(incoming.source);
   return {
     ...incoming,
     source: sources.join(" + "),
@@ -20862,6 +20863,116 @@ function PhysicalMatchDataPanel({ playerId, allFullMatches }) {
               <Line type="monotone" dataKey="distance" name="Distance (m)" stroke="#E3B23C" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Le match a-t-il des données de tracking vidéo (par joueur et/ou forme d'équipe) ?
+function trackingMatchHasData(m) {
+  const a = m && m.advancedAnalytics;
+  if (!a) return false;
+  return Object.keys(a.players || {}).length > 0 || (!!a.team && a.team.avgBlockHeight != null);
+}
+
+// Statistiques -> Tracking vidéo : tout ce que le tracking apporte, au même endroit — forme d'équipe, chiffres de chaque
+// joueur pour un match, historique d'un joueur match par match. L'import des fichiers reste dans Rapports de matchs.
+function TrackingStatsTab({ roster, rawFullMatches }) {
+  const withData = useMemo(
+    () => (rawFullMatches || []).filter(trackingMatchHasData).sort((a, b) => new Date(b.date) - new Date(a.date)),
+    [rawFullMatches]
+  );
+  const [matchId, setMatchId] = useState("");
+  const [playerId, setPlayerId] = useState("");
+  const players = roster || [];
+  const selected = withData.find((m) => m.id === matchId) || withData[0] || null;
+  const data = selected ? selected.advancedAnalytics : null;
+  const rows = data ? players.map((p) => ({ p, d: playerAdvancedAnalytics(data.players, p.id) })).filter(({ d }) => d) : [];
+  const playersWithData = players.filter((p) => withData.some((m) => playerAdvancedAnalytics(m.advancedAnalytics.players, p.id)));
+  const activePlayerId = playersWithData.some((p) => p.id === playerId) ? playerId : (playersWithData[0] ? playersWithData[0].id : "");
+  const teamMatches = withData.filter((m) => m.advancedAnalytics.team && m.advancedAnalytics.team.avgBlockHeight != null);
+  const label = (m) => `${formatDateFr(m.date)}${m.name ? ` · ${m.name}` : ""}${m.opponent ? ` · ${m.opponent}` : ""}`;
+
+  if (!selected) {
+    return (
+      <div className="empty-state" style={{ marginTop: 14 }}>
+        Aucune donnée de tracking vidéo pour l'instant. Importe un fichier depuis Rapports de matchs → ton match → Analyse avancée : les données d'équipe et de joueurs apparaîtront ici.
+      </div>
+    );
+  }
+  const hasTeam = !!data.team && data.team.avgBlockHeight != null;
+  const unmatched = rows.length === 0 && Object.keys(data.players || {}).length > 0;
+  return (
+    <div style={{ marginTop: 14 }}>
+      <p className="radar-note" style={{ marginTop: 0 }}>Données issues de l'analyse automatique de la vidéo. Elles ne couvrent qu'une partie du match : la part réellement suivie est indiquée avec les chiffres. L'import se fait dans Rapports de matchs → Analyse avancée.</p>
+      {withData.length > 1 && (
+        <label style={{ display: "block", margin: "10px 0" }}>
+          Match
+          <select value={selected.id} onChange={(e) => setMatchId(e.target.value)}>
+            {withData.map((m) => (<option key={m.id} value={m.id}>{label(m)}</option>))}
+          </select>
+        </label>
+      )}
+      <div className="new-match-card" style={{ marginTop: 10 }}>
+        <div className="panel-heading" style={{ marginTop: 0 }}>Équipe — {label(selected)}</div>
+        {hasTeam ? <TeamShapeCard team={data.team} /> : <p className="radar-note">Pas de forme d'équipe pour ce match.</p>}
+      </div>
+      {teamMatches.length > 1 && (
+        <div className="new-match-card" style={{ marginTop: 14 }}>
+          <div className="panel-heading" style={{ marginTop: 0 }}>Forme d'équipe, match par match (notre équipe, match entier)</div>
+          <div className="table-scroll">
+            <table className="stat-table">
+              <thead><tr><th>Match</th><th>Hauteur du bloc</th><th>Largeur</th><th>Profondeur</th></tr></thead>
+              <tbody>
+                {teamMatches.map((m) => {
+                  const r = teamShapeRows(m.advancedAnalytics.team)[0];
+                  return <tr key={m.id}><td>{label(m)}</td><td>{r.h}</td><td>{r.w}</td><td>{r.d}</td></tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      <div className="new-match-card" style={{ marginTop: 14 }}>
+        <div className="panel-heading" style={{ marginTop: 0 }}>Joueurs — {label(selected)}</div>
+        {unmatched && (
+          <p className="hint" style={{ textAlign: "left", color: "var(--crimson)" }}>
+            ⚠ Aucun joueur de l'effectif actuel n'est reconnu dans ces données : les identifiants du fichier ne correspondent pas à ton effectif. Refais l'export des numéros de maillot, régénère le fichier avec, puis remplace l'import dans Rapports de matchs → Analyse avancée.
+          </p>
+        )}
+        {rows.length > 0 && (
+          <>
+            <div className="table-scroll">
+              <table className="stat-table">
+                <thead><tr><th>Joueur</th><th>Distance</th><th>Sprints</th><th>Vitesse max</th><th>Visible (% match)</th></tr></thead>
+                <tbody>
+                  {rows.map(({ p, d }) => (
+                    <tr key={p.id}>
+                      <td>{playerFullName(p)}</td>
+                      <td>{d.distanceCovered} m</td>
+                      <td>{d.sprints}</td>
+                      <td>{d.topSpeed} km/h</td>
+                      <td>{formatTrackedShare(d.visibleCoverage)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {rows.some(({ d }) => d.visibleCoverage > 0) && <p className="hint" style={{ textAlign: "left" }}>{TRACKED_SHARE_HINT}</p>}
+          </>
+        )}
+        {rows.length === 0 && !unmatched && <p className="radar-note">Pas de données par joueur pour ce match.</p>}
+      </div>
+      {playersWithData.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <label style={{ display: "block" }}>
+            Historique d'un joueur, match par match
+            <select value={activePlayerId} onChange={(e) => setPlayerId(e.target.value)}>
+              {playersWithData.map((p) => (<option key={p.id} value={p.id}>{playerFullName(p)}</option>))}
+            </select>
+          </label>
+          <PhysicalMatchDataPanel playerId={activePlayerId} allFullMatches={rawFullMatches} />
         </div>
       )}
     </div>
@@ -22351,7 +22462,7 @@ function RosterScreen({ matches }) {
             <TestHistoryEditor testDef={PHYSICAL_TESTS[7]} entries={form.poidsHistory} setEntries={(v) => setForm((f) => ({ ...f, poidsHistory: v }))} />
           </div>
           <GrowthChart tailleHistory={form.tailleHistory} poidsHistory={form.poidsHistory} />
-          {editingId && <PhysicalMatchDataPanel playerId={editingId} allFullMatches={allFullMatches} />}
+          {editingId && <p className="hint" style={{ textAlign: "left" }}>Charge physique en match (tracking vidéo) : voir Statistiques → Tracking vidéo.</p>}
 
           <div className="form-actions">
             <button className="btn btn-primary" onClick={savePlayer}>Enregistrer</button>
@@ -24853,6 +24964,7 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
     ? (roster || []).map((p) => ({ p, d: playerAdvancedAnalytics(data.players, p.id) })).filter(({ d }) => d)
     : [];
   const dataNotMatchingRoster = !!data && recognizedRows.length === 0 && Object.keys(data.players || {}).length > 0;
+  const hasTeamShape = !!data && !!data.team && data.team.avgBlockHeight != null;
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -24886,28 +24998,12 @@ function AdvancedAnalyticsPanel({ match, roster, onImport }) {
               ⚠ Aucun joueur de l'effectif actuel n'est reconnu dans ces données : les identifiants du fichier ne correspondent pas à ton effectif (effectif recréé depuis l'export des numéros de maillot ?). Refais l'export des numéros de maillot, régénère le fichier avec, puis utilise « Remplacer les données de tracking ».
             </p>
           )}
-          {recognizedRows.length > 0 && (
-            <>
-              <div className="table-scroll" style={{ marginTop: 10 }}>
-                <table className="stat-table">
-                  <thead><tr><th>Joueur</th><th>Distance</th><th>Sprints</th><th>Vitesse max</th><th>Visible (% match)</th></tr></thead>
-                  <tbody>
-                    {recognizedRows.map(({ p, d }) => (
-                      <tr key={p.id}>
-                        <td>{playerFullName(p)}</td>
-                        <td>{d.distanceCovered} m</td>
-                        <td>{d.sprints}</td>
-                        <td>{d.topSpeed} km/h</td>
-                        <td>{formatTrackedShare(d.visibleCoverage)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {recognizedRows.some(({ d }) => d.visibleCoverage > 0) && <p className="hint" style={{ textAlign: "left" }}>{TRACKED_SHARE_HINT}</p>}
-            </>
+          {data && (recognizedRows.length > 0 || hasTeamShape) && (
+            <p className="hint" style={{ textAlign: "left" }}>
+              {[recognizedRows.length > 0 ? `${recognizedRows.length} joueur(s) de l'effectif reconnu(s)` : null, hasTeamShape ? "forme d'équipe disponible" : null].filter(Boolean).join(" · ")}
+              . À consulter dans Statistiques → Tracking vidéo.
+            </p>
           )}
-          {data && <TeamShapeCard team={data.team} />}
 
           <div className="scouting-list" style={{ marginTop: 10 }}>
             {ADVANCED_ANALYTICS_CATEGORIES.map((cat) => {
@@ -34069,13 +34165,14 @@ function StatsScreen({ matches }) {
       </div>
 
       {matchSummaries.length > 0 && (
-        <div className="tabs">
+        <div className="tabs" style={{ flexWrap: "wrap" }}>
           <button className={`tab ${statsSubTab === "collectif" ? "active" : ""}`} onClick={() => setStatsSubTab("collectif")}>Collectif</button>
           <button className={`tab ${statsSubTab === "individuel" ? "active" : ""}`} onClick={() => setStatsSubTab("individuel")}>Individuel</button>
           <button className={`tab ${statsSubTab === "comparematch" ? "active" : ""}`} onClick={() => setStatsSubTab("comparematch")}>Comparaison match</button>
           <button className={`tab ${statsSubTab === "compareplayer" ? "active" : ""}`} onClick={() => setStatsSubTab("compareplayer")}>Comparaison joueur</button>
           <button className={`tab ${statsSubTab === "signaux" ? "active" : ""}`} onClick={() => setStatsSubTab("signaux")}>Signaux{allSignals.length > 0 ? ` (${allSignals.length})` : ""}</button>
           <button className={`tab ${statsSubTab === "chaleur" ? "active" : ""}`} onClick={() => setStatsSubTab("chaleur")}>Carte de chaleur</button>
+          <button className={`tab ${statsSubTab === "tracking" ? "active" : ""}`} onClick={() => setStatsSubTab("tracking")}>Tracking vidéo</button>
           <button className={`tab ${statsSubTab === "progression" ? "active" : ""}`} onClick={() => setStatsSubTab("progression")}>Progression individuelle</button>
           <button className={`tab ${statsSubTab === "saisons" ? "active" : ""}`} onClick={() => setStatsSubTab("saisons")}>Comparer deux périodes</button>
           <button className={`tab ${statsSubTab === "gardien" ? "active" : ""}`} onClick={() => setStatsSubTab("gardien")}>Gardien</button>
@@ -34549,6 +34646,10 @@ function StatsScreen({ matches }) {
 
       {matchSummaries.length > 0 && statsSubTab === "chaleur" && (
         <PlayerHeatMapTab roster={roster} rawFullMatches={rawFullMatches} />
+      )}
+
+      {matchSummaries.length > 0 && statsSubTab === "tracking" && (
+        <TrackingStatsTab roster={roster} rawFullMatches={rawFullMatches} />
       )}
 
       {matchSummaries.length > 0 && statsSubTab === "progression" && (
