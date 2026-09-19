@@ -1,0 +1,195 @@
+<title>Revue du panoramique</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f7f4; --surface: #ffffff; --surface-2: #eaf0ec; --border: #d3ddd6;
+    --ink: #12201a; --ink-dim: #5b6d63; --accent: #a9791f; --accent-ink: #ffffff;
+    --ok: #2f8a56; --ok-bg: #e3f3e8; --warn: #b5433f; --warn-bg: #fbe9e8; --unsure: #8a6d1f; --unsure-bg: #f6efd8;
+    --pitch: #dbe7de; --pitch-line: #8fa898;
+    --shadow: 0 1px 2px rgba(18,32,26,.06), 0 8px 24px -12px rgba(18,32,26,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101513; --surface: #1a211d; --surface-2: #212a24; --border: #2f3a34;
+      --ink: #eef2ef; --ink-dim: #93a39a; --accent: #d4a537; --accent-ink: #1a1400;
+      --ok: #4fbd7c; --ok-bg: #16281d; --warn: #e07570; --warn-bg: #2b1616; --unsure: #d4b85a; --unsure-bg: #2a2512;
+      --pitch: #1d2a22; --pitch-line: #4b6255;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101513; --surface: #1a211d; --surface-2: #212a24; --border: #2f3a34;
+    --ink: #eef2ef; --ink-dim: #93a39a; --accent: #d4a537; --accent-ink: #1a1400;
+    --ok: #4fbd7c; --ok-bg: #16281d; --warn: #e07570; --warn-bg: #2b1616; --unsure: #d4b85a; --unsure-bg: #2a2512;
+    --pitch: #1d2a22; --pitch-line: #4b6255;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: "Public Sans", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  h1 { font-family: "Barlow Semi Condensed", system-ui, sans-serif; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .nums { font-variant-numeric: tabular-nums; }
+  .topbar { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--border); padding: 16px 24px 14px; }
+  .topbar-inner { max-width: 1240px; margin: 0 auto; }
+  .subtitle { color: var(--ink-dim); font-size: 13.5px; margin-top: 3px; line-height: 1.45; max-width: 860px; }
+  .progress-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .progress-track { flex: 1; height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--ok); transition: width .4s ease; }
+  .progress-label { font-size: 13px; color: var(--ink-dim); white-space: nowrap; }
+  .progress-label strong { color: var(--ink); font-weight: 700; }
+  .controls-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .tab { border: none; background: transparent; color: var(--ink-dim); font: inherit; font-weight: 600; font-size: 13.5px; padding: 6px 14px; border-radius: 7px; cursor: pointer; }
+  .tab[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .tab .count { font-family: "IBM Plex Mono"; opacity: .7; margin-left: 5px; }
+  .sort-select { font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  .legend { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-dim); }
+  .legend b { color: var(--ink); font-family: "IBM Plex Mono"; font-weight: 600; }
+  main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 40px; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 80px 20px; text-align: center; color: var(--ink-dim); }
+  .empty-state strong { color: var(--ink); font-size: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .card[data-status="confirmed"] { border-left-color: var(--ok); }
+  .card[data-status="unsure"] { border-left-color: var(--unsure); }
+  .card[data-status="mixed"] { border-left-color: var(--warn); }
+  .card[data-status="mixed"], .card[data-status="unsure"] { opacity: .7; }
+  .thumb-wrap { position: relative; background: #0b0f0d; }
+  .thumb-strip { display: flex; gap: 1px; height: 190px; }
+  .thumb-tile { flex: 1; min-width: 0; background: #0b0f0d; cursor: zoom-in; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .thumb-tile img { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .thumb-tile:hover { filter: brightness(1.12); }
+  .badge-row { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; pointer-events: none; }
+  .chip { font-family: "IBM Plex Mono"; font-size: 11.5px; font-weight: 600; color: #fff; background: rgba(0,0,0,.58); padding: 3px 8px; border-radius: 99px; }
+  .status-corner { position: absolute; bottom: 8px; right: 8px; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 99px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; color: #fff; pointer-events: none; }
+  .status-corner.confirmed { background: var(--ok); } .status-corner.unsure { background: var(--unsure); } .status-corner.mixed { background: var(--warn); }
+  .card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .meta-row { display: flex; align-items: center; gap: 12px; }
+  .minimap { width: 118px; height: 78px; flex: none; border-radius: 6px; background: var(--pitch); border: 1px solid var(--border); }
+  .meta-text { font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; }
+  .meta-text strong { color: var(--ink); font-weight: 700; }
+  .suggestion { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; color: var(--ink-dim); }
+  .suggestion .num { font-family: "IBM Plex Mono"; font-weight: 700; font-size: 14px; color: var(--ink); }
+  .suggestion button { margin-left: auto; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: none; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+  .picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .pick { font-family: "IBM Plex Mono"; font-size: 15px; font-weight: 600; color: var(--ink); background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 0; cursor: pointer; }
+  .pick:hover { border-color: var(--accent); }
+  .pick[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .picked-name { font-size: 12.5px; min-height: 18px; color: var(--ok); font-weight: 600; }
+  .action-row { display: flex; gap: 8px; }
+  .act { flex: 1; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-dim); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+  .act[data-kind="unsure"][aria-pressed="true"] { color: var(--unsure); border-color: var(--unsure); background: var(--unsure-bg); }
+  .act[data-kind="mixed"][aria-pressed="true"] { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+  .lightbox { position: fixed; inset: 0; background: rgba(8,10,9,.9); z-index: 100; display: flex; align-items: center; justify-content: center; cursor: zoom-out; padding: 28px; }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; image-rendering: auto; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="topbar"><div class="topbar-inner">
+  <h1>Revue du panoramique</h1>
+  <div class="subtitle">Chaque carte est un joueur suivi sur le panoramique. Les vignettes viennent de la vidéo suiveuse, prises au même endroit au même instant : reconnais-le (silhouette, chaussures, gants) et clique son numéro. Si les vignettes montrent des personnes différentes, choisis « Mélange » ; si tu hésites, « Pas sûr ». Clique une vignette pour l'agrandir.</div>
+  <div class="progress-row"><div class="progress-track"><div class="progress-fill" id="fill" style="width:0%"></div></div><div class="progress-label nums" id="plabel">Chargement…</div></div>
+  <div class="controls-row">
+    <div class="tabs" id="tabs"></div>
+    <select class="sort-select" id="sort"><option value="dur">Trier — durée (les plus longues d'abord)</option><option value="time">Trier — ordre du match</option></select>
+  </div>
+  <div class="legend" id="legend"></div>
+</div></div>
+<main><div id="content"></div></main>
+
+<script>
+(function () {
+  const ROSTER = __ROSTER__;
+  const CARDS = __CARDS__;
+  const tabsEl = document.getElementById("tabs"), sortEl = document.getElementById("sort"), content = document.getElementById("content");
+  const fill = document.getElementById("fill"), plabel = document.getElementById("plabel");
+  document.getElementById("legend").innerHTML = Object.keys(ROSTER).map(n => `<span><b>${n}</b> ${esc(ROSTER[n])}</span>`).join("");
+  let state = {};            // id -> {assignedNumber, unsure, mixed}
+  let tab = "todo", sortKey = "dur", db = null;
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function fmt(s) { const t = Math.round(s), m = Math.floor(t / 60), r = t % 60; return m + ":" + String(r).padStart(2, "0"); }
+  function statusOf(id) { const s = state[id]; if (!s) return "pending"; if (s.assignedNumber) return "confirmed"; if (s.mixed) return "mixed"; if (s.unsure) return "unsure"; return "pending"; }
+
+  function mapSvg(path) {
+    const L = 105, W = 68;
+    const pts = path.map(p => (p[0] * L).toFixed(1) + "," + (p[1] * W).toFixed(1)).join(" ");
+    const a = path[0], z = path[path.length - 1];
+    return `<svg class="minimap" viewBox="-2 -2 109 72" role="img" aria-label="Trajet de la piste sur le terrain">
+      <rect x="0" y="0" width="105" height="68" fill="none" stroke="var(--pitch-line)" stroke-width=".8"/>
+      <line x1="52.5" y1="0" x2="52.5" y2="68" stroke="var(--pitch-line)" stroke-width=".8"/>
+      <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="var(--pitch-line)" stroke-width=".8"/>
+      <rect x="0" y="13.8" width="16.5" height="40.3" fill="none" stroke="var(--pitch-line)" stroke-width=".8"/>
+      <rect x="88.5" y="13.8" width="16.5" height="40.3" fill="none" stroke="var(--pitch-line)" stroke-width=".8"/>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${(a[0] * L).toFixed(1)}" cy="${(a[1] * W).toFixed(1)}" r="2.6" fill="var(--ink)"/>
+      <circle cx="${(z[0] * L).toFixed(1)}" cy="${(z[1] * W).toFixed(1)}" r="2.6" fill="var(--accent)" stroke="var(--ink)" stroke-width=".9"/>
+    </svg>`;
+  }
+
+  function cardHtml(c) {
+    const st = statusOf(c.id), s = state[c.id] || {};
+    const label = st === "confirmed" ? "#" + s.assignedNumber : st === "mixed" ? "Mélange" : st === "unsure" ? "Pas sûr" : "";
+    const picker = Object.keys(ROSTER).map(n => `<button class="pick" data-n="${n}" aria-pressed="${String(s.assignedNumber) === n}" title="${esc(ROSTER[n])}">${n}</button>`).join("");
+    const sug = c.suggestion ? `<div class="suggestion"><span>Ton identification précédente :</span><span class="num">#${esc(c.suggestion.number)}</span><span class="mono">(${c.suggestion.votes})</span><button class="accept" data-n="${esc(c.suggestion.number)}">Accepter</button></div>` : "";
+    return `<div class="card" data-id="${esc(c.id)}" data-status="${st}">
+      <div class="thumb-wrap"><div class="thumb-strip">${c.images.map(u => `<div class="thumb-tile" data-full="${u}"><img src="${u}" alt="Vignette du joueur"></div>`).join("")}</div>
+        <div class="badge-row"><span class="chip nums">${Math.round(c.dur)} s</span><span></span></div>
+        ${label ? `<div class="status-corner ${st}">${esc(label)}</div>` : ""}</div>
+      <div class="card-body">
+        <div class="meta-row">${mapSvg(c.path)}<div class="meta-text"><strong class="nums">${fmt(c.t0)} → ${fmt(c.t1)}</strong> dans l'enregistrement<br>durée <strong class="nums">${Math.round(c.dur)} s</strong> · ${c.images.length} vignette${c.images.length > 1 ? "s" : ""}<br><span title="Point noir : début, point doré : fin">trajet sur le terrain ↗</span></div></div>
+        ${sug}
+        <div class="picker">${picker}</div>
+        <div class="picked-name">${s.assignedNumber ? "→ " + esc(ROSTER[s.assignedNumber] || "") : ""}</div>
+        <div class="action-row"><button class="act" data-kind="unsure" aria-pressed="${!!s.unsure && !s.assignedNumber && !s.mixed}">Pas sûr</button><button class="act" data-kind="mixed" aria-pressed="${!!s.mixed && !s.assignedNumber}">Mélange</button></div>
+      </div></div>`;
+  }
+
+  function render() {
+    let tot = 0, doneDur = 0, nDone = 0, nConf = 0;
+    for (const c of CARDS) { tot += c.dur; const st = statusOf(c.id); if (st !== "pending") { doneDur += c.dur; nDone++; } if (st === "confirmed") nConf++; }
+    const pct = tot ? Math.round(doneDur / tot * 100) : 0;
+    fill.style.width = pct + "%";
+    plabel.innerHTML = `<strong>${nDone}</strong>/${CARDS.length} cartes traitées (<strong>${nConf}</strong> identifiées) — <strong>${pct} %</strong> du temps de piste`;
+    const counts = { todo: CARDS.length - nDone, done: nDone, all: CARDS.length };
+    tabsEl.innerHTML = [["todo", "À faire"], ["done", "Faites"], ["all", "Toutes"]].map(([k, l]) => `<button class="tab" aria-pressed="${tab === k}" data-tab="${k}">${l}<span class="count">${counts[k]}</span></button>`).join("");
+    tabsEl.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => { tab = b.dataset.tab; render(); }));
+    let list = CARDS.filter(c => tab === "all" || (tab === "todo") === (statusOf(c.id) === "pending"));
+    list = list.slice().sort((a, b) => sortKey === "time" ? a.t0 - b.t0 : b.dur - a.dur);
+    if (!list.length) { content.innerHTML = `<div class="empty-state"><strong>${tab === "todo" ? "Tout est traité" : "Rien ici pour l'instant"}</strong><span>${tab === "todo" ? "Merci — il ne reste aucune carte à faire." : ""}</span></div>`; return; }
+    content.innerHTML = `<div class="grid">${list.map(cardHtml).join("")}</div>`;
+  }
+
+  function commit(id, patch) {
+    const next = Object.assign({ assignedNumber: null, unsure: false, mixed: false }, patch);
+    state[id] = next;
+    render();
+    if (db) db.doc("pistes/" + id).set(Object.assign({ cardId: id, reviewedAt: new Date().toISOString() }, next)).catch(() => {});
+  }
+
+  content.addEventListener("click", (e) => {
+    const tile = e.target.closest(".thumb-tile");
+    if (tile) { const box = document.createElement("div"); box.className = "lightbox"; box.innerHTML = `<img src="${tile.dataset.full}" alt="">`; box.addEventListener("click", () => box.remove()); document.body.appendChild(box); return; }
+    const card = e.target.closest(".card"); if (!card) return;
+    const id = card.dataset.id, cur = state[id] || {};
+    const pick = e.target.closest(".pick, .accept");
+    if (pick) { const n = pick.dataset.n; commit(id, String(cur.assignedNumber) === n && pick.classList.contains("pick") ? {} : { assignedNumber: n }); return; }
+    const act = e.target.closest(".act");
+    if (act) { const k = act.dataset.kind; commit(id, cur[k] && !cur.assignedNumber ? {} : { [k]: true }); }
+  });
+  sortEl.addEventListener("change", () => { sortKey = sortEl.value; render(); });
+
+  async function init() {
+    render();
+    try { db = await claude.use("db"); } catch (e) { db = null; }
+    if (!db) return;
+    db.collection("pistes").onSnapshot((snap) => {
+      state = {};
+      snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = { assignedNumber: v.assignedNumber || null, unsure: !!v.unsure, mixed: !!v.mixed }; } });
+      render();
+    }, () => {});
+  }
+  init();
+})();
+</script>
