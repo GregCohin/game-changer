@@ -20637,25 +20637,64 @@ function formatTrackedShare(cov) {
 
 const TRACKED_SHARE_HINT = "« Visible » = part du match où le joueur a été suivi à l'image (caméra suiveuse). Distance, sprints et vitesse ne portent que sur ces moments : sous-estimation du match complet, d'autant plus forte que ce pourcentage est bas. La vitesse de pointe est la valeur la plus sensible au bruit de calibration — à prendre avec prudence.";
 
-// Forme d'équipe issue du tracking, en fractions 0-1 du terrain : hauteur du bloc = position moyenne des joueurs de
-// champ entre leur propre but (0) et le but adverse (1) ; largeur = écart entre les joueurs les plus écartés ;
-// profondeur = écart entre le joueur le plus reculé et le plus avancé. `team.detail` (optionnel) apporte les
-// découpages par mi-temps, l'adversaire et la part du match réellement mesurée.
+// Forme d'équipe issue du tracking. Chaque équipe est mesurée depuis SON propre but : hauteur du bloc = distance
+// moyenne des joueurs de champ à ce but (petit chiffre = bloc bas ; la ligne médiane est à la moitié de la longueur) ;
+// largeur = écart entre le joueur le plus proche d'une touche et celui de l'autre touche ; profondeur = écart entre le
+// joueur le plus reculé et le plus avancé. `team.detail` (optionnel) apporte les mètres, les découpages par mi-temps,
+// l'adversaire, les dimensions du terrain et la part du match réellement mesurée.
 function teamShapeRows(team) {
   if (!team || team.avgBlockHeight == null) return null;
-  const cell = (v, m) => (typeof v === "number" ? `${Math.round(v * 100)} %${typeof m === "number" ? ` (${Math.round(m)} m)` : ""}` : "—");
-  const row = (label, s) => (s ? { label, h: cell(s.blockHeight, s.blockHeightM), w: cell(s.width, s.widthM), d: cell(s.depth, s.depthM) } : null);
   const det = team.detail || {};
+  const pitch = det.pitch || {};
+  const L = typeof pitch.lengthM === "number" ? pitch.lengthM : 105;
+  const W = typeof pitch.widthM === "number" ? pitch.widthM : 68;
+  const both = (v, m) => {
+    const p = typeof v === "number" ? `${Math.round(v * 100)} %` : null;
+    return typeof m === "number" ? `${Math.round(m)} m${p ? ` (${p})` : ""}` : (p || "—");
+  };
+  const position = (m, ours) => {
+    if (typeof m !== "number") return null;
+    const diff = L / 2 - m;
+    if (Math.abs(diff) < 1) return "sur la ligne médiane";
+    if (diff > 0) return `${Math.round(diff)} m avant la ligne médiane`;
+    return `${Math.round(-diff)} m après la ligne médiane (${ours ? "moitié adverse" : "notre moitié"})`;
+  };
+  const row = (group, label, s) => (s ? {
+    group, label,
+    h: both(s.blockHeight, s.blockHeightM), hSub: position(s.blockHeightM, group === "ours"),
+    w: both(s.width, s.widthM), wSub: typeof s.widthM === "number" ? `sur ${W} m de large` : null,
+    d: both(s.depth, s.depthM), dSub: typeof s.depthM === "number" ? `sur ${L} m de long` : null,
+  } : null);
   const ours = det.ours || {};
   const opp = det.opponent || {};
   return [
-    row("Notre équipe — match", ours.match || { blockHeight: team.avgBlockHeight, width: team.avgWidth, depth: team.avgDepth }),
-    row("Notre équipe — 1re mi-temps", ours.half1),
-    row("Notre équipe — 2e mi-temps", ours.half2),
-    row("Adversaire — match", opp.match),
-    row("Adversaire — 1re mi-temps", opp.half1),
-    row("Adversaire — 2e mi-temps", opp.half2),
+    row("ours", "Match entier", ours.match || { blockHeight: team.avgBlockHeight, width: team.avgWidth, depth: team.avgDepth }),
+    row("ours", "1re mi-temps", ours.half1),
+    row("ours", "2e mi-temps", ours.half2),
+    row("opp", "Match entier", opp.match),
+    row("opp", "1re mi-temps", opp.half1),
+    row("opp", "2e mi-temps", opp.half2),
   ].filter(Boolean);
+}
+
+const TEAM_SHAPE_GROUPS = {
+  ours: "Notre équipe — distances prises depuis notre but",
+  opp: "Adversaire — distances prises depuis son propre but",
+};
+
+// Schémas « ligne par ligne » de notre équipe (match, mi-temps) : positions moyennes du joueur le plus reculé, de la
+// moyenne du bloc et du plus avancé, en mètres depuis notre but. Absents si le fichier importé ne les fournit pas.
+function teamShapeStrips(team) {
+  const det = (team && team.detail) || {};
+  const ours = det.ours || {};
+  const L = det.pitch && typeof det.pitch.lengthM === "number" ? det.pitch.lengthM : 105;
+  const ok = (s) => !!s && [s.rearM, s.frontM, s.blockHeightM].every((v) => typeof v === "number");
+  return [["Match entier", ours.match], ["1re mi-temps", ours.half1], ["2e mi-temps", ours.half2]]
+    .filter(([, s]) => ok(s))
+    .map(([label, s]) => ({
+      label, L, rear: s.rearM, mean: s.blockHeightM, front: s.frontM,
+      caption: `plus reculé ${Math.round(s.rearM)} m · moyenne ${Math.round(s.blockHeightM)} m · plus avancé ${Math.round(s.frontM)} m`,
+    }));
 }
 
 // Un fichier d'import ne remplace que les rubriques qu'il contient : un fichier « forme d'équipe » seul ne doit pas
@@ -20675,7 +20714,11 @@ function mergeAdvancedAnalytics(existing, incoming) {
   };
 }
 
-const TEAM_SHAPE_DEFINITIONS = "Hauteur : position moyenne des joueurs de champ entre leur but (0 %) et le but adverse (100 %). Largeur : écart entre les joueurs les plus écartés, en % de la largeur du terrain. Profondeur : écart entre le plus reculé et le plus avancé, en % de la longueur. Gardiens exclus.";
+const TEAM_SHAPE_LEGEND = [
+  ["Hauteur du bloc (ligne jaune)", "position moyenne des joueurs de champ (gardien exclu), mesurée depuis leur propre but. Plus le chiffre est petit, plus le bloc est bas ; la ligne médiane est à mi-longueur du terrain."],
+  ["Profondeur (zone claire entre les deux lignes blanches)", "distance entre le joueur de champ le plus reculé et le plus avancé."],
+  ["Largeur", "distance entre le joueur le plus proche d'une touche et celui le plus proche de l'autre touche (non dessinée)."],
+];
 
 // Phrase de fiabilité : précise seulement quand le fichier décrit sa mesure (team.detail, avec sa propre note de
 // précision, mise à jour dans le fichier sans redéployer le site) ; sinon, avertissement générique.
@@ -20687,22 +20730,74 @@ function teamShapeMeasureNote(team) {
   return "Mesuré uniquement sur les moments où assez de joueurs de l'équipe sont visibles à l'image : estimation partielle du match.";
 }
 
+function TeamShapeStrip({ strip }) {
+  const at = (m) => `${Math.max(0, Math.min(100, (m / strip.L) * 100))}%`;
+  const span = Math.max(0, Math.min(100, ((strip.front - strip.rear) / strip.L) * 100));
+  const bar = (m, style) => <div style={{ position: "absolute", top: 0, bottom: 0, left: at(m), ...style }} />;
+  return (
+    <div style={{ position: "relative", height: 26, background: "#5A9E5E", borderRadius: 4, overflow: "hidden" }} aria-hidden="true">
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: at(strip.rear), width: `${span}%`, background: "rgba(255,255,255,0.22)" }} />
+      {bar(strip.L / 2, { borderLeft: "1px solid rgba(255,255,255,0.75)" })}
+      {bar(strip.rear, { borderLeft: "2px solid #fff" })}
+      {bar(strip.front, { borderLeft: "2px solid #fff" })}
+      {bar(strip.mean, { borderLeft: "3px solid #FFD23F" })}
+    </div>
+  );
+}
+
 function TeamShapeCard({ team }) {
   const rows = teamShapeRows(team);
   if (!rows) return null;
+  const strips = teamShapeStrips(team);
+  const subTh = { display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, whiteSpace: "normal", maxWidth: 140, marginTop: 2 };
+  const subTd = { display: "block", fontSize: 11, color: "var(--ink-muted)", whiteSpace: "normal", maxWidth: 150 };
+  const pad = { padding: "8px 7px" };
+  const cell = (main, sub) => (<td style={pad}><div style={{ fontWeight: 600 }}>{main}</div>{sub && <span style={subTd}>{sub}</span>}</td>);
   return (
     <>
       <div className="table-scroll" style={{ marginTop: 10 }}>
         <table className="stat-table">
-          <thead><tr><th>Forme d'équipe</th><th>Hauteur</th><th>Largeur</th><th>Profondeur</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label}><td>{r.label}</td><td>{r.h}</td><td>{r.w}</td><td>{r.d}</td></tr>
-            ))}
-          </tbody>
+          <thead>
+            <tr>
+              <th style={pad}>Forme d'équipe</th>
+              <th style={pad}>Hauteur du bloc<span style={subTh}>position moyenne, depuis son but</span></th>
+              <th style={pad}>Largeur<span style={subTh}>d'une touche à l'autre</span></th>
+              <th style={pad}>Profondeur<span style={subTh}>du plus reculé au plus avancé</span></th>
+            </tr>
+          </thead>
+          {["ours", "opp"].map((g) => {
+            const list = rows.filter((r) => r.group === g);
+            if (list.length === 0) return null;
+            return (
+              <tbody key={g}>
+                <tr><td colSpan={4} style={{ ...pad, fontWeight: 700, fontSize: 12, whiteSpace: "normal", background: "rgba(176,106,135,0.08)" }}>{TEAM_SHAPE_GROUPS[g]}</td></tr>
+                {list.map((r) => (
+                  <tr key={r.label}><td style={pad}>{r.label}</td>{cell(r.h, r.hSub)}{cell(r.w, r.wSub)}{cell(r.d, r.dSub)}</tr>
+                ))}
+              </tbody>
+            );
+          })}
         </table>
       </div>
-      <p className="hint" style={{ textAlign: "left" }}>{teamShapeMeasureNote(team)} {TEAM_SHAPE_DEFINITIONS}</p>
+      <p className="hint" style={{ textAlign: "left" }}>{teamShapeMeasureNote(team)}</p>
+      <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700 }}>Comment lire ces chiffres</div>
+      {strips.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", fontSize: 11, color: "var(--ink-muted)" }}>
+            <span>notre but</span><span>ligne médiane</span><span style={{ textAlign: "right" }}>but adverse</span>
+          </div>
+          {strips.map((st) => (
+            <div key={st.label} style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>Notre équipe — {st.label.toLowerCase()}</div>
+              <TeamShapeStrip strip={st} />
+              <div className="hint" style={{ textAlign: "left", marginTop: 2 }}>{st.caption}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <ul className="hint" style={{ textAlign: "left", paddingLeft: 18, margin: "8px 0 0" }}>
+        {TEAM_SHAPE_LEGEND.map(([term, text]) => (<li key={term}><span style={{ fontWeight: 700 }}>{term}</span> : {text}</li>))}
+      </ul>
     </>
   );
 }
