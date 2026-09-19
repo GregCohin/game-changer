@@ -57,13 +57,15 @@ export function ParentApp() {
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <div>
+        <div style={styles.title}>
           <strong>Game Changer</strong> — Portail parent
         </div>
-        <button style={styles.linkAnother} onClick={() => setPlayers([])}>
-          + Lier un autre enfant
-        </button>
-        <button style={styles.signOut} onClick={signOut}>Se déconnecter</button>
+        <div style={styles.actions}>
+          <button style={styles.headerButton} onClick={() => setPlayers([])}>
+            + Lier un autre enfant
+          </button>
+          <button style={styles.headerButton} onClick={signOut}>Se déconnecter</button>
+        </div>
       </header>
 
       {players.length > 1 && (
@@ -91,9 +93,14 @@ export function ParentApp() {
 
 const styles = {
   page: { minHeight: "100%", color: "#EDEFEE", fontFamily: "sans-serif", padding: 16, boxSizing: "border-box" },
-  header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" },
-  linkAnother: { marginLeft: "auto", background: "none", border: "1px solid #555", color: "#EDEFEE", borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
-  signOut: { background: "none", border: "1px solid #555", color: "#EDEFEE", borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
+  // Titre puis boutons : sur écran large ils tiennent sur une ligne (titre à gauche, boutons à droite) ;
+  // sur téléphone les boutons passent sous le titre, côte à côte s'ils tiennent (d'où 14 px : la règle
+  // des 16 px ne vise que les champs de saisie) et sinon empilés en pleine largeur (flex: 1 1 auto),
+  // au lieu de se répartir de travers.
+  header: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 12px", marginBottom: 16 },
+  title: { flex: "1 1 auto" },
+  actions: { display: "flex", flexWrap: "wrap", gap: 8 },
+  headerButton: { flex: "1 1 auto", fontSize: 14, background: "none", border: "1px solid #555", color: "#EDEFEE", borderRadius: 6, padding: "6px 10px", cursor: "pointer" },
   select: { width: "100%", padding: 8, marginBottom: 12, borderRadius: 6 },
   tabs: { display: "flex", gap: 8, marginBottom: 16 },
   tab: { background: "none", border: "1px solid #555", color: "#aaa", borderRadius: 6, padding: "8px 14px", cursor: "pointer" },

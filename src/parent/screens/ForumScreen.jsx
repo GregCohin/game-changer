@@ -63,7 +63,7 @@ export function ForumScreen({ player }) {
     <div>
       {threads.length === 0 && <p>Aucun sujet pour l'instant.</p>}
       {threads.map((t) => (
-        <div key={t.id} style={styles.card} onClick={() => setOpenThreadId(t.id)}>
+        <div key={t.id} style={styles.threadRow} onClick={() => setOpenThreadId(t.id)}>
           <strong>{t.title}</strong>
           {t.type === "individuelle" && <span style={styles.badge}>Conversation privée</span>}
         </div>
@@ -72,9 +72,14 @@ export function ForumScreen({ player }) {
   );
 }
 
+const card = { background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: 10, marginBottom: 8 };
+
 const styles = {
   h2: { fontSize: 16, marginBottom: 8, color: "#ccc" },
-  card: { background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: 10, marginBottom: 8, cursor: "pointer" },
+  card,
+  // Ligne de sujet cliquable : 13 px de marge en haut et en bas pour atteindre 44 px de haut même
+  // avec un titre sur une seule ligne.
+  threadRow: { ...card, padding: "13px 10px", cursor: "pointer" },
   badge: { marginLeft: 8, fontSize: 11, background: "#8a4fff", borderRadius: 4, padding: "2px 6px" },
   back: { background: "none", border: "none", color: "#8a4fff", cursor: "pointer", marginBottom: 12, padding: 0 },
   textarea: { width: "100%", minHeight: 60, padding: 8, borderRadius: 6, border: "1px solid #444", boxSizing: "border-box", marginBottom: 8 },

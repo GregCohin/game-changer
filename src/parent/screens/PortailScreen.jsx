@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
 import { getPlayerPortalData, addJournalEntry, joinCarpool, leaveCarpool } from "../lib/api";
+import { formatDateFr } from "../../lib/utils";
+
+// Libellés du retour au jeu : mêmes que RTP_STAGES dans src/App.jsx, recopiés ici parce que l'app
+// parent n'importe jamais App.jsx (35 000 lignes) pour rester légère. Une étape inconnue n'est
+// jamais affichée telle quelle au parent (voir le statut plus bas).
+const RTP_STAGE_LABELS = {
+  arret_complet: "Arrêt complet",
+  reathletisation: "Réathlétisation individuelle (hors groupe)",
+  reprise_partielle: "Reprise partielle avec le groupe",
+  reprise_complete: "Reprise complète, disponible",
+};
+
+// « a — b — c » sans tiret orphelin quand une partie est absente (séance sans nom, offre sans date).
+const dash = (...parts) => parts.filter(Boolean).join(" — ");
 
 export function PortailScreen({ player }) {
   const [data, setData] = useState(null);
@@ -45,13 +59,14 @@ export function PortailScreen({ player }) {
   }
 
   const activeInjury = data.injuries.find((i) => i.status === "en cours");
+  const rtpLabel = activeInjury ? RTP_STAGE_LABELS[activeInjury.rtp_stage || "arret_complet"] : null;
 
   return (
     <div>
       <section style={styles.section}>
         <h2 style={styles.h2}>Statut</h2>
         {activeInjury ? (
-          <p>Blessure en cours — étape : {activeInjury.rtp_stage || "arrêt complet"}</p>
+          <p>{dash("Blessure en cours", rtpLabel)}</p>
         ) : (
           <p>Aucune blessure en cours.</p>
         )}
@@ -69,7 +84,7 @@ export function PortailScreen({ player }) {
         <h2 style={styles.h2}>Séances à venir</h2>
         {data.sessions.length === 0 && <p>Aucune séance programmée.</p>}
         {data.sessions.map((s) => (
-          <div key={s.id} style={styles.card}>{s.date} — {s.label}</div>
+          <div key={s.id} style={styles.card}>{dash(formatDateFr(s.date), s.label)}</div>
         ))}
       </section>
 
@@ -78,7 +93,7 @@ export function PortailScreen({ player }) {
         {data.matchStats.length === 0 && <p>Aucun match clôturé pour l'instant.</p>}
         {data.matchStats.map((m) => (
           <div key={m.id} style={styles.card}>
-            {m.matches?.name || "Match"} ({m.matches?.date}) — {m.buts} but(s), {m.passes_decisives} passe(s) décisive(s)
+            {m.matches?.name || "Match"} ({formatDateFr(m.matches?.date)}) — {m.buts} but(s), {m.passes_decisives} passe(s) décisive(s)
           </div>
         ))}
       </section>
@@ -95,7 +110,7 @@ export function PortailScreen({ player }) {
           <button type="submit" style={styles.button}>Ajouter</button>
         </form>
         {data.journal.map((j) => (
-          <div key={j.id} style={styles.card}>{j.date} — {j.content}</div>
+          <div key={j.id} style={styles.card}>{dash(formatDateFr(j.date), j.content)}</div>
         ))}
       </section>
 
@@ -108,12 +123,12 @@ export function PortailScreen({ player }) {
           const full = passengers.length >= offer.seats_total;
           return (
             <div key={offer.id} style={styles.card}>
-              <div>{offer.event_label} — {offer.date} — conducteur : {offer.driver_name}</div>
+              <div>{dash(offer.event_label, formatDateFr(offer.date), `conducteur : ${offer.driver_name}`)}</div>
               <div>{passengers.length}/{offer.seats_total} places prises</div>
               {mine ? (
-                <button style={styles.button} onClick={() => handleLeaveCarpool(mine.id)}>Quitter</button>
+                <button style={styles.cardButton} onClick={() => handleLeaveCarpool(mine.id)}>Quitter</button>
               ) : (
-                <button style={styles.button} disabled={full} onClick={() => handleJoinCarpool(offer.id)}>
+                <button style={styles.cardButton} disabled={full} onClick={() => handleJoinCarpool(offer.id)}>
                   {full ? "Complet" : "Rejoindre"}
                 </button>
               )}
@@ -135,10 +150,13 @@ export function PortailScreen({ player }) {
   );
 }
 
+const button = { padding: "6px 12px", borderRadius: 6, border: "none", background: "#8a4fff", color: "white", cursor: "pointer" };
+
 const styles = {
   section: { marginBottom: 24 },
   h2: { fontSize: 16, marginBottom: 8, color: "#ccc" },
   card: { background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: 10, marginBottom: 8 },
   textarea: { width: "100%", minHeight: 60, padding: 8, borderRadius: 6, border: "1px solid #444", boxSizing: "border-box", marginBottom: 8 },
-  button: { padding: "6px 12px", borderRadius: 6, border: "none", background: "#8a4fff", color: "white", cursor: "pointer" },
+  button,
+  cardButton: { ...button, marginTop: 10 }, // bouton sous du texte, dans une carte
 };

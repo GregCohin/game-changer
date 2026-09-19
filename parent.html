@@ -7,6 +7,19 @@
     <style>
       html, body, #root { height: 100%; margin: 0; }
       body { background: #0D1512; }
+      /* Confort sur téléphone. Règles globales plutôt que par écran, pour qu'aucun futur champ ou
+         bouton n'y échappe :
+         - 16 px minimum sur les champs : en dessous, Safari sur iPhone zoome la page au toucher
+           d'un champ et ne dézoome pas tout seul ;
+         - 44 px minimum de hauteur pour ce qui se touche (recommandation d'Apple) ;
+         - un bouton désactivé doit se voir désactivé (!important : les boutons portent un curseur
+           en style inline, qui l'emporterait sinon) ;
+         - un mot sans espace (lien collé dans une note) se coupe au lieu de déborder de la carte et
+           d'élargir toute la page (break-word d'abord : les iPhone avant iOS 15.4 ignorent anywhere). */
+      input, select, textarea, button { font-size: 16px; }
+      button, select, input:not([type="checkbox"]):not([type="radio"]) { min-height: 44px; }
+      button:disabled { opacity: 0.5; cursor: not-allowed !important; }
+      #root { overflow-wrap: break-word; overflow-wrap: anywhere; }
     </style>
   </head>
   <body>
