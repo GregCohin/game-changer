@@ -280,4 +280,65 @@ assert res["opponent"]["distancePerMin"] is None and res["diffPct"]["distancePer
 json.dumps(res, allow_nan=False)
 
 
+# ---------------------------------------------------------------- évolution 1re -> 2e mi-temps
+def two_halves(ours1, ours2, opp1, opp2, rhythm=None):
+    """Deux équipes, blocs de 200 s ; le « rythme » multiplie la distance des deux équipes dans un même bloc (temps fort, arrêts de jeu)."""
+    rng = np.random.default_rng(3)
+    mult = np.ones(L.N_BLOCKS) if rhythm is None else 1 + rhythm * rng.uniform(-1, 1, L.N_BLOCKS)
+    out = []
+    for f1, f2 in ((ours1, ours2), (opp1, opp2)):
+        bs = np.zeros((L.N_BLOCKS, 7))
+        for b in list(range(0, 10)) + list(range(109, 120)):
+            bs[b, 0] = 200.0
+            bs[b, 1] = 200.0 * (f1 if b < 100 else f2) * mult[b]
+        out.append(bs)
+    return out
+
+
+hc = L.half_change(two_halves(1.8, 1.8, 1.8, 1.8))                     # rien ne change
+for name in ("ours", "opponent", "relative"):
+    assert hc[name]["distancePerMin"] == {"value": 0.0, "ci95": [0.0, 0.0]}
+hc = L.half_change(two_halves(1.8, 1.62, 1.8, 1.8))                    # nous -10 % en 2e mi-temps, l'adversaire stable
+assert hc["ours"]["distancePerMin"]["value"] == -10.0 and hc["opponent"]["distancePerMin"]["value"] == 0.0 and hc["relative"]["distancePerMin"]["value"] == -10.0
+hc = L.half_change(two_halves(1.8, 1.62, 1.8, 1.98))                   # nous -10 %, l'adversaire +10 % : écart relatif = 0,9 / 1,1 - 1
+approx(hc["relative"]["distancePerMin"]["value"], (0.9 / 1.1 - 1) * 100, 0.06)
+# rééchantillonnage apparié : un rythme de jeu commun aux deux équipes élargit la fourchette de chaque évolution mais s'annule dans l'écart
+hc = L.half_change(two_halves(1.8, 1.62, 1.8, 1.8, rhythm=0.3))
+own = hc["ours"]["distancePerMin"]["ci95"]
+rel = hc["relative"]["distancePerMin"]["ci95"]
+assert own[1] - own[0] > 10, own                                        # l'évolution de notre équipe seule est très incertaine
+assert rel[1] - rel[0] < 0.2 * (own[1] - own[0]), (rel, own)            # l'écart entre les deux évolutions est bien plus précis
+assert rel[0] <= hc["relative"]["distancePerMin"]["value"] <= rel[1] and rel[1] < 0.0     # et exclut zéro : notre équipe a baissé davantage
+# une mi-temps sans mesure : pas d'évolution
+assert L.half_change([first, first.copy()]) is None
+assert L.half_change([np.zeros((L.N_BLOCKS, 7)), np.zeros((L.N_BLOCKS, 7))]) is None
+# métriques sans données (haute intensité nulle des deux côtés) : None, jamais NaN dans le JSON
+hc = L.half_change(two_halves(1.8, 1.62, 1.8, 1.8))
+assert hc["relative"]["hiPerMin"] == {"value": None, "ci95": None}
+json.dumps(hc, allow_nan=False)
+# résultat reproductible (graine fixe)
+assert L.half_change(two_halves(1.8, 1.62, 1.8, 1.8, rhythm=0.3)) == L.half_change(two_halves(1.8, 1.62, 1.8, 1.8, rhythm=0.3))
+
+# marge de méthode de l'évolution : demi-étendue de l'écart relatif sur les variantes (la variante stricte est exclue)
+def with_half(v, hr):
+    v = dict(v)
+    if hr is not None:
+        v["halfRelative"] = {k: hr for k in L.METRICS}
+    return v
+
+
+sens_h = {"base": with_half(variant(100, 100), -9.0), "a": with_half(variant(100, 100), -6.0), "b": with_half(variant(100, 100), -13.0),
+          "c": with_half(variant(100, 100), None), "pas sans image manquante (0,1 s)": with_half(variant(100, 100), -40.0)}
+spread_h = L.method_range_pct(sens_h)
+approx(spread_h["halfChangePoints"]["distancePerMin"], 3.5, 1e-9)       # (-6 - -13) / 2 ; la variante sans donnée et la variante stricte sont ignorées
+assert L.method_range_pct(sens)["halfChangePoints"] == {"distancePerMin": None, "hiPerMin": None, "sprintPerMin": None}   # aucune variante avec mi-temps
+# bloc du site : l'évolution n'y figure que si elle existe
+rep_h = {p: L.summarize(D, [fake_sums(200, 1.8), fake_sums(200, 1.7)], p) for p in ("match", "half1", "half2")}
+assert "halfChangePct" not in L.site_block(rep_h, spread_h)
+site_h = L.site_block(rep_h, spread_h, L.half_change(two_halves(1.8, 1.62, 1.8, 1.8)))
+assert site_h["halfChangePct"]["relative"]["distancePerMin"]["value"] == -10.0
+assert site_h["methodPct"]["halfChangePoints"]["distancePerMin"] == 3.5
+json.dumps(site_h, allow_nan=False)
+
+
 print("tous les tests passent")

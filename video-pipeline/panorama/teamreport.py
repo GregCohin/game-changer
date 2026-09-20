@@ -99,7 +99,7 @@ def main():
     charge = T.OUT / "resultat_charge_detail.json"
     if charge.exists():                                   # produit par python -m panorama.teamload (plusieurs minutes)
         ch = json.load(open(charge))
-        team["detail"]["load"] = LD.site_block(ch["periodes"], ch["etendueMethode"])
+        team["detail"]["load"] = LD.site_block(ch["periodes"], ch["etendueMethode"], ch.get("evolutionMiTemps"))
         what += " et charge physique"
     else:
         print("charge physique absente du fichier : lancer d'abord python -m panorama.teamload")

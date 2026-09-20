@@ -241,6 +241,29 @@ def load_report(D, bs):
     return {p: r for p, r in rep.items() if r is not None}
 
 
+def half_change(bs, seed=1):
+    """Évolution de la 1re à la 2e mi-temps (%) de chaque équipe, et écart entre les deux évolutions (nous par rapport à l'adversaire), avec IC 95 %.
+    Les blocs de 5 min sont rééchantillonnés séparément dans chaque mi-temps et de façon appariée entre les deux équipes : le rythme de jeu commun
+    (arrêts, temps forts) s'annule dans l'écart, bien plus précis que chaque évolution prise seule. None si une mi-temps n'a aucune mesure."""
+    halves = [period_blocks(bs, "half1"), period_blocks(bs, "half2")]
+    if any(len(h) == 0 for h in halves):
+        return None
+    rng = np.random.default_rng(seed)
+    draws = [rng.integers(0, len(h), (BOOT, len(h))) for h in halves]                 # mêmes tirages pour les deux équipes
+    est = [[rate_columns(b[h].sum(0)) for b in bs] for h in halves]
+    boot = [[rate_columns(b[h][d].sum(axis=1)) for b in bs] for h, d in zip(halves, draws)]
+    out = {"ours": {}, "opponent": {}, "relative": {}}
+    with np.errstate(invalid="ignore", divide="ignore"):
+        for k in METRICS:
+            change = [(est[1][t][k] / est[0][t][k] - 1) * 100 for t in (0, 1)]
+            boot_change = [(boot[1][t][k] / boot[0][t][k] - 1) * 100 for t in (0, 1)]
+            relative = ((1 + change[0] / 100) / (1 + change[1] / 100) - 1) * 100
+            boot_relative = ((1 + boot_change[0] / 100) / (1 + boot_change[1] / 100) - 1) * 100
+            for name, v, bv in (("ours", change[0], boot_change[0]), ("opponent", change[1], boot_change[1]), ("relative", relative, boot_relative)):
+                out[name][k] = {"value": _num(v), "ci95": _ci(bv)}
+    return out
+
+
 def corner_zone(D, radius=12.0):
     """Mesures à moins de `radius` m d'un poteau de corner : le calage y est le moins sûr."""
     return np.hypot(np.abs(D["X"]) - S.L_HALF, np.abs(D["Y"]) - S.Y_NEAR) < radius
@@ -254,6 +277,11 @@ def sensitivity(D, K, mem, restrict):
         r = {"ours": {k: round(float(e[0][k]), 1) for k in METRICS}, "opponent": {k: round(float(e[1][k]), 1) for k in METRICS}}
         r["ours"]["measuredPlayerMin"], r["opponent"]["measuredPlayerMin"] = round(float(e[0]["seconds"]) / 60), round(float(e[1]["seconds"]) / 60)
         r["diffPct"] = {k: round(float((e[0][k] / e[1][k] - 1) * 100), 1) for k in METRICS}
+        halves = [period_blocks(bs, "half1"), period_blocks(bs, "half2")]
+        if all(len(h) for h in halves):                                               # évolution 1re -> 2e mi-temps de nous par rapport à l'adversaire
+            a = [[rate_columns(b[h].sum(0)) for b in bs] for h in halves]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                r["halfRelative"] = {k: _num(((a[1][0][k] / a[0][0][k]) / (a[1][1][k] / a[0][1][k]) - 1) * 100) for k in METRICS}
         return r
 
     out = {"base": row(team_block_sums(D, K, mem))}
@@ -288,6 +316,10 @@ def method_range_pct(sens):
             vals = [v[team][k] for v in variants] + [base[team][k]]
             out[team][k] = round(float((max(vals) - min(vals)) / 2 / base[team][k] * 100), 1)
     out["diffPoints"] = {k: round(float((max(v["diffPct"][k] for v in variants + [base]) - min(v["diffPct"][k] for v in variants + [base])) / 2), 1) for k in METRICS}
+    out["halfChangePoints"] = {}
+    for k in METRICS:                                                                # marge de l'évolution 1re -> 2e mi-temps (points de pourcentage)
+        vals = [v["halfRelative"][k] for v in variants + [base] if v.get("halfRelative") and v["halfRelative"].get(k) is not None]
+        out["halfChangePoints"][k] = round(float((max(vals) - min(vals)) / 2), 1) if vals else None
     strict = sens["pas sans image manquante (0,1 s)"]
     out["strictStepsPct"] = {k: round(float((strict["ours"][k] / base["ours"][k] - 1) * 100), 1) for k in METRICS}
     return out
@@ -306,7 +338,7 @@ def by_zone(D, K, mem):
     return rows
 
 
-def site_block(rep, spread):
+def site_block(rep, spread, half=None):
     """Bloc `team.detail.load` du fichier d'import du site (voir AdvancedAnalyticsPanel)."""
     def team_part(name):
         return {p: {"distancePerMin": rep[p][name]["distancePerMin"], "hiPerMin": rep[p][name]["hiPerMin"], "sprintPerMin": rep[p][name]["sprintPerMin"],
@@ -319,9 +351,12 @@ def site_block(rep, spread):
             f"environ ±{d} % sur la distance, ±{h} % sur la haute intensité, ±{s} % sur le sprint (réglage du lissage, exclusion des contacts, classement des équipes). "
             f"Les moments rapides sont ceux où le suivi perd le plus souvent le joueur : les pas qui enjambent une image manquante sont gardés (sans eux, la haute intensité "
             f"serait sous-estimée d'environ {abs(round(strict['hiPerMin']))} %), mais un léger biais à la baisse reste possible.")
-    return {"thresholdsKmh": KMH, "note": note, "ours": team_part("ours"), "opponent": team_part("opponent"),
-            "diffPct": {p: rep[p]["diffPct"] for p in PERIODS if p in rep},
-            "methodPct": {"distancePerMin": d, "hiPerMin": h, "sprintPerMin": s, "diffPoints": spread["diffPoints"]}}
+    block = {"thresholdsKmh": KMH, "note": note, "ours": team_part("ours"), "opponent": team_part("opponent"),
+             "diffPct": {p: rep[p]["diffPct"] for p in PERIODS if p in rep},
+             "methodPct": {"distancePerMin": d, "hiPerMin": h, "sprintPerMin": s, "diffPoints": spread["diffPoints"], "halfChangePoints": spread.get("halfChangePoints")}}
+    if half is not None:
+        block["halfChangePct"] = half
+    return block
 
 
 def main():
@@ -335,7 +370,8 @@ def main():
     rep = load_report(D, bs)
     sens = sensitivity(D, K, mem, restrict)
     spread = method_range_pct(sens)
-    out = {"periodes": rep, "sensibilite": sens, "etendueMethode": spread, "parDistanceCamera": by_zone(D, K, mem),
+    half = half_change(bs)
+    out = {"periodes": rep, "evolutionMiTemps": half, "sensibilite": sens, "etendueMethode": spread, "parDistanceCamera": by_zone(D, K, mem),
            "reglages": {"seuilPiste": TRACK_THR, "seuilHauteIntensiteMs": HIGH_INTENSITY_SPEED_MS, "seuilSprintMs": SPRINT_SPEED_MS, "sprintDureeMinS": SPRINT_MIN_DURATION_S,
                         "contactMargeS": T.CONTACT_MARGIN_S, "incertitudeVitesseMax": T.EDGE_SIGMA_V, "trouMaxS": MAX_GAP_S, "lissage": T.FINAL}}
     json.dump(out, open(T.OUT / "resultat_charge_detail.json", "w"), ensure_ascii=False, indent=1)
@@ -343,7 +379,10 @@ def main():
         print(f"{period:6s} nous {r['ours']['distancePerMin']:6.1f} m/min {r['ours']['ci95']['distancePerMin']} (HI {r['ours']['hiPerMin']}, sprint {r['ours']['sprintPerMin']}, {r['ours']['measuredPlayerMin']:.0f} min-joueur, {100 * r['ours']['coverage']:.0f} %) | "
               f"adversaire {r['opponent']['distancePerMin']:6.1f} {r['opponent']['ci95']['distancePerMin']} (HI {r['opponent']['hiPerMin']}, sprint {r['opponent']['sprintPerMin']}, {r['opponent']['measuredPlayerMin']:.0f} min-joueur, {100 * r['opponent']['coverage']:.0f} %) | écart {r['diffPct']['distancePerMin']:+.1f} % {r['diffPct']['ci95']['distancePerMin']}")
     print(json.dumps(spread, ensure_ascii=False))
-    print(site_block(rep, spread)["note"])
+    if half:
+        for name in ("ours", "opponent", "relative"):
+            print(f"évolution 1re -> 2e mi-temps, {name:9s} : distance {half[name]['distancePerMin']}")
+    print(site_block(rep, spread, half)["note"])
 
 
 if __name__ == "__main__":

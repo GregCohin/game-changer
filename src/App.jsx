@@ -20831,6 +20831,17 @@ function frNumber(v, digits = 0) {
   return v.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+// Mètres par minute suivie -> km sur 90 minutes AU MÊME RYTHME : un simple changement d'unité pour se repérer, pas une
+// mesure du match entier (le suivi n'en couvre qu'une partie).
+function kmOver90(perMin) {
+  return frNumber(perMin * 0.09, 1);
+}
+
+function signedPct(v) {
+  const r = Math.round(v);
+  return r === 0 ? "0 %" : `${r > 0 ? "+" : "−"}${Math.abs(r)} %`;
+}
+
 function teamLoadRows(team) {
   const load = teamLoadOf(team);
   if (!load) return null;
@@ -20839,7 +20850,7 @@ function teamLoadRows(team) {
   const share = (part, whole) => (typeof part === "number" && typeof whole === "number" && whole > 0 ? `${Math.round((part / whole) * 100)} % de la distance` : null);
   const row = (group, label, s) => (s && typeof s.distancePerMin === "number" ? {
     group, label,
-    dist: perMin(s.distancePerMin, 0), distSub: range(s.ci95 && s.ci95.distancePerMin),
+    dist: perMin(s.distancePerMin, 0), distKm: `≈ ${kmOver90(s.distancePerMin)} km sur 90 min`, distSub: range(s.ci95 && s.ci95.distancePerMin),
     hi: perMin(s.hiPerMin, 1), hiSub: share(s.hiPerMin, s.distancePerMin),
     sprint: perMin(s.sprintPerMin, 1), sprintSub: share(s.sprintPerMin, s.distancePerMin),
     seen: typeof s.measuredPlayerMin === "number" ? `${frNumber(s.measuredPlayerMin)} min-joueur` : "—",
@@ -20860,25 +20871,99 @@ function teamLoadRows(team) {
 const TEAM_LOAD_GROUPS = { ours: "Notre équipe", opp: "Adversaire" };
 const TEAM_LOAD_METRICS = [["distancePerMin", "Distance"], ["hiPerMin", "Haute intensité"], ["sprintPerMin", "Sprint"]];
 
-// Écart nous / adversaire sur le match entier. « Établi » seulement si toute la fourchette d'échantillonnage dépasse aussi
-// la marge de méthode du fichier (variation du résultat selon les réglages du lissage et du classement des équipes).
+// Trois niveaux pour un écart : « net » si toute la fourchette d'échantillonnage dépasse aussi la marge de méthode du
+// fichier (variation du résultat selon le lissage, les contacts et le classement des équipes) ; « probable » si elle
+// exclut zéro sans dépasser cette marge ; « none » sinon (aucune différence mesurable).
+function teamLoadLevel(ci, margin) {
+  const lo = Math.min(...ci);
+  const hi = Math.max(...ci);
+  if (lo > margin || hi < -margin) return "net";
+  if (lo > 0 || hi < 0) return "probable";
+  return "none";
+}
+
+const TEAM_LOAD_VERDICTS = { net: "écart net", probable: "écart probable, à confirmer sur d'autres matchs", none: "pas d'écart mesurable" };
+
+const validCi = (ci) => Array.isArray(ci) && ci.length === 2 && ci.every((x) => typeof x === "number");
+
+// Écart nous / adversaire sur le match entier, pour chaque mesure.
 function teamLoadComparisons(team) {
   const load = teamLoadOf(team);
   const diff = load && load.diffPct && load.diffPct.match;
   if (!diff) return [];
   const margins = (load.methodPct && load.methodPct.diffPoints) || {};
-  const pct = (v) => {
-    const r = Math.round(v);
-    return r === 0 ? "0 %" : `${r > 0 ? "+" : "−"}${Math.abs(r)} %`;
-  };
   return TEAM_LOAD_METRICS.map(([key, label]) => {
     const v = diff[key];
     const ci = diff.ci95 && diff.ci95[key];
-    if (typeof v !== "number" || !Array.isArray(ci) || ci.length !== 2) return null;
-    const margin = typeof margins[key] === "number" ? margins[key] : 0;
-    const established = Math.min(...ci) > margin || Math.max(...ci) < -margin;
-    return { label, text: `${label} : ${pct(v)} (de ${pct(ci[0])} à ${pct(ci[1])})`, established, verdict: established ? "écart établi" : "pas d'écart établi" };
+    if (typeof v !== "number" || !validCi(ci)) return null;
+    const level = teamLoadLevel(ci, typeof margins[key] === "number" ? margins[key] : 0);
+    return { key, label, value: v, level, text: `${label} : ${signedPct(v)} (de ${signedPct(ci[0])} à ${signedPct(ci[1])})`, verdict: TEAM_LOAD_VERDICTS[level] };
   }).filter(Boolean);
+}
+
+// Évolution de la distance entre la 1re et la 2e mi-temps, pour chaque équipe et l'une par rapport à l'autre (le fichier
+// fournit la fourchette de cet écart, bien plus précise que celle de chaque évolution seule).
+function teamLoadHalfChange(team) {
+  const load = teamLoadOf(team);
+  const h = load && load.halfChangePct;
+  const pick = (g) => (h && h[g] ? h[g].distancePerMin : null);
+  const ours = pick("ours");
+  const opp = pick("opponent");
+  const rel = pick("relative");
+  const num = (x) => !!x && typeof x.value === "number";
+  if (!num(ours) || !num(opp) || !num(rel) || !validCi(rel.ci95)) return null;
+  const m = load.methodPct && load.methodPct.halfChangePoints;
+  return { ours: ours.value, opponent: opp.value, relative: rel.value, level: teamLoadLevel(rel.ci95, m && typeof m.distancePerMin === "number" ? m.distancePerMin : 0) };
+}
+
+// Lecture en clair, en quelques phrases, construite à partir des chiffres et de leurs marges : jamais plus affirmative que
+// les données (un écart n'est dit ni « net » ni « probable » si la fourchette inclut zéro).
+function teamLoadSummary(team) {
+  const load = teamLoadOf(team);
+  if (!load) return [];
+  const has = (s) => !!s && typeof s.distancePerMin === "number";
+  const ours = load.ours && load.ours.match;
+  const opp = load.opponent && load.opponent.match;
+  if (!has(ours)) return [];
+  const lines = [];
+  lines.push(`Rythme de course : notre joueur de champ moyen a couru ${frNumber(ours.distancePerMin)} m par minute suivie (environ ${kmOver90(ours.distancePerMin)} km sur 90 minutes au même rythme)`
+    + (has(opp) ? ` ; celui de l'adversaire, ${frNumber(opp.distancePerMin)} m par minute (environ ${kmOver90(opp.distancePerMin)} km).` : "."));
+  const cmp = teamLoadComparisons(team);
+  const dist = cmp.find((c) => c.key === "distancePerMin");
+  if (dist) {
+    lines.push(dist.level === "none"
+      ? `Nous avons couru autant que l'adversaire : l'écart (${signedPct(dist.value)}) est plus petit que ce que la mesure permet de distinguer.`
+      : `Nous avons couru ${dist.value > 0 ? "plus" : "moins"} que l'adversaire (${signedPct(dist.value)}) : ${dist.verdict}.`);
+  }
+  const hc = teamLoadHalfChange(team);
+  if (hc) {
+    const move = (v) => (Math.abs(v) < 3 ? "est resté stable" : v < 0 ? `a baissé de ${Math.abs(Math.round(v))} %` : `a augmenté de ${Math.round(v)} %`);
+    const span = (g) => {
+      const a = load[g] && load[g].half1;
+      const b = load[g] && load[g].half2;
+      return has(a) && has(b) ? ` (${frNumber(a.distancePerMin)} → ${frNumber(b.distancePerMin)} m/min)` : "";
+    };
+    lines.push(`De la 1re à la 2e mi-temps, notre joueur moyen ${move(hc.ours)}${span("ours")} ; celui de l'adversaire ${move(hc.opponent)}${span("opponent")}. `
+      + (hc.level === "none"
+        ? "La différence entre ces deux évolutions est trop faible pour être affirmée."
+        : `Par rapport à l'adversaire, notre équipe a ${hc.relative < 0 ? "perdu" : "gagné"} du rythme (${signedPct(hc.relative)}) : ${TEAM_LOAD_VERDICTS[hc.level]}.`));
+  }
+  const rest = cmp.filter((c) => c.key !== "distancePerMin");
+  const found = rest.filter((c) => c.level !== "none");
+  if (rest.length > 0 && found.length === 0) {
+    const m = load.methodPct || {};
+    const margin = typeof m.hiPerMin === "number" && typeof m.sprintPerMin === "number" ? ` (marge de méthode ±${m.hiPerMin} % et ±${m.sprintPerMin} %)` : "";
+    lines.push(`Haute intensité et sprint : ordres de grandeur seulement${margin}, sans différence mesurable avec l'adversaire.`);
+  }
+  found.forEach((c) => lines.push(`${c.label} : ${signedPct(c.value)} par rapport à l'adversaire, ${c.verdict}.`));
+  const cov = [ours, opp].map((s) => (s ? s.coverage : null)).filter((v) => typeof v === "number");
+  if (cov.length > 0) {
+    const lo = Math.round(Math.min(...cov) * 100);
+    const hi = Math.round(Math.max(...cov) * 100);
+    lines.push(`Ces chiffres portent sur ${lo === hi ? `${lo} %` : `${lo} à ${hi} %`} du temps de jeu des joueurs de champ : le reste n'a pas pu être suivi (joueur caché, contact avec un autre joueur, équipe incertaine).`);
+  }
+  lines.push("Repère : un seul match ne dit pas si ce rythme est haut ou bas pour notre équipe ; il se lira surtout en comparant plusieurs matchs.");
+  return lines;
 }
 
 function teamLoadLegend(load) {
@@ -20899,14 +20984,23 @@ function TeamLoadCard({ team }) {
   if (!rows) return null;
   const load = teamLoadOf(team);
   const comparisons = teamLoadComparisons(team);
+  const summary = teamLoadSummary(team);
   const k = load.thresholdsKmh || {};
   const subTh = { display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, whiteSpace: "normal", maxWidth: 140, marginTop: 2 };
   const subTd = { display: "block", fontSize: 11, color: "var(--ink-muted)", whiteSpace: "normal", maxWidth: 150 };
   const pad = { padding: "8px 7px" };
-  const cell = (main, sub) => (<td style={pad}><div style={{ fontWeight: 600 }}>{main}</div>{sub && <span style={subTd}>{sub}</span>}</td>);
+  const cell = (main, sub) => (<td style={pad}><div style={{ fontWeight: 600 }}>{main}</div>{[].concat(sub).filter(Boolean).map((t) => (<span key={t} style={subTd}>{t}</span>))}</td>);
   const above = (v, fallback) => (typeof v === "number" ? `au-delà de ${frNumber(v, 1)} km/h` : fallback);
   return (
     <>
+      {summary.length > 0 && (
+        <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 6, background: "rgba(176,106,135,0.08)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>En clair</div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+            {summary.map((line, i) => (<li key={i} style={{ marginTop: i ? 4 : 0 }}>{line}</li>))}
+          </ul>
+        </div>
+      )}
       <div className="table-scroll" style={{ marginTop: 10 }}>
         <table className="stat-table">
           <thead>
@@ -20925,7 +21019,7 @@ function TeamLoadCard({ team }) {
               <tbody key={g}>
                 <tr><td colSpan={5} style={{ ...pad, fontWeight: 700, fontSize: 12, whiteSpace: "normal", background: "rgba(176,106,135,0.08)" }}>{TEAM_LOAD_GROUPS[g]}</td></tr>
                 {list.map((r) => (
-                  <tr key={r.label}><td style={pad}>{r.label}</td>{cell(r.dist, r.distSub)}{cell(r.hi, r.hiSub)}{cell(r.sprint, r.sprintSub)}{cell(r.seen, r.seenSub)}</tr>
+                  <tr key={r.label}><td style={pad}>{r.label}</td>{cell(r.dist, [r.distKm, r.distSub])}{cell(r.hi, r.hiSub)}{cell(r.sprint, r.sprintSub)}{cell(r.seen, r.seenSub)}</tr>
                 ))}
               </tbody>
             );
@@ -20934,7 +21028,7 @@ function TeamLoadCard({ team }) {
       </div>
       {comparisons.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 700 }}>Écart entre notre équipe et l'adversaire (match entier)</div>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>Écart entre notre équipe et l'adversaire (match entier), avec sa marge d'erreur</div>
           <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 12 }}>
             {comparisons.map((c) => (<li key={c.label}>{c.text} — <span style={{ fontWeight: 700 }}>{c.verdict}</span></li>))}
           </ul>
