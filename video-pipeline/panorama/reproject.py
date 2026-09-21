@@ -27,3 +27,16 @@ def reproject_tracklets(tracklets):
     for tl in tracklets:
         tl.X, tl.Y, tl.rho = convert(tl.X, tl.Y)
     return tracklets
+
+
+def to_v2(D):
+    """Mesures du match (repère de l'ancien calage, sortie de teamshape) -> mêmes mesures en vrais mètres du calage v2 ; associations de pistes inchangées."""
+    X, Y, _ = convert(D["X"], D["Y"])
+    return {**D, "X": X, "Y": Y}
+
+
+if __name__ == "__main__":
+    import pickle
+    D = pickle.load(open(T.OUT / "match" / "meas_team.pkl", "rb"))
+    pickle.dump(to_v2(D), open(T.OUT / "match" / "meas_team_v2.pkl", "wb"))
+    print("écrit", T.OUT / "match" / "meas_team_v2.pkl")

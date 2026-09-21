@@ -14,8 +14,8 @@ from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.geometry import PanoramaModel, VIDEO, CROP_Y0, CROP_Y1
-from panorama.config import require
+from panorama.geometry import PanoramaModel, CROP_Y0, CROP_Y1
+from panorama.config import open_panorama
 
 OUT = Path(__file__).parent.parent / "output" / "panorama"
 TIMES = (900, 1800, 3600)
@@ -23,7 +23,7 @@ REG = dict(L=105.0, W=68.0, Dp=16.5, Wp=40.32, Rc=9.15)   # dimensions réglemen
 
 
 def grab_crops():
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     crops = []
     for t in TIMES:
         cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000)

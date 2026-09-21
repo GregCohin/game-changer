@@ -17,8 +17,8 @@ from ultralytics import YOLO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import detect as D
 from panorama import track as T
-from panorama.geometry import PanoramaModel, VIDEO
-from panorama.config import require
+from panorama.geometry import PanoramaModel
+from panorama.config import open_panorama
 
 MATCH = T.OUT / "match"
 CHUNK_S = 300
@@ -26,7 +26,7 @@ FPS = 10.0
 
 
 def video_info():
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     native = cap.get(cv2.CAP_PROP_FPS)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
@@ -39,7 +39,7 @@ def detect_all():
     native, total, per_chunk, nchunks = video_info()
     step = round(native / FPS)
     model = YOLO(str(D.WEIGHTS))
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     print(f"{total} images vidéo, {nchunks} tranches de {CHUNK_S} s", flush=True)
     for k in range(nchunks):
         path = MATCH / f"det_{k:03d}.pkl"

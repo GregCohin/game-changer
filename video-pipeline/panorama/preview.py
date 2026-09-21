@@ -10,8 +10,8 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.geometry import PanoramaModel, VIDEO
-from panorama.config import require
+from panorama.geometry import PanoramaModel
+from panorama.config import open_panorama
 from panorama import track as T
 
 OUT = T.OUT
@@ -32,7 +32,7 @@ def main(path, t0, trail_s=6.0):
             live.append((tr, pts))
     print(f"{len(live)} joueurs suivis à t={t0:.0f} s")
 
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     cap.set(cv2.CAP_PROP_POS_MSEC, t0 * 1000)
     ok, frame = cap.read()
     img = frame[190:640, :].copy()

@@ -20,9 +20,10 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from panorama.config import PANORAMA_OUT
 from panorama.geometry import PanoramaModel
 
-OUT = Path(__file__).parent.parent / "output" / "panorama"
+OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else Path(__file__).parent.parent / "output" / "panorama"
 VMAX = 10.0              # m/s : vitesse maximale plausible d'un joueur
 CONF_HIGH, CONF_LOW = 0.45, 0.20
 MAX_MISSED_S = 0.5       # une piste sans détection depuis plus longtemps est abandonnée (pas de raccrochage après un long trou : risque de confusion d'identité)

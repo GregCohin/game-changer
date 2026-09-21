@@ -12,11 +12,10 @@ import numpy as np
 from ultralytics import YOLO
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.geometry import VIDEO
-from panorama.config import require
+from panorama.config import PANORAMA_OUT, open_panorama
 
 ROOT = Path(__file__).parent.parent
-OUT = ROOT / "output" / "panorama"
+OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else ROOT / "output" / "panorama"
 BAND_Y0, BAND_Y1 = 360, 800   # bande de l'image (pixels bruts) où se trouve le terrain, ligne de touche proche comprise
 WEIGHTS = ROOT / "weights" / "yolov8m-640-football-players.pt"
 
@@ -52,7 +51,7 @@ def detect_frame(model, frame):
 
 def detect(start, dur, fps):
     model = YOLO(str(WEIGHTS))
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     native = cap.get(cv2.CAP_PROP_FPS)
     step = round(native / fps)
     cap.set(cv2.CAP_PROP_POS_MSEC, start * 1000)

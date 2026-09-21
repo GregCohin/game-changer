@@ -14,8 +14,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
-from panorama.geometry import VIDEO, PanoramaModel
-from panorama.config import require
+from panorama.geometry import PanoramaModel
+from panorama.config import open_panorama
 from panorama.identify import load_tracklets
 
 DIR = T.OUT / "teamlabel"
@@ -32,7 +32,7 @@ def sample(n, seed=7, subdir=None):
     w = np.array([t.t1 - t.t0 for t in tls], float)
     idx = list(np.random.default_rng(seed).choice(len(tls), size=n, replace=False, p=w / w.sum()))
     model = PanoramaModel.from_json(CAL)
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     items = []
     for i in idx:
         tl = tls[int(i)]

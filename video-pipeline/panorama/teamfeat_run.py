@@ -13,8 +13,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
 from panorama import teamfeat as TF
-from panorama.geometry import PanoramaModel, VIDEO
-from panorama.config import require
+from panorama.geometry import PanoramaModel
+from panorama.config import open_panorama
 from panorama.match import CHUNK_S, FPS, MATCH, video_info
 
 CAL = T.OUT / "calibration_finale.json"
@@ -24,7 +24,7 @@ def run():
     native, total, per_chunk, nchunks = video_info()
     step = round(native / FPS)
     model = PanoramaModel.from_json(CAL)
-    cap = cv2.VideoCapture(require(VIDEO, "PANORAMA_VIDEO"))
+    cap = open_panorama()
     for k in range(nchunks):
         path = MATCH / f"feat_{k:03d}.pkl"
         trk = MATCH / f"trk2_{k:03d}.pkl"
