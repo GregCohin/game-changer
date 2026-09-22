@@ -7,7 +7,7 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 import { ALL_STARTER_EXERCISES, STARTER_SESSIONS } from "./data/starterContent.js";
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
-import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName } from "./lib/utils.js";
+import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
 import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
@@ -256,7 +256,7 @@ function computeGlobalSearchResults(query) {
   try {
     const staff = JSON.parse(window.localStorage.getItem("tf_club_staff") || "[]");
     staff.forEach((s) => {
-      const name = `${s.firstName} ${s.lastName}`;
+      const name = `${staffFullName(s)}`;
       const roles = staffRoles(s);
       if (name.toLowerCase().includes(q) || roles.some((r) => r.toLowerCase().includes(q))) {
         results.push({ type: "Staff", label: name, meta: roles.join(", "), section: "club" });
@@ -891,7 +891,7 @@ const STAFF_FUNCTION_GROUPS = [
 const STAFF_ROLES = STAFF_FUNCTION_GROUPS.flatMap((g) => g.roles);
 
 function emptyStaffMember() {
-  return { id: newId(), firstName: "", lastName: "", roles: [], teamIds: [], email: "", phone: "", diplomas: "", diplomaExpiry: "", honorabiliteVerifiee: false, honorabiliteDate: "", gender: "", notes: "" };
+  return { id: newId(), firstName: "", lastName: "", nickname: "", displayNickname: false, roles: [], teamIds: [], email: "", phone: "", diplomas: "", diplomaExpiry: "", honorabiliteVerifiee: false, honorabiliteDate: "", gender: "", notes: "" };
 }
 
 function staffFunctionGroup(role) {
@@ -2790,7 +2790,7 @@ function ClubStaffScreen({ teams }) {
       childProtectionCount = JSON.parse(localStorage.getItem("tf_child_protection_trainings") || "[]").filter((t) => t.staffId === id).length;
     } catch (e) {}
 
-    let message = `Supprimer la fiche de ${person ? `${person.firstName} ${person.lastName}` : "ce membre"} du staff ?`;
+    let message = `Supprimer la fiche de ${person ? `${staffFullName(person)}` : "ce membre"} du staff ?`;
     const details = [];
     if (trainingCount > 0) details.push(`${trainingCount} formation${trainingCount > 1 ? "s" : ""} suivie${trainingCount > 1 ? "s" : ""}`);
     if (meetingCount > 0) details.push(`présent${meetingCount > 1 ? "s" : ""} à ${meetingCount} réunion${meetingCount > 1 ? "s" : ""}`);
@@ -2824,12 +2824,12 @@ function ClubStaffScreen({ teams }) {
 
       {expiring.length > 0 && (
         <div className="empty-state" style={{ borderColor: "var(--crimson)", marginBottom: 14 }}>
-          {expiring.length} diplôme{expiring.length > 1 ? "s" : ""} expiré{expiring.length > 1 ? "s" : ""} ou à renouveler sous 60 jours — {expiring.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}.
+          {expiring.length} diplôme{expiring.length > 1 ? "s" : ""} expiré{expiring.length > 1 ? "s" : ""} ou à renouveler sous 60 jours — {expiring.map((s) => `${staffFullName(s)}`).join(", ")}.
         </div>
       )}
       {notVerified.length > 0 && (
         <div className="empty-state" style={{ borderColor: "var(--crimson)", marginBottom: 14 }}>
-          {notVerified.length} membre{notVerified.length > 1 ? "s" : ""} du staff sans contrôle d'honorabilité enregistré — {notVerified.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}.
+          {notVerified.length} membre{notVerified.length > 1 ? "s" : ""} du staff sans contrôle d'honorabilité enregistré — {notVerified.map((s) => `${staffFullName(s)}`).join(", ")}.
         </div>
       )}
 
@@ -2841,6 +2841,10 @@ function ClubStaffScreen({ teams }) {
             <label>Prénom<input type="text" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} /></label>
             <label>Nom<input type="text" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} /></label>
           </div>
+          <label>Surnom<input type="text" placeholder="ex. Coach Ben" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} /></label>
+          <label className="assignment-starter-toggle">
+            <input type="checkbox" checked={!!form.displayNickname} onChange={(e) => setForm((f) => ({ ...f, displayNickname: e.target.checked }))} /> Afficher le surnom à la place du nom sur le site
+          </label>
           <label>Rôle(s)
             <div style={{ display: "flex", gap: 8 }}>
               <select value={rolePickValue} onChange={(e) => setRolePickValue(e.target.value)} style={{ flex: 1 }}>
@@ -2913,7 +2917,7 @@ function ClubStaffScreen({ teams }) {
         {staff.filter((s) => staffMemberInGroup(s, staffTab)).map((s) => (
           <div className="roster-card" key={s.id} onClick={() => openEdit(s)} style={{ cursor: "pointer" }}>
             <div className="roster-card-info">
-              <div className="roster-card-name">{s.firstName} {s.lastName}</div>
+              <div className="roster-card-name">{staffFullName(s)}</div>
               <div className="roster-card-position">{staffRoles(s).join(", ")}</div>
               <div className="roster-card-usage">
                 {s.teamIds.map((tid) => teams.find((t) => t.id === tid)).filter(Boolean).map((t) => t.name).join(", ") || "Aucune équipe rattachée"}
@@ -3681,7 +3685,7 @@ function ClubVideothequeScreen({ teams }) {
         <label>Filtrer par assigné
           <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
             <option value="">Tout le monde</option>
-            {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+            {staff.map((s) => <option key={s.id} value={s.id}>{staffFullName(s)}</option>)}
           </select>
         </label>
         <label>Filtrer par statut
@@ -3706,14 +3710,14 @@ function ClubVideothequeScreen({ teams }) {
                 <div className="roster-physical-grid" style={{ marginTop: 6 }}>
                   <select value={c.assignedTo || ""} onChange={(e) => setAssignee(c.id, e.target.value)}>
                     <option value="">Non assigné</option>
-                    {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+                    {staff.map((s) => <option key={s.id} value={s.id}>{staffFullName(s)}</option>)}
                   </select>
                   <select value={status} onChange={(e) => setStatus(c.id, e.target.value)}>
                     {CLIP_STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
                 </div>
                 <input type="text" placeholder="Note (optionnel)" value={c.note || ""} onChange={(e) => setNote(c.id, e.target.value)} style={{ marginTop: 6, width: "100%", boxSizing: "border-box" }} />
-                {assignedStaff && <div className="clip-card-meta" style={{ marginTop: 4 }}>Assigné à {assignedStaff.firstName} {assignedStaff.lastName}</div>}
+                {assignedStaff && <div className="clip-card-meta" style={{ marginTop: 4 }}>Assigné à {staffFullName(assignedStaff)}</div>}
               </div>
               <button className="icon-btn" style={{ position: "absolute", top: 8, right: 8 }} onClick={() => remove(c.id)} aria-label="Retirer">✕</button>
             </div>
@@ -4270,7 +4274,7 @@ function AcademyScreen() {
               return (
                 <div className="scouting-card" key={s.id}>
                   <div className="scouting-info">
-                    <div className="scouting-name" style={expired ? { color: "var(--crimson)" } : undefined}>{s.firstName} {s.lastName} <span className="scouting-club">{teamNames.length > 0 ? teamNames.join(", ") : "Aucune équipe assignée"}</span></div>
+                    <div className="scouting-name" style={expired ? { color: "var(--crimson)" } : undefined}>{staffFullName(s)} <span className="scouting-club">{teamNames.length > 0 ? teamNames.join(", ") : "Aucune équipe assignée"}</span></div>
                     <div className="scouting-meta">{expired ? "Diplôme expiré" : "Diplôme à renouveler sous 60 jours"}{s.diplomaExpiry ? ` — ${formatDateFr(s.diplomaExpiry)}` : ""}</div>
                   </div>
                 </div>
@@ -4829,7 +4833,7 @@ function ClubTrainingScreen({ staff }) {
           <label>Membre du staff
             <select value={form.staffId} onChange={(e) => setForm((f) => ({ ...f, staffId: e.target.value }))}>
               <option value="">Choisir…</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+              {staff.map((s) => <option key={s.id} value={s.id}>{staffFullName(s)}</option>)}
             </select>
           </label>
           <label>Nom de la formation<input type="text" placeholder="ex. Recyclage BMF" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></label>
@@ -4854,7 +4858,7 @@ function ClubTrainingScreen({ staff }) {
           return (
             <div className="scouting-card" key={r.id}>
               <div className="scouting-info">
-                <div className="scouting-name">{r.name} <span className="scouting-club">{s ? `${s.firstName} ${s.lastName}` : "?"}</span></div>
+                <div className="scouting-name">{r.name} <span className="scouting-club">{s ? `${staffFullName(s)}` : "?"}</span></div>
                 <div className="scouting-meta">{formatDateFr(r.date)}{r.notes ? ` · ${r.notes}` : ""}</div>
               </div>
               <select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)}>
@@ -4919,7 +4923,7 @@ function ClubTrainingProjectScreen({ staff }) {
                 <label>Membre du staff
                   <select value={m.staffId} onChange={(e) => updateMilestone(m.id, "staffId", e.target.value)}>
                     <option value="">Choisir…</option>
-                    {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+                    {staff.map((s) => <option key={s.id} value={s.id}>{staffFullName(s)}</option>)}
                   </select>
                 </label>
               </div>
@@ -5253,7 +5257,7 @@ function ClubMeetingsScreen({ staff }) {
           <div className="radar-range-label">Présents</div>
           <div className="qcm-options">
             {staff.map((s) => (
-              <button key={s.id} className={`qcm-option ${form.attendeeStaffIds.includes(s.id) ? "selected" : ""}`} onClick={() => toggleAttendee(s.id)}>{s.firstName} {s.lastName}</button>
+              <button key={s.id} className={`qcm-option ${form.attendeeStaffIds.includes(s.id) ? "selected" : ""}`} onClick={() => toggleAttendee(s.id)}>{staffFullName(s)}</button>
             ))}
           </div>
           <label>Notes / décisions<textarea rows={4} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></label>
@@ -5268,7 +5272,7 @@ function ClubMeetingsScreen({ staff }) {
           <div className="scouting-card" key={m.id} style={{ flexWrap: "wrap" }}>
             <div className="scouting-info">
               <div className="scouting-name">{m.title} <span className="scouting-club">{formatDateFr(m.date)}</span></div>
-              <div className="scouting-meta">Présents : {m.attendeeStaffIds.map((id) => staff.find((s) => s.id === id)).filter(Boolean).map((s) => `${s.firstName} ${s.lastName}`).join(", ") || "non renseigné"}</div>
+              <div className="scouting-meta">Présents : {m.attendeeStaffIds.map((id) => staff.find((s) => s.id === id)).filter(Boolean).map((s) => `${staffFullName(s)}`).join(", ") || "non renseigné"}</div>
               {m.notes && <div className="scouting-meta">{m.notes}</div>}
             </div>
             <button className="btn btn-ghost btn-small" onClick={() => openEdit(m)}>Modifier</button>
@@ -6520,10 +6524,10 @@ function computeDirigeantAlerts({ staff, sponsors, dues, roster, financialDeadli
   staff.forEach((s) => {
     if (isDiplomaExpiringSoon(s.diplomaExpiry)) {
       const expired = new Date(s.diplomaExpiry) < new Date(todayIso());
-      alerts.push({ severity: expired ? "haute" : "moyenne", category: "Staff", label: `${s.firstName} ${s.lastName} — diplôme ${expired ? "expiré" : "à renouveler sous 60 jours"}` });
+      alerts.push({ severity: expired ? "haute" : "moyenne", category: "Staff", label: `${staffFullName(s)} — diplôme ${expired ? "expiré" : "à renouveler sous 60 jours"}` });
     }
     if (!s.honorabiliteVerifiee) {
-      alerts.push({ severity: "haute", category: "Staff", label: `${s.firstName} ${s.lastName} — contrôle d'honorabilité non renseigné` });
+      alerts.push({ severity: "haute", category: "Staff", label: `${staffFullName(s)} — contrôle d'honorabilité non renseigné` });
     }
   });
   sponsors.forEach((s) => {
@@ -11602,7 +11606,7 @@ function FormationProtectionEnfanceTab({ staff }) {
           <label>Membre du staff
             <select value={form.staffId} onChange={(e) => setForm((f) => ({ ...f, staffId: e.target.value }))}>
               <option value="">Choisir…</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+              {staff.map((s) => <option key={s.id} value={s.id}>{staffFullName(s)}</option>)}
             </select>
           </label>
           <label>Formation suivie<input type="text" placeholder="ex. Sensibilisation protection de l'enfance FFF" value={form.trainingName} onChange={(e) => setForm((f) => ({ ...f, trainingName: e.target.value }))} /></label>
@@ -11620,7 +11624,7 @@ function FormationProtectionEnfanceTab({ staff }) {
           return (
             <div className="scouting-card" key={t.id}>
               <div className="scouting-info">
-                <div className="scouting-name">{person ? `${person.firstName} ${person.lastName}` : "Membre supprimé"} <span className="scouting-club">{t.trainingName}</span></div>
+                <div className="scouting-name">{person ? `${staffFullName(person)}` : "Membre supprimé"} <span className="scouting-club">{t.trainingName}</span></div>
                 <div className="scouting-meta">{formatDateFr(t.date)}</div>
               </div>
               <button className="btn btn-ghost btn-small" onClick={() => openEdit(t)}>Modifier</button>
@@ -12570,7 +12574,7 @@ function answerAdminAssistantQuestion(question, ctx) {
     if (ctx.childProtectionTrainings.length === 0) return "Aucune formation à la protection de l'enfance enregistrée pour l'instant." + path;
     const staffWithout = ctx.staff.filter((s) => !ctx.childProtectionTrainings.some((t) => t.staffId === s.id));
     if (staffWithout.length === 0) return `${ctx.childProtectionTrainings.length} formation${ctx.childProtectionTrainings.length > 1 ? "s" : ""} enregistrée${ctx.childProtectionTrainings.length > 1 ? "s" : ""} — tout le staff a au moins une formation à son actif.` + path;
-    return `${ctx.childProtectionTrainings.length} formation${ctx.childProtectionTrainings.length > 1 ? "s" : ""} enregistrée${ctx.childProtectionTrainings.length > 1 ? "s" : ""}. Sans formation enregistrée : ${staffWithout.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}.` + path;
+    return `${ctx.childProtectionTrainings.length} formation${ctx.childProtectionTrainings.length > 1 ? "s" : ""} enregistrée${ctx.childProtectionTrainings.length > 1 ? "s" : ""}. Sans formation enregistrée : ${staffWithout.map((s) => `${staffFullName(s)}`).join(", ")}.` + path;
   }
 
   if (/décision|bureau a décidé|dernière décision/.test(q)) {
@@ -13164,7 +13168,7 @@ function ConformiteDiplomesTab() {
                 <div className="scouting-meta">{withDiploma.length}/{assignedStaff.length || 1} avec un diplôme renseigné</div>
                 {missingDiploma.length > 0 && (
                   <div className="scouting-meta" style={{ color: "var(--crimson)" }}>
-                    Sans diplôme renseigné : {missingDiploma.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}
+                    Sans diplôme renseigné : {missingDiploma.map((s) => `${staffFullName(s)}`).join(", ")}
                   </div>
                 )}
               </div>
@@ -17693,7 +17697,7 @@ function ForumScreen() {
             <input type="text" list="forum-authors" placeholder="Nom" value={composeAuthor} onChange={(e) => setComposeAuthor(e.target.value)} />
           </label>
           <datalist id="forum-authors">
-            {staff.map((s) => <option key={s.id} value={`${s.firstName} ${s.lastName}`} />)}
+            {staff.map((s) => <option key={s.id} value={`${staffFullName(s)}`} />)}
           </datalist>
           <label>Message
             <textarea rows={3} value={composeText} onChange={(e) => setComposeText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendMessage(); }} />
@@ -17813,7 +17817,7 @@ function ForumScreen() {
               <div className="radar-range-label">Membres du staff</div>
               <div className="qcm-options">
                 {staff.map((s) => (
-                  <button key={s.id} className={`qcm-option ${threadForm.targetIndividuals.some((p) => p.kind === "staff" && p.id === s.id) ? "selected" : ""}`} onClick={() => toggleIndividualStaff(s.id, `${s.firstName} ${s.lastName}`)}>{s.firstName} {s.lastName}</button>
+                  <button key={s.id} className={`qcm-option ${threadForm.targetIndividuals.some((p) => p.kind === "staff" && p.id === s.id) ? "selected" : ""}`} onClick={() => toggleIndividualStaff(s.id, `${staffFullName(s)}`)}>{staffFullName(s)}</button>
                 ))}
                 {staff.length === 0 && <span className="hint" style={{ marginTop: 0 }}>Aucun membre du staff enregistré dans Club.</span>}
               </div>
@@ -18229,7 +18233,7 @@ function answerAssistantQuestion(question, ctx) {
 
   if (/staff|éducateur/.test(q)) {
     if (ctx.staff.length === 0) return "Aucun membre du staff enregistré dans Club pour l'instant.";
-    return `${ctx.staff.length} membre${ctx.staff.length > 1 ? "s" : ""} du staff : ${ctx.staff.map((s) => `${s.firstName} ${s.lastName} (${staffRoles(s).join(", ")})`).join(", ")}.`;
+    return `${ctx.staff.length} membre${ctx.staff.length > 1 ? "s" : ""} du staff : ${ctx.staff.map((s) => `${staffFullName(s)} (${staffRoles(s).join(", ")})`).join(", ")}.`;
   }
 
   if (/bibliothèque|livre|référence/.test(q)) {
@@ -22288,7 +22292,7 @@ function RosterScreen({ matches }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    firstName: "", lastName: "", position: "Attaquant", positionPrecise: "Avant-centre",
+    firstName: "", lastName: "", nickname: "", displayNickname: false, position: "Attaquant", positionPrecise: "Avant-centre", secondaryPositions: [],
     strongFoot: "Droit", preferredNumber: "", photo: "", birthDate: "", notes: "", licenceClub: "", imageAuthorization: "",
     vmaHistory: [], sprint10mHistory: [], sprint30mHistory: [], agiliteHistory: [], detenteHistory: [], rsaHistory: [], tailleHistory: [], poidsHistory: [],
   });
@@ -22424,7 +22428,7 @@ function RosterScreen({ matches }) {
 
   function openNewForm() {
     setForm({
-      firstName: "", lastName: "", position: "Attaquant", positionPrecise: POSITION_PRECISE.Attaquant[0],
+      firstName: "", lastName: "", nickname: "", displayNickname: false, position: "Attaquant", positionPrecise: POSITION_PRECISE.Attaquant[0], secondaryPositions: [],
       strongFoot: "Droit", preferredNumber: "", photo: "", birthDate: "", notes: "", licenceClub: "", imageAuthorization: "",
       vmaHistory: [], sprint10mHistory: [], sprint30mHistory: [], agiliteHistory: [], detenteHistory: [], rsaHistory: [], tailleHistory: [], poidsHistory: [],
     });
@@ -22436,8 +22440,11 @@ function RosterScreen({ matches }) {
     setForm({
       firstName: p.firstName || (p.name ? p.name.split(" ")[0] : ""),
       lastName: p.lastName || (p.name ? p.name.split(" ").slice(1).join(" ") : ""),
+      nickname: p.nickname || "",
+      displayNickname: !!p.displayNickname,
       position: p.position || "Attaquant",
       positionPrecise: p.positionPrecise || (POSITION_PRECISE[p.position || "Attaquant"] || [])[0] || "",
+      secondaryPositions: p.secondaryPositions || [],
       strongFoot: p.strongFoot || "Droit",
       preferredNumber: p.preferredNumber || "",
       photo: p.photo || "",
@@ -22631,6 +22638,13 @@ function RosterScreen({ matches }) {
           <label>
             Nom
             <input type="text" placeholder="ex. Dubois" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} />
+          </label>
+          <label>
+            Surnom
+            <input type="text" placeholder="ex. Titi" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} />
+          </label>
+          <label className="assignment-starter-toggle">
+            <input type="checkbox" checked={!!form.displayNickname} onChange={(e) => setForm((f) => ({ ...f, displayNickname: e.target.checked }))} /> Afficher le surnom à la place du nom sur le site
           </label>
           <label>
             Catégorie de poste
