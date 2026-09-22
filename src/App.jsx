@@ -20,6 +20,16 @@ import {
 } from "./lib/portalSync.js";
 
 
+// Statut de participation d'un joueur à un match, à partir de match.playerMinutes[playerId]
+// (starter, subEntered) — trois états plutôt que le titulaire/remplaçant binaire d'origine, qui ne
+// distinguait pas un remplaçant resté sur le banc de tout le match d'un remplaçant réellement
+// entré en jeu. `pm` peut être undefined (joueur pas encore renseigné pour ce match).
+function playerMatchStatusLabel(pm) {
+  if (!pm) return "Non renseigné";
+  if (pm.starter) return "Titulaire";
+  return pm.subEntered ? "Entré en jeu" : "Resté sur le banc";
+}
+
 function ensureDefaultTeamAndSeason() {
   try {
     let teams = JSON.parse(window.localStorage.getItem("tf_teams") || "null");
@@ -20413,6 +20423,11 @@ function PlayerAssignmentEditor({ roster, assignments, setAssignments, playerMin
                   <label className="assignment-starter-toggle">
                     <input type="checkbox" checked={!!pm.starter} onChange={(e) => setMinutesField(p.id, "starter", e.target.checked)} /> Titulaire
                   </label>
+                  {!pm.starter && (
+                    <label className="assignment-starter-toggle">
+                      <input type="checkbox" checked={!!pm.subEntered} onChange={(e) => setMinutesField(p.id, "subEntered", e.target.checked)} /> Entré en jeu
+                    </label>
+                  )}
                   <input
                     type="number" min="0" max="120" placeholder="Min."
                     className="assignment-number-input"
@@ -22391,7 +22406,7 @@ function buildPlayerTimeline(player, { injuries, allFullMatches, sessions }) {
     const num = Object.keys(m.playerAssignments).find((n) => m.playerAssignments[n] === player.id);
     if (!num) return;
     const pm = m.playerMinutes && m.playerMinutes[player.id];
-    events.push({ date: m.date, type: "match", label: `Match vs ${m.opponent || "adversaire non précisé"}`, detail: pm ? (pm.starter ? "Titulaire" : "Entrée en jeu") : "" });
+    events.push({ date: m.date, type: "match", label: `Match vs ${m.opponent || "adversaire non précisé"}`, detail: pm ? playerMatchStatusLabel(pm) : "" });
   });
 
   PHYSICAL_TESTS.forEach((test) => {
@@ -33634,7 +33649,7 @@ function PresenceHistoryScreen({ roster, allFullMatches }) {
                     <tr key={m.id}>
                       <td>{m.name}</td>
                       <td>{formatDateFr(m.date)}</td>
-                      <td>{pm ? (pm.starter ? "Titulaire" : "Remplaçant") : "Non renseigné"}</td>
+                      <td>{playerMatchStatusLabel(pm)}</td>
                       <td>{pm && pm.minutes !== "" ? `${pm.minutes} min` : "—"}</td>
                     </tr>
                   );
