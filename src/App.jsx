@@ -20761,6 +20761,11 @@ const POSITION_PRECISE = {
   "Attaquant": ["Ailier droit", "Ailier gauche", "Avant-centre"],
 };
 const STRONG_FOOT_OPTIONS = ["Droit", "Gauche", "Ambidextre"];
+// Postes secondaires : le poste/poste précis principal (p.position/p.positionPrecise) reste
+// inchangé, ce tableau est purement additif — plusieurs postes possibles pour un joueur, chacun
+// noté pour distinguer un dépannage ponctuel d'une vraie polyvalence.
+const POSITION_RATING_LABELS = { 1: "1 — Dépannage", 2: "2 — Peut jouer", 3: "3 — Correct", 4: "4 — Bon", 5: "5 — Aussi bon qu'à son poste principal" };
+function emptySecondaryPosition() { return { id: newId(), position: "Défenseur", positionPrecise: POSITION_PRECISE["Défenseur"][0], rating: 3 }; }
 
 const PHYSICAL_TESTS = [
   { key: "vma", label: "VMA", unit: "km/h", step: "0.1" },
@@ -22676,6 +22681,23 @@ function RosterScreen({ matches }) {
     setShowForm(true);
   }
 
+  function addSecondaryPosition() {
+    setForm((f) => ({ ...f, secondaryPositions: [...f.secondaryPositions, emptySecondaryPosition()] }));
+  }
+  function updateSecondaryPosition(id, field, value) {
+    setForm((f) => ({
+      ...f,
+      secondaryPositions: f.secondaryPositions.map((sp) => {
+        if (sp.id !== id) return sp;
+        if (field === "position") return { ...sp, position: value, positionPrecise: POSITION_PRECISE[value][0] };
+        return { ...sp, [field]: value };
+      }),
+    }));
+  }
+  function removeSecondaryPosition(id) {
+    setForm((f) => ({ ...f, secondaryPositions: f.secondaryPositions.filter((sp) => sp.id !== id) }));
+  }
+
   async function handlePhotoChange(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -22877,6 +22899,31 @@ function RosterScreen({ matches }) {
               {POSITION_PRECISE[form.position].map((pos) => <option key={pos} value={pos}>{pos}</option>)}
             </select>
           </label>
+
+          <div className="radar-range-label">Autres postes possibles</div>
+          <p className="hint" style={{ marginTop: 0 }}>Le poste principal ci-dessus reste inchangé — ce sont des postes en plus, avec une note pour distinguer un vrai dépannage d'une polyvalence réelle.</p>
+          {form.secondaryPositions.map((sp) => (
+            <div key={sp.id} className="roster-physical-grid" style={{ marginBottom: 8, alignItems: "flex-end" }}>
+              <label>Poste
+                <select value={sp.position} onChange={(e) => updateSecondaryPosition(sp.id, "position", e.target.value)}>
+                  {POSITIONS.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                </select>
+              </label>
+              <label>Poste précis
+                <select value={sp.positionPrecise} onChange={(e) => updateSecondaryPosition(sp.id, "positionPrecise", e.target.value)}>
+                  {POSITION_PRECISE[sp.position].map((pos) => <option key={pos} value={pos}>{pos}</option>)}
+                </select>
+              </label>
+              <label>Niveau à ce poste
+                <select value={sp.rating} onChange={(e) => updateSecondaryPosition(sp.id, "rating", Number(e.target.value))}>
+                  {Object.entries(POSITION_RATING_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </select>
+              </label>
+              <button className="icon-btn" onClick={() => removeSecondaryPosition(sp.id)} aria-label="Supprimer ce poste"><X size={14} /></button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-ghost btn-small" onClick={addSecondaryPosition} style={{ marginBottom: 14 }}>+ Ajouter un poste possible</button>
+
           <label>
             Pied fort
             <select value={form.strongFoot} onChange={(e) => setForm((f) => ({ ...f, strongFoot: e.target.value }))}>
@@ -22949,6 +22996,9 @@ function RosterScreen({ matches }) {
                 <div className="roster-card-name">{playerFullName(p)} {p.preferredNumber && <span className="roster-card-prefnum">n°{p.preferredNumber}</span>}</div>
                 {p.licenceClub && <div className="roster-card-meta">Club de licence : {p.licenceClub}</div>}
                 <div className="roster-card-position">{p.positionPrecise || p.position}{p.strongFoot ? ` · pied ${p.strongFoot.toLowerCase()}` : ""}</div>
+                {p.secondaryPositions && p.secondaryPositions.length > 0 && (
+                  <div className="roster-card-meta">Aussi : {p.secondaryPositions.map((sp) => `${sp.positionPrecise} (${sp.rating}/5)`).join(", ")}</div>
+                )}
                 {p.birthDate && <div className="roster-card-meta">Né(e) le {formatDateFr(p.birthDate)}</div>}
                 {p.linkedTeamRef && <div className="roster-card-meta">Actif aussi dans {p.linkedTeamRef.teamName}</div>}
                 {p.notes && <div className="roster-card-meta">{p.notes}</div>}
