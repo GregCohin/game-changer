@@ -2750,13 +2750,13 @@ function ClubRefereesScreen() {
   );
 }
 
-function ClubStaffScreen({ teams }) {
+function ClubStaffScreen({ teams, initialTab }) {
   const [staff, setStaff] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyStaffMember());
   const [loaded, setLoaded] = useState(false);
-  const [staffTab, setStaffTab] = useState("coaching");
+  const [staffTab, setStaffTab] = useState(initialTab || "coaching");
   const [rolePickValue, setRolePickValue] = useState("");
 
   useEffect(() => {
@@ -11271,6 +11271,13 @@ function SuiviParamedicalScreen({ roster }) {
 
 function GouvernanceBureauScreen() {
   const [tab, setTab] = useState("gouvernance");
+  // Chargement autonome des équipes (même principe que AcademyScreen) : ce composant ne reçoit pas
+  // `teams` de son parent (ClubScreen ne l'a pas non plus) — pas la peine de le faire remonter
+  // depuis la racine, juste pour l'affichage des équipes rattachées dans l'onglet Composition.
+  const [teams, setTeams] = useState([]);
+  useEffect(() => {
+    try { setTeams(JSON.parse(localStorage.getItem("tf_teams") || "[]")); } catch (e) {}
+  }, []);
   return (
     <div className="stats-screen">
       <div className="stats-screen-header">
@@ -11280,10 +11287,17 @@ function GouvernanceBureauScreen() {
       </div>
       <div className="tabs" style={{ marginBottom: 14 }}>
         <button className={`tab ${tab === "gouvernance" ? "active" : ""}`} onClick={() => setTab("gouvernance")}>Gouvernance</button>
-        <button className={`tab ${tab === "bureau" ? "active" : ""}`} onClick={() => setTab("bureau")}>Bureau</button>
+        <button className={`tab ${tab === "composition" ? "active" : ""}`} onClick={() => setTab("composition")}>Composition du bureau</button>
+        <button className={`tab ${tab === "bureau" ? "active" : ""}`} onClick={() => setTab("bureau")}>Répartition des tâches</button>
         <button className={`tab ${tab === "delegation" ? "active" : ""}`} onClick={() => setTab("delegation")}>Délégation & représentation</button>
       </div>
       {tab === "gouvernance" && <GouvernanceScreen />}
+      {tab === "composition" && (
+        <>
+          <p className="radar-note">Qui occupe quel poste au bureau (Président, Trésorier, Secrétaire général…) — mêmes fiches que Vue académie → Staff, filtrées sur les rôles de direction. Ajoute ou modifie un rôle « Direction » sur une fiche pour qu'elle apparaisse ici.</p>
+          <ClubStaffScreen teams={teams} initialTab="direction" />
+        </>
+      )}
       {tab === "bureau" && <BureauScreen />}
       {tab === "delegation" && <DelegationRepresentationScreen />}
     </div>
