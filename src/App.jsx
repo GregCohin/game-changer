@@ -5156,6 +5156,24 @@ function ClubFaqScreen() {
 }
 
 function ClubCertificationsScreen() {
+  const [tab, setTab] = useState("obtenus");
+  return (
+    <div className="stats-screen">
+      <div className="stats-screen-header">
+        <div className="eyebrow">Planning</div>
+        <h1>Labels</h1>
+      </div>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        <button className={`tab ${tab === "obtenus" ? "active" : ""}`} onClick={() => setTab("obtenus")}>Labels obtenus</button>
+        <button className={`tab ${tab === "objectif" ? "active" : ""}`} onClick={() => setTab("objectif")}>Objectif : label supérieur</button>
+      </div>
+      {tab === "obtenus" && <LabelsObtenusTab />}
+      {tab === "objectif" && <LabelObjectifTab />}
+    </div>
+  );
+}
+
+function LabelsObtenusTab() {
   const [certs, setCerts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyCertification());
@@ -5187,12 +5205,8 @@ function ClubCertificationsScreen() {
   if (!loaded) return <div className="empty-state">Chargement…</div>;
 
   return (
-    <div className="stats-screen">
-      <div className="stats-screen-header">
-        <div className="eyebrow">Planning</div>
-        <h1>Labels</h1>
-      </div>
-      <p className="radar-note">Labels et certifications du club (ex. Label Jeunes FFF), avec leurs critères et échéances de renouvellement.</p>
+    <div>
+      <p className="radar-note">Labels et certifications déjà obtenus par le club (ex. Label Jeunes FFF), avec leurs critères à maintenir et échéances de renouvellement.</p>
       {!showForm && <button className="btn btn-primary btn-small" onClick={() => setShowForm(true)} style={{ marginBottom: 14 }}>+ Ajouter un label</button>}
       {showForm && (
         <div className="new-match-card">
@@ -5223,6 +5237,75 @@ function ClubCertificationsScreen() {
           </div>
         ))}
         {certs.length === 0 && <div className="empty-state">Aucun label enregistré pour l'instant. Utilise le bouton ci-dessus pour en ajouter un.</div>}
+      </div>
+    </div>
+  );
+}
+
+function emptyLabelObjective() { return { id: newId(), targetLabel: "", currentLevel: "", criteriaToFulfill: "", targetDate: "", progress: "" }; }
+
+function LabelObjectifTab() {
+  const [objectives, setObjectives] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyLabelObjective());
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    try { setObjectives(JSON.parse(window.localStorage.getItem("tf_club_label_objectives") || "[]")); } catch (e) {}
+    setLoaded(true);
+  }, []);
+
+  function persist(next) {
+    setObjectives(next);
+    try { window.localStorage.setItem("tf_club_label_objectives", JSON.stringify(next)); } catch (e) {}
+  }
+  function openNew() { setForm(emptyLabelObjective()); setEditingId(null); setShowForm(true); }
+  function openEdit(o) { setForm(o); setEditingId(o.id); setShowForm(true); }
+  function save() {
+    if (!form.targetLabel.trim()) { alert("Donne le nom du label visé."); return; }
+    persist(editingId ? objectives.map((o) => (o.id === editingId ? form : o)) : [...objectives, form]);
+    setShowForm(false);
+    setEditingId(null);
+  }
+  function remove(id) {
+    if (!confirm("Supprimer cet objectif de label ?")) return;
+    persist(objectives.filter((o) => o.id !== id));
+  }
+
+  if (!loaded) return <div className="empty-state">Chargement…</div>;
+
+  return (
+    <div>
+      <p className="radar-note">Ce qu'il reste à faire pour décrocher un label plus haut que ce que le club a déjà — pour prioriser le travail plutôt que de le découvrir la veille de l'audit.</p>
+      {!showForm && <button className="btn btn-primary btn-small" onClick={openNew} style={{ marginBottom: 14 }}>+ Nouvel objectif</button>}
+      {showForm && (
+        <div className="new-match-card">
+          <label>Label visé<input type="text" placeholder="ex. Label Jeunes Or" value={form.targetLabel} onChange={(e) => setForm((f) => ({ ...f, targetLabel: e.target.value }))} autoFocus /></label>
+          <label>Niveau actuel<input type="text" placeholder="ex. Label Jeunes Argent" value={form.currentLevel} onChange={(e) => setForm((f) => ({ ...f, currentLevel: e.target.value }))} /></label>
+          <label>Critères restant à remplir<textarea rows={3} value={form.criteriaToFulfill} onChange={(e) => setForm((f) => ({ ...f, criteriaToFulfill: e.target.value }))} /></label>
+          <div className="roster-physical-grid">
+            <label>Échéance visée<input type="date" value={form.targetDate} onChange={(e) => setForm((f) => ({ ...f, targetDate: e.target.value }))} /></label>
+            <label>Avancement<input type="text" placeholder="ex. 3 critères sur 5" value={form.progress} onChange={(e) => setForm((f) => ({ ...f, progress: e.target.value }))} /></label>
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditingId(null); }}>Annuler</button>
+            <button className="btn btn-primary" onClick={save}>{editingId ? "Enregistrer" : "Ajouter"}</button>
+          </div>
+        </div>
+      )}
+      <div className="scouting-list" style={{ marginTop: 10 }}>
+        {objectives.map((o) => (
+          <div className="scouting-card" key={o.id} onClick={() => openEdit(o)} style={{ cursor: "pointer" }}>
+            <div className="scouting-info">
+              <div className="scouting-name">{o.targetLabel}{o.currentLevel ? <span className="scouting-club"> · depuis {o.currentLevel}</span> : ""}</div>
+              {o.criteriaToFulfill && <div className="scouting-meta">{o.criteriaToFulfill}</div>}
+              <div className="scouting-meta">{o.targetDate ? `Échéance visée : ${formatDateFr(o.targetDate)}` : "Aucune échéance fixée"}{o.progress ? ` · ${o.progress}` : ""}</div>
+            </div>
+            <button className="icon-btn" onClick={(e) => { e.stopPropagation(); remove(o.id); }} aria-label="Supprimer"><X size={14} /></button>
+          </div>
+        ))}
+        {objectives.length === 0 && <div className="empty-state">Aucun objectif de label pour l'instant. Utilise le bouton ci-dessus pour en ajouter un.</div>}
       </div>
     </div>
   );

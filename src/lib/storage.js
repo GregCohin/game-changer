@@ -10,8 +10,9 @@ export const UNSCOPED_STORAGE_KEYS = new Set([
   // Données de club — partagées entre toutes les équipes et saisons, jamais cloisonnées.
   "tf_club_staff", "tf_club_sporting_project", "tf_club_identity", "tf_club_pedagogy",
   "tf_club_passerelles", "tf_club_exercise_library", "tf_club_scouting", "tf_club_facilities",
-  "tf_club_equipment", "tf_club_meetings", "tf_club_events", "tf_club_certifications", "tf_club_loan_pool", "tf_club_trainings",
+  "tf_club_equipment", "tf_club_meetings", "tf_club_events", "tf_club_certifications", "tf_club_label_objectives", "tf_club_loan_pool", "tf_club_trainings",
   "tf_club_categories", "tf_club_locations", "tf_club_training_project", "tf_bibliotheque", "tf_assistant_history", "tf_journal_entries",
+  "tf_club_vehicles",
   "tf_club_talent_watchlist",
 ]);
 
