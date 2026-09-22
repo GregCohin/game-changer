@@ -18753,7 +18753,7 @@ const HELP_TOPICS = [
   { keywords: ["créer un exercice", "ajouter un exercice", "nouvel exercice"], question: "Comment créer un exercice ?", answer: "Vestiaire → Séance → onglet \"Création d'exercices\" → \"+ Créer un exercice\". Renseigne nom, catégorie, thème (optionnel, avec des suggestions), objectif, durée, et dessine le schéma sur le terrain." },
   { keywords: ["thème", "regrouper les exercices", "classer les exercices"], question: "À quoi sert le thème sur un exercice ?", answer: "Le thème range un exercice à l'intérieur de sa catégorie (ex. dans Athlétique : Récupération, Vitesse, Endurance...). Ça sert à regrouper la banque d'exercices plutôt que d'avoir une liste plate. C'est un champ libre — tu peux reprendre une suggestion ou en taper un nouveau." },
   { keywords: ["construire une séance", "créer une séance", "programmer une séance"], question: "Comment construire une séance ?", answer: "Vestiaire → Séance → \"Création de séance\". Choisis une date, ajoute des exercices depuis la bibliothèque (filtrés par domaine puis regroupés par thème), organise-les par phase (Échauffement / Corps de séance / Retour au calme)." },
-  { keywords: ["microcycle", "semaine type"], question: "Qu'est-ce que le microcycle ?", answer: "Vestiaire → Séance → \"Microcycle\". Deux vues : \"Semaine\" cale les jours d'entraînement sur ton prochain match (J-4 à J0), \"Saison\" te donne la programmation annuelle par grands blocs (macrocycles/mésocycles) avec une frise et le détail de chaque période." },
+  { keywords: ["microcycle", "semaine type", "cycle", "mésocycle", "macrocycle"], question: "Qu'est-ce que le Cycle ?", answer: "Vestiaire → Séance → \"Cycle\". Trois sous-onglets, du plus large au plus fin : \"Programmation annuelle\" (grands blocs de saison — macrocycles et mésocycles — avec une frise et le détail de chaque période), \"Mésocycle\" (même liste, filtrée sur les blocs de plusieurs semaines), et \"Microcycle\" (la semaine en cours, calée sur ton prochain match, J-4 à J0)." },
   { keywords: ["programme individuel", "exercice pour un joueur", "programme d'exercices"], question: "Comment donner un programme d'exercices à un joueur précis ?", answer: "Vestiaire → Effectifs → sélectionne le joueur → onglet Développement → choisis un thème (Physique/Technique/Mental/Tactique) → section \"Programme d'exercices\" en bas, pioche dans la bibliothèque et précise une fréquence." },
   { keywords: ["studio", "observation", "différence studio"], question: "Quelle est la différence entre Studio et Observation ?", answer: "Studio tague TES matchs, lié à ton effectif (les numéros se rattachent à tes joueurs). Observation tague n'importe quel match entre deux autres équipes — utile pour préparer un adversaire, sans lien avec ton effectif." },
   { keywords: ["deux passages", "second passage", "passage tactique", "passage objectif"], question: "Comment fonctionnent les deux passages de tag ?", answer: "Dans Studio et Observation, un bascule en haut du tagging propose \"Passage 1 — objectif\" (passes, tacles, tirs...) et \"Passage 2 — tactique\" (déclenchements de pressing, hauteur de bloc, sorties de balle conformes au plan...). Les deux sont indépendants — retague le même match sous les deux passages si besoin." },
@@ -31720,7 +31720,11 @@ function MicrocycleScreen({ sessions, roster }) {
   const [upcomingFixture, setUpcomingFixture] = useState(null);
   const [editingCycles, setEditingCycles] = useState(false);
   const [injuries, setInjuries] = useState([]);
-  const [viewMode, setViewMode] = useState("semaine");
+  // Trois granularités de la charge d'entraînement dans le temps, du plus large au plus fin — la
+  // saison entière (macrocycles), ses blocs de plusieurs semaines (mésocycles), puis la semaine en
+  // cours (microcycle). "annuelle" et "mesocycle" partagent le même stockage (tf_season_cycles,
+  // distingué par c.type) : "Mésocycle" est une vue filtrée dédiée, pas des données séparées.
+  const [viewMode, setViewMode] = useState("microcycle");
   const [seasonCycles, setSeasonCycles] = useState([]);
   const [selectedSeasonCycleId, setSelectedSeasonCycleId] = useState(null);
   const [showCycleForm, setShowCycleForm] = useState(false);
@@ -31752,6 +31756,7 @@ function MicrocycleScreen({ sessions, roster }) {
     try { localStorage.setItem("tf_season_cycles", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
   }
   function openNewSeasonCycle() { setCycleForm(emptySeasonCycle()); setShowCycleForm(true); }
+  function openNewMesocycle() { setCycleForm({ ...emptySeasonCycle(), type: "mesocycle" }); setShowCycleForm(true); }
   function openEditSeasonCycle(c) { setCycleForm(c); setShowCycleForm(true); }
   function saveSeasonCycle() {
     if (!cycleForm.name.trim()) { alert("Donne un nom à ce cycle."); return; }
@@ -31828,14 +31833,67 @@ function MicrocycleScreen({ sessions, roster }) {
     return Math.max(0, Math.min(100, (days / seasonSpanDays) * 100));
   }
 
+  // Formulaire d'ajout/édition et panneau de détail, partagés par "Programmation annuelle" et
+  // "Mésocycle" (même stockage tf_season_cycles) — construits une fois ici plutôt que dupliqués
+  // dans les deux onglets, qui ne diffèrent que par la liste affichée au-dessus.
+  const cycleFormPanel = showCycleForm && (
+    <div className="new-match-card" style={{ marginTop: 16 }}>
+      <label>Nom<input type="text" placeholder="ex. Phase 1 championnat" value={cycleForm.name} onChange={(e) => setCycleForm((f) => ({ ...f, name: e.target.value }))} autoFocus /></label>
+      <label>Type
+        <select value={cycleForm.type} onChange={(e) => setCycleForm((f) => ({ ...f, type: e.target.value }))}>
+          {SEASON_CYCLE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+      </label>
+      <div className="roster-physical-grid">
+        <label>Début<input type="date" value={cycleForm.startDate} onChange={(e) => setCycleForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
+        <label>Fin<input type="date" value={cycleForm.endDate} onChange={(e) => setCycleForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
+      </div>
+      <label>Objectif de ce cycle (optionnel)<textarea rows={2} value={cycleForm.objective} onChange={(e) => setCycleForm((f) => ({ ...f, objective: e.target.value }))} /></label>
+      <div className="radar-range-label">Couleur</div>
+      <div className="qcm-options">
+        {SEASON_CYCLE_COLORS.map((col) => (
+          <button key={col} type="button" className={`qcm-option ${cycleForm.color === col ? "selected" : ""}`} style={{ background: col, width: 30, height: 30, padding: 0, borderRadius: 6 }} onClick={() => setCycleForm((f) => ({ ...f, color: col }))} />
+        ))}
+      </div>
+      <div className="form-actions">
+        <button className="btn btn-ghost" onClick={() => setShowCycleForm(false)}>Annuler</button>
+        <button className="btn btn-primary" onClick={saveSeasonCycle}>Enregistrer</button>
+      </div>
+    </div>
+  );
+  const seasonCycleDetailPanel = selectedSeasonCycleId && (() => {
+    const c = seasonCycles.find((x) => x.id === selectedSeasonCycleId);
+    if (!c) return null;
+    const start = new Date(c.startDate), end = new Date(c.endDate);
+    const inRange = (dateStr) => { const d = new Date(dateStr); return d >= start && d <= end; };
+    const cycleSessions = sessions.filter((s) => inRange(s.date)).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const cycleFixtures = allFixtures.filter((f) => inRange(f.date)).sort((a, b) => new Date(a.date) - new Date(b.date));
+    return (
+      <div className="new-match-card" style={{ marginTop: 16, borderLeft: `4px solid ${c.color}` }}>
+        <button className="btn btn-ghost btn-small" onClick={() => setSelectedSeasonCycleId(null)} style={{ marginBottom: 10 }}>‹ Fermer le détail</button>
+        <div className="panel-heading" style={{ marginTop: 0 }}>{c.name}</div>
+        <p className="hint" style={{ marginTop: 0 }}>{formatDateFr(c.startDate)} → {formatDateFr(c.endDate)} · {SEASON_CYCLE_TYPES.find((t) => t.key === c.type)?.label}</p>
+        {c.objective && <p style={{ marginTop: 0 }}>{c.objective}</p>}
+        <div className="panel-heading">Séances ({cycleSessions.length})</div>
+        {cycleSessions.length === 0 && <div className="hint" style={{ marginTop: 0 }}>Aucune séance dans cette période.</div>}
+        {cycleSessions.map((s) => <div key={s.id} className="week-agenda-item" style={{ marginBottom: 4 }}>{formatDateFr(s.date)} — {s.name}</div>)}
+        <div className="panel-heading">Matchs ({cycleFixtures.length})</div>
+        {cycleFixtures.length === 0 && <div className="hint" style={{ marginTop: 0 }}>Aucun match dans cette période.</div>}
+        {cycleFixtures.map((f, i) => <div key={i} className="week-agenda-item" style={{ marginBottom: 4 }}>{formatDateFr(f.date)} — vs {f.opponent}</div>)}
+      </div>
+    );
+  })();
+  const mesocycles = seasonCycles.filter((c) => c.type === "mesocycle");
+
   return (
     <div>
       <div className="tabs" style={{ marginBottom: 14 }}>
-        <button className={`tab ${viewMode === "semaine" ? "active" : ""}`} onClick={() => setViewMode("semaine")}>Semaine (microcycle)</button>
-        <button className={`tab ${viewMode === "saison" ? "active" : ""}`} onClick={() => setViewMode("saison")}>Saison (programmation annuelle)</button>
+        <button className={`tab ${viewMode === "annuelle" ? "active" : ""}`} onClick={() => setViewMode("annuelle")}>Programmation annuelle</button>
+        <button className={`tab ${viewMode === "mesocycle" ? "active" : ""}`} onClick={() => setViewMode("mesocycle")}>Mésocycle</button>
+        <button className={`tab ${viewMode === "microcycle" ? "active" : ""}`} onClick={() => setViewMode("microcycle")}>Microcycle</button>
       </div>
 
-      {viewMode === "semaine" && (
+      {viewMode === "microcycle" && (
         <>
       <p className="radar-note">Le microcycle cale les jours de la semaine sur ton prochain match (J-4 à J0), selon le cycle actif choisi ci-dessous.</p>
 
@@ -31895,7 +31953,7 @@ function MicrocycleScreen({ sessions, roster }) {
         </>
       )}
 
-      {viewMode === "saison" && (
+      {viewMode === "annuelle" && (
         <div>
           <p className="radar-note">Les grands blocs de ta saison — macrocycles et mésocycles — avec leurs dates et leur objectif. Clique un bloc pour voir le détail (séances et matchs dans sa période).</p>
 
@@ -31940,54 +31998,35 @@ function MicrocycleScreen({ sessions, roster }) {
             ))}
           </div>
 
-          {showCycleForm && (
-            <div className="new-match-card" style={{ marginTop: 16 }}>
-              <label>Nom<input type="text" placeholder="ex. Phase 1 championnat" value={cycleForm.name} onChange={(e) => setCycleForm((f) => ({ ...f, name: e.target.value }))} autoFocus /></label>
-              <label>Type
-                <select value={cycleForm.type} onChange={(e) => setCycleForm((f) => ({ ...f, type: e.target.value }))}>
-                  {SEASON_CYCLE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-                </select>
-              </label>
-              <div className="roster-physical-grid">
-                <label>Début<input type="date" value={cycleForm.startDate} onChange={(e) => setCycleForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
-                <label>Fin<input type="date" value={cycleForm.endDate} onChange={(e) => setCycleForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
-              </div>
-              <label>Objectif de ce cycle (optionnel)<textarea rows={2} value={cycleForm.objective} onChange={(e) => setCycleForm((f) => ({ ...f, objective: e.target.value }))} /></label>
-              <div className="radar-range-label">Couleur</div>
-              <div className="qcm-options">
-                {SEASON_CYCLE_COLORS.map((col) => (
-                  <button key={col} type="button" className={`qcm-option ${cycleForm.color === col ? "selected" : ""}`} style={{ background: col, width: 30, height: 30, padding: 0, borderRadius: 6 }} onClick={() => setCycleForm((f) => ({ ...f, color: col }))} />
-                ))}
-              </div>
-              <div className="form-actions">
-                <button className="btn btn-ghost" onClick={() => setShowCycleForm(false)}>Annuler</button>
-                <button className="btn btn-primary" onClick={saveSeasonCycle}>Enregistrer</button>
-              </div>
-            </div>
-          )}
+          {cycleFormPanel}
+          {seasonCycleDetailPanel}
+        </div>
+      )}
 
-          {selectedSeasonCycleId && (() => {
-            const c = seasonCycles.find((x) => x.id === selectedSeasonCycleId);
-            if (!c) return null;
-            const start = new Date(c.startDate), end = new Date(c.endDate);
-            const inRange = (dateStr) => { const d = new Date(dateStr); return d >= start && d <= end; };
-            const cycleSessions = sessions.filter((s) => inRange(s.date)).sort((a, b) => new Date(a.date) - new Date(b.date));
-            const cycleFixtures = allFixtures.filter((f) => inRange(f.date)).sort((a, b) => new Date(a.date) - new Date(b.date));
-            return (
-              <div className="new-match-card" style={{ marginTop: 16, borderLeft: `4px solid ${c.color}` }}>
-                <button className="btn btn-ghost btn-small" onClick={() => setSelectedSeasonCycleId(null)} style={{ marginBottom: 10 }}>‹ Fermer le détail</button>
-                <div className="panel-heading" style={{ marginTop: 0 }}>{c.name}</div>
-                <p className="hint" style={{ marginTop: 0 }}>{formatDateFr(c.startDate)} → {formatDateFr(c.endDate)} · {SEASON_CYCLE_TYPES.find((t) => t.key === c.type)?.label}</p>
-                {c.objective && <p style={{ marginTop: 0 }}>{c.objective}</p>}
-                <div className="panel-heading">Séances ({cycleSessions.length})</div>
-                {cycleSessions.length === 0 && <div className="hint" style={{ marginTop: 0 }}>Aucune séance dans cette période.</div>}
-                {cycleSessions.map((s) => <div key={s.id} className="week-agenda-item" style={{ marginBottom: 4 }}>{formatDateFr(s.date)} — {s.name}</div>)}
-                <div className="panel-heading">Matchs ({cycleFixtures.length})</div>
-                {cycleFixtures.length === 0 && <div className="hint" style={{ marginTop: 0 }}>Aucun match dans cette période.</div>}
-                {cycleFixtures.map((f, i) => <div key={i} className="week-agenda-item" style={{ marginBottom: 4 }}>{formatDateFr(f.date)} — vs {f.opponent}</div>)}
+      {viewMode === "mesocycle" && (
+        <div>
+          <p className="radar-note">Juste les mésocycles — les blocs de plusieurs semaines à l'intérieur de tes macrocycles (ex. "Bloc développement physique", "Bloc affûtage avant playoffs"). Même liste que Programmation annuelle, filtrée. Clique un bloc pour voir le détail.</p>
+
+          <button className="btn btn-primary btn-small" onClick={openNewMesocycle} style={{ marginBottom: 14 }}>+ Nouveau mésocycle</button>
+
+          {mesocycles.length === 0 && <div className="empty-state">Aucun mésocycle défini pour l'instant.</div>}
+
+          <div className="scouting-list">
+            {[...mesocycles].sort((a, b) => new Date(a.startDate) - new Date(b.startDate)).map((c) => (
+              <div className="scouting-card" key={c.id} onClick={() => setSelectedSeasonCycleId(c.id)} style={{ cursor: "pointer", borderLeft: `4px solid ${c.color}` }}>
+                <div className="scouting-info">
+                  <div className="scouting-name">{c.name}</div>
+                  <div className="scouting-meta">{formatDateFr(c.startDate)} → {formatDateFr(c.endDate)}</div>
+                  {c.objective && <div className="scouting-meta">{c.objective}</div>}
+                </div>
+                <button className="btn btn-ghost btn-small" onClick={(e) => { e.stopPropagation(); openEditSeasonCycle(c); }}>Modifier</button>
+                <button className="icon-btn" onClick={(e) => { e.stopPropagation(); removeSeasonCycle(c.id); }} aria-label="Supprimer"><X size={14} /></button>
               </div>
-            );
-          })()}
+            ))}
+          </div>
+
+          {cycleFormPanel}
+          {seasonCycleDetailPanel}
         </div>
       )}
     </div>
@@ -32093,7 +32132,7 @@ function SessionsScreen({ roster }) {
 
   const SUB_TABS = [
     { id: "calendrier", label: "Calendrier" },
-    { id: "microcycle", label: "Microcycle" },
+    { id: "cycle", label: "Cycle" },
     { id: "creation_seance", label: "Création de séance" },
     { id: "creation_exercice", label: "Création d'exercices" },
     { id: "banque_generale", label: "Banque générale" },
@@ -32149,7 +32188,7 @@ function SessionsScreen({ roster }) {
       {subTab === "suggestions" && (
         <SignalBasedSuggestionsScreen exercises={exercises} gameplan={gameplan} roster={roster} allFullMatches={allFullMatches} />
       )}
-      {subTab === "microcycle" && (
+      {subTab === "cycle" && (
         <MicrocycleScreen sessions={sessions} roster={roster} />
       )}
     </div>
