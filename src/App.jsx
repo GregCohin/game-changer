@@ -4991,40 +4991,65 @@ function VolumeLicenciesTab({ teams }) {
 
   useEffect(() => {
     const seasonId = getActiveSeasonId();
-    const results = teams.map((t) => {
-      const roster = (() => { try { return JSON.parse(readScopedKeyFor("tf_roster", t.id, seasonId) || "[]"); } catch (e) { return []; } })();
-      const healthProfiles = (() => { try { return JSON.parse(readScopedKeyFor("tf_medical_health_profiles", t.id, seasonId) || "{}"); } catch (e) { return {}; } })();
-      let withImageAuth = 0, withTerritoryAuth = 0, withAdhesionDate = 0;
+    // Regroupement par catégorie plutôt que par équipe, à la demande de Gregory : un joueur suivi
+    // sur plusieurs équipes (même player.id recopié sur chaque roster — cf. findLinkedMultiTeamPlayers)
+    // était compté une fois par équipe si on additionnait simplement les effectifs. Des Set de
+    // player.id (par catégorie, puis global pour le total club) déduplique correctement, y compris
+    // pour un joueur dont les deux équipes sont dans des catégories différentes.
+    const byCategory = {};
+    const globalIds = new Set();
+    teams.forEach((t) => {
+      let roster = [];
+      try { roster = JSON.parse(readScopedKeyFor("tf_roster", t.id, seasonId) || "[]"); } catch (e) {}
+      let healthProfiles = {};
+      try { healthProfiles = JSON.parse(readScopedKeyFor("tf_medical_health_profiles", t.id, seasonId) || "{}"); } catch (e) {}
+      const catKey = t.category || "Sans catégorie";
+      if (!byCategory[catKey]) {
+        byCategory[catKey] = { category: catKey, teamNames: new Set(), playerIds: new Set(), withImageAuth: new Set(), withTerritoryAuth: new Set(), withAdhesionDate: new Set() };
+      }
+      const cat = byCategory[catKey];
+      cat.teamNames.add(t.name);
       roster.forEach((p) => {
+        cat.playerIds.add(p.id);
+        globalIds.add(p.id);
         const hp = healthProfiles[p.id];
         if (hp) {
-          if (hp.autorisationImage === "Oui") withImageAuth++;
-          if (hp.autorisationSortieTerritoire === "Oui") withTerritoryAuth++;
-          if (hp.dateAdhesion) withAdhesionDate++;
+          if (hp.autorisationImage === "Oui") cat.withImageAuth.add(p.id);
+          if (hp.autorisationSortieTerritoire === "Oui") cat.withTerritoryAuth.add(p.id);
+          if (hp.dateAdhesion) cat.withAdhesionDate.add(p.id);
         }
       });
-      return { team: t, total: roster.length, withImageAuth, withTerritoryAuth, withAdhesionDate };
     });
-    setRows(results);
+    const results = Object.values(byCategory)
+      .map((c) => ({
+        category: c.category,
+        teamNames: [...c.teamNames].sort().join(", "),
+        total: c.playerIds.size,
+        withImageAuth: c.withImageAuth.size,
+        withTerritoryAuth: c.withTerritoryAuth.size,
+        withAdhesionDate: c.withAdhesionDate.size,
+      }))
+      .sort((a, b) => a.category.localeCompare(b.category));
+    setRows({ results, grandTotal: globalIds.size });
   }, [teams]);
 
   if (!rows) return <div className="empty-state">Chargement…</div>;
-  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
 
   return (
     <div>
-      <p className="radar-note">Volume de licenciés par équipe et suivi des autorisations administratives individuelles (renseignées dans la fiche santé de chaque joueur) — les dates de licence elles-mêmes arrivant toutes au 30 juin, ce suivi se concentre sur ce qui varie réellement d'un joueur à l'autre.</p>
+      <p className="radar-note">Volume de licenciés par catégorie (un joueur suivi sur plusieurs équipes n'est compté qu'une fois) et suivi des autorisations administratives individuelles (renseignées dans la fiche santé de chaque joueur) — les dates de licence elles-mêmes arrivant toutes au 30 juin, ce suivi se concentre sur ce qui varie réellement d'un joueur à l'autre.</p>
       <div className="dashboard-card" style={{ marginBottom: 16, maxWidth: 260 }}>
         <div className="dashboard-card-title">Total licenciés (club)</div>
-        <div className="dashboard-card-main">{grandTotal}</div>
+        <div className="dashboard-card-main">{rows.grandTotal}</div>
       </div>
       <div className="table-scroll">
         <table className="stat-table">
-          <thead><tr><th>Équipe</th><th>Effectif</th><th>Autorisation image renseignée</th><th>Autorisation sortie territoire</th><th>Date d'adhésion renseignée</th></tr></thead>
+          <thead><tr><th>Catégorie</th><th>Équipe(s)</th><th>Licenciés</th><th>Autorisation image renseignée</th><th>Autorisation sortie territoire</th><th>Date d'adhésion renseignée</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.team.id}>
-                <td>{r.team.name}</td>
+            {rows.results.map((r) => (
+              <tr key={r.category}>
+                <td>{r.category}</td>
+                <td>{r.teamNames}</td>
                 <td>{r.total}</td>
                 <td>{r.withImageAuth}/{r.total}</td>
                 <td>{r.withTerritoryAuth}/{r.total}</td>
@@ -5048,12 +5073,12 @@ function ResponsableLicencesScreen({ teams }) {
       <div className="stats-screen-header">
         <div className="eyebrow">Pôle administratif</div>
         <h1>Responsable licences</h1>
-        <p className="subtitle">Statut individuel des licences, démarches fédérales, et volume de licenciés par équipe.</p>
+        <p className="subtitle">Statut individuel des licences, démarches fédérales, et volume de licenciés par catégorie.</p>
       </div>
       <div className="tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className={`tab ${tab === "statuts" ? "active" : ""}`} onClick={() => setTab("statuts")}>Statut des licences</button>
         <button className={`tab ${tab === "demarches" ? "active" : ""}`} onClick={() => setTab("demarches")}>Démarches fédérales</button>
-        <button className={`tab ${tab === "volume" ? "active" : ""}`} onClick={() => setTab("volume")}>Volume par équipe</button>
+        <button className={`tab ${tab === "volume" ? "active" : ""}`} onClick={() => setTab("volume")}>Volume par catégorie</button>
       </div>
       {tab === "statuts" && <StatutLicencesTab roster={roster} />}
       {tab === "demarches" && <DemarchesFederalesTab />}
