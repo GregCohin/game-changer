@@ -13260,6 +13260,10 @@ const STARTER_METHODOLOGY_PRINCIPLES = [
   { title: "Feedback aux joueurs", description: "Privilégier un feedback court, positif avant correctif, et individualisé plutôt que des remarques génériques adressées à l'ensemble du groupe qui ne ciblent personne en particulier." },
   { title: "Gestion du temps de parole du coach", description: "Limiter les interruptions longues pendant les exercices ; privilégier des points courts et ciblés pour maximiser le temps de jeu effectif des joueurs sur la séance." },
   { title: "Cohérence terminologique entre éducateurs", description: "Utiliser le même vocabulaire tactique (ex. \"bloc haut/bas\", \"transition\") à tous les niveaux du club, pour que les joueurs retrouvent les mêmes repères en progressant d'une catégorie à l'autre." },
+  { title: "Individualisation dans le collectif", description: "Adapter certains éléments (charge, complexité, rôle) à chaque joueur au sein d'un exercice collectif commun, plutôt qu'un contenu strictement identique pour tout le groupe quel que soit le niveau." },
+  { title: "Répétition sans monotonie", description: "Répéter un même thème sur plusieurs séances pour l'ancrer, en variant la forme de l'exercice (contrainte, espace, opposition) pour maintenir l'engagement plutôt que de changer de thème à chaque séance." },
+  { title: "Transfert entraînement-match", description: "Vérifier régulièrement qu'un thème travaillé à l'entraînement se retrouve effectivement en match, pas seulement dans la qualité d'exécution de l'exercice lui-même — sinon interroger la forme de l'exercice plutôt que le joueur." },
+  { title: "Trace et suivi de la progression par catégorie", description: "Garder une trace simple de ce qui a été travaillé par catégorie et par période (voir le référentiel pédagogique), pour éviter de répéter les mêmes thèmes sans le savoir ou d'en oublier d'autres." },
 ];
 
 function MethodologieClubTab() {
@@ -13294,7 +13298,7 @@ function MethodologieClubTab() {
   return (
     <div>
       <p className="radar-note">Les principes méthodologiques communs du club — comment structurer un échauffement, l'approche de la periodisation — pour harmoniser entre éducateurs, au-delà du contenu par âge déjà couvert dans le référentiel pédagogique.</p>
-      {principles.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateMethodologyStarters} style={{ marginBottom: 14, display: "block" }}>Importer les principes de départ (6)</button>}
+      {principles.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateMethodologyStarters} style={{ marginBottom: 14, display: "block" }}>Importer les principes de départ (10)</button>}
       {!showForm && <button className="btn btn-primary btn-large" onClick={openNew} style={{ marginBottom: 16 }}>+ Nouveau principe</button>}
       {showForm && (
         <div className="new-match-card" style={{ marginBottom: 16 }}>
@@ -33639,6 +33643,28 @@ const STARTER_PROGRAMS = [
       { id: newId(), name: "Exercices spécifiques sans contact", dureeJours: 2, objectifs: "Réintroduire les mouvements spécifiques au football sans risque de choc", exercices: "Course, changements de direction, travail technique ballon, sans contact ni tête" },
       { id: newId(), name: "Entraînement avec contact", dureeJours: 2, objectifs: "Valider la tolérance en situation d'entraînement complète", exercices: "Entraînement collectif normal avec contact, sous supervision" },
       { id: newId(), name: "Retour au jeu", dureeJours: 1, objectifs: "Validation médicale finale avant retour en compétition", exercices: "Retour en match uniquement après feu vert médical explicite" },
+    ],
+  },
+  {
+    name: "Tendinopathie achilléenne", injuryCategory: "Tendineuse",
+    notes: "Pathologie qui répond bien à un travail excentrique progressif mais évolue lentement — la douleur peut fluctuer sans que ce soit un signe d'aggravation réelle. Ajuster la charge selon une règle de douleur tolérable plutôt que d'arrêter au moindre inconfort, et surveiller la douleur le lendemain, pas seulement pendant l'effort.",
+    phases: [
+      { id: newId(), name: "Réduction de charge et contrôle de la douleur", dureeJours: 7, objectifs: "Diminuer les contraintes répétées sur le tendon sans immobilisation complète", exercices: "Réduction du volume de course et de saut, mobilité douce de la cheville, activités sans impact (vélo, natation)" },
+      { id: newId(), name: "Renforcement isométrique", dureeJours: 10, objectifs: "Réduire la douleur et maintenir la capacité de charge du tendon", exercices: "Contractions isométriques du mollet (montée sur pointe tenue), à intensité tolérable" },
+      { id: newId(), name: "Renforcement excentrique progressif", dureeJours: 21, objectifs: "Reconstruire la capacité du tendon à absorber la charge, étape clé de la guérison", exercices: "Descentes excentriques sur step (genou tendu puis fléchi), volume et charge croissants selon tolérance" },
+      { id: newId(), name: "Réintroduction de la course et des sauts", dureeJours: 14, objectifs: "Réintroduire progressivement l'impact spécifique au football", exercices: "Course progressive, sauts bipodaux puis unipodaux, surveillance de la douleur le lendemain" },
+      { id: newId(), name: "Reprise spécifique et collective", dureeJours: 10, objectifs: "Valider la tolérance aux efforts explosifs répétés avant retour en match", exercices: "Sprints, changements de direction, frappes de balle répétées, puis entraînement collectif complet" },
+    ],
+  },
+  {
+    name: "Fracture de fatigue du métatarsien", injuryCategory: "Osseuse/Fracture",
+    notes: "Diagnostic à confirmer par imagerie — la radio standard peut rester normale au stade initial. Le respect strict de la décharge en phase initiale conditionne toute la suite : une reprise trop précoce expose à une évolution vers une fracture complète ou un retard de consolidation.",
+    phases: [
+      { id: newId(), name: "Décharge et repos osseux", dureeJours: 21, objectifs: "Protéger le foyer de fracture le temps de la consolidation osseuse initiale, selon avis médical", exercices: "Décharge complète ou partielle selon prescription (béquilles/chaussure de décharge), entretien cardiovasculaire sans impact (vélo, natation si compatible), mobilité des articulations non concernées" },
+      { id: newId(), name: "Reprise progressive de l'appui", dureeJours: 14, objectifs: "Réintroduire la charge complète sans douleur, valider la consolidation avec le médecin", exercices: "Marche progressive sans aide, renforcement doux du pied et de la cheville, pas d'impact" },
+      { id: newId(), name: "Reprise de la course à faible impact", dureeJours: 14, objectifs: "Réintroduire l'impact progressivement sans réveiller la douleur", exercices: "Course sur surface souple, volume très progressif, surveillance de toute douleur résiduelle au point de fracture" },
+      { id: newId(), name: "Réathlétisation spécifique", dureeJours: 14, objectifs: "Retrouver les appuis et changements de direction spécifiques au football", exercices: "Travail technique ballon, changements de direction progressifs, sauts contrôlés" },
+      { id: newId(), name: "Reprise collective et validation", dureeJours: 7, objectifs: "Valider la tolérance en situation de jeu avant retour en compétition", exercices: "Entraînement collectif complet, puis match amical, avec feu vert médical" },
     ],
   },
   {
