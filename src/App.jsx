@@ -30273,9 +30273,10 @@ const CURRICULUM_FEDERATIONS = [
   { key: "RBFA", label: "Belgique (RBFA)" },
 ];
 const EXERCISE_AGE_FORMATS = [
-  { key: "standard", label: "Foot à 11" },
-  { key: "foot_a_5", label: "Foot à 5 (6-9 ans)" },
-  { key: "foot_a_8", label: "Foot à 8 (10-13 ans)" },
+  { key: "standard", label: "Foot à 11 (U14 à Vétérans)" },
+  { key: "foot_a_4", label: "Foot à 4 (U6 à U7)" },
+  { key: "foot_a_5", label: "Foot à 5 (U8 à U9)" },
+  { key: "foot_a_8", label: "Foot à 8 (U10 à U13)" },
   { key: "futsal", label: "Futsal" },
 ];
 // Référentiels officiels des fédérations (CFI FFF, England DNA, DFB Ausbildungskonzeption, FIGC Sviluppo Territoriale, RBFA Formafoot),
