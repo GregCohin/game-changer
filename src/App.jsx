@@ -6304,6 +6304,8 @@ function NettoyageOrpheliesPanel() {
   );
 }
 
+function emptyVehicle() { return { id: newId(), name: "", seats: "", plate: "", notes: "" }; }
+
 function ClubScreen({ unlockedSections, setUnlockedSections }) {
   const [clubInfo, setClubInfo] = useState({ name: "", address: "", foundedYear: "", colors: "", website: "", notes: "" });
   const [teams, setTeams] = useState([]);
@@ -6322,14 +6324,18 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
   const [clubSubTab, setClubSubTab] = useState("infos");
   const [clubGroup, setClubGroup] = useState("club");
   const [staff, setStaff] = useState([]);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [newVehicle, setNewVehicle] = useState(emptyVehicle());
 
   useEffect(() => {
-    try { setClubInfo({ name: "", address: "", foundedYear: "", colors: "", website: "", notes: "", ...JSON.parse(window.localStorage.getItem("tf_club_info") || "{}") }); } catch (e) {}
+    try { setClubInfo({ name: "", address: "", foundedYear: "", colors: "", website: "", notes: "", logo: "", ...JSON.parse(window.localStorage.getItem("tf_club_info") || "{}") }); } catch (e) {}
     try { setTeams(JSON.parse(window.localStorage.getItem("tf_teams") || "[]")); } catch (e) {}
     try { setSeasons(JSON.parse(window.localStorage.getItem("tf_seasons") || "[]")); } catch (e) {}
     try { setStaff(JSON.parse(window.localStorage.getItem("tf_club_staff") || "[]")); } catch (e) {}
     try { setCategories(JSON.parse(window.localStorage.getItem("tf_club_categories") || "[]")); } catch (e) {}
     try { setLocations(JSON.parse(window.localStorage.getItem("tf_club_locations") || "[]")); } catch (e) {}
+    try { setVehicles(JSON.parse(window.localStorage.getItem("tf_club_vehicles") || "[]")); } catch (e) {}
     setLoaded(true);
   }, []);
 
@@ -6372,6 +6378,34 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
   function saveClubInfo(next) {
     setClubInfo(next);
     try { window.localStorage.setItem("tf_club_info", JSON.stringify(next)); } catch (e) {}
+  }
+  async function handleLogoChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setLogoBusy(true);
+    try {
+      const dataUrl = await resizeImageFile(file, 320);
+      saveClubInfo({ ...clubInfo, logo: dataUrl });
+    } catch (err) {
+      alert("Le logo n'a pas pu être chargé.");
+    }
+    setLogoBusy(false);
+  }
+  function persistVehicles(next) {
+    setVehicles(next);
+    try { window.localStorage.setItem("tf_club_vehicles", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
+  }
+  function addVehicle() {
+    if (!newVehicle.name.trim()) { alert("Donne un nom à ce véhicule (ex. Minibus club)."); return; }
+    persistVehicles([...vehicles, newVehicle]);
+    setNewVehicle(emptyVehicle());
+  }
+  function updateVehicle(id, field, value) {
+    persistVehicles(vehicles.map((v) => (v.id === id ? { ...v, [field]: value } : v)));
+  }
+  function removeVehicle(id) {
+    if (!confirm("Supprimer ce véhicule ?")) return;
+    persistVehicles(vehicles.filter((v) => v.id !== id));
   }
   function persistTeams(next) {
     setTeams(next);
@@ -6489,6 +6523,18 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
         <>
       <div className="panel-heading">Informations du club</div>
       <div className="new-match-card">
+        <div className="roster-photo-row">
+          <div className="roster-photo-preview">
+            {clubInfo.logo ? <img src={clubInfo.logo} alt="" /> : <Shield size={22} />}
+          </div>
+          <label className="btn btn-ghost btn-small roster-photo-btn">
+            {logoBusy ? "Chargement…" : clubInfo.logo ? "Changer le logo" : "Ajouter le logo"}
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoChange} />
+          </label>
+          {clubInfo.logo && (
+            <button className="icon-btn" onClick={() => saveClubInfo({ ...clubInfo, logo: "" })} aria-label="Retirer le logo"><X size={14} /></button>
+          )}
+        </div>
         <label>Nom du club<input type="text" placeholder="ex. Olympique de Marseille" value={clubInfo.name} onChange={(e) => saveClubInfo({ ...clubInfo, name: e.target.value })} /></label>
         <label>Type de club
           <select value={clubInfo.type || "mixte"} onChange={(e) => saveClubInfo({ ...clubInfo, type: e.target.value })}>
@@ -6505,6 +6551,36 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
           <label>Site web<input type="text" value={clubInfo.website} onChange={(e) => saveClubInfo({ ...clubInfo, website: e.target.value })} /></label>
         </div>
         <label>Notes<textarea rows={2} value={clubInfo.notes} onChange={(e) => saveClubInfo({ ...clubInfo, notes: e.target.value })} /></label>
+      </div>
+
+      <div className="panel-heading" style={{ marginTop: 24 }}>Véhicules du club</div>
+      <p className="radar-note">Minibus, remorque à matériel... — places disponibles, immatriculation, et tout ce qui est utile à savoir (assurance, contrôle technique, qui a les clés).</p>
+      <div className="scouting-list" style={{ marginBottom: 16 }}>
+        {vehicles.map((v) => (
+          <div className="scouting-card" key={v.id}>
+            <div className="scouting-info">
+              <input type="text" value={v.name} onChange={(e) => updateVehicle(v.id, "name", e.target.value)} style={{ marginBottom: 6, fontWeight: 700 }} />
+              <div className="roster-physical-grid">
+                <label>Places<input type="number" min="0" value={v.seats} onChange={(e) => updateVehicle(v.id, "seats", e.target.value)} /></label>
+                <label>Immatriculation<input type="text" value={v.plate} onChange={(e) => updateVehicle(v.id, "plate", e.target.value)} /></label>
+              </div>
+              <label>Autres informations<input type="text" placeholder="ex. Assurance à jour jusqu'au..., clés chez le trésorier" value={v.notes} onChange={(e) => updateVehicle(v.id, "notes", e.target.value)} /></label>
+            </div>
+            <button className="icon-btn" onClick={() => removeVehicle(v.id)} aria-label="Supprimer"><X size={14} /></button>
+          </div>
+        ))}
+        {vehicles.length === 0 && <div className="empty-state">Aucun véhicule enregistré pour l'instant.</div>}
+      </div>
+      <div className="new-match-card" style={{ marginBottom: 16 }}>
+        <label>Nom du véhicule<input type="text" placeholder="ex. Minibus club" value={newVehicle.name} onChange={(e) => setNewVehicle((v) => ({ ...v, name: e.target.value }))} /></label>
+        <div className="roster-physical-grid">
+          <label>Places<input type="number" min="0" value={newVehicle.seats} onChange={(e) => setNewVehicle((v) => ({ ...v, seats: e.target.value }))} /></label>
+          <label>Immatriculation<input type="text" value={newVehicle.plate} onChange={(e) => setNewVehicle((v) => ({ ...v, plate: e.target.value }))} /></label>
+        </div>
+        <label>Autres informations<input type="text" value={newVehicle.notes} onChange={(e) => setNewVehicle((v) => ({ ...v, notes: e.target.value }))} /></label>
+        <div className="form-actions">
+          <button className="btn btn-primary" onClick={addVehicle}>+ Ajouter ce véhicule</button>
+        </div>
       </div>
 
       <div className="panel-heading" style={{ marginTop: 24 }}>Catégories d'âge</div>
