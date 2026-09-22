@@ -16256,6 +16256,8 @@ const STARTER_PREVENTION_PROTOCOLS = [
   { position: "Gardien", title: "Proprioception des poignets et doigts", description: "Les réceptions de ballon à haute vitesse exposent aux entorses et luxations des doigts. Des exercices de renforcement et de proprioception spécifiques réduisent ce risque." },
   { position: "Gardien", title: "Gainage lombaire spécifique", description: "Les torsions répétées lors des plongeons sollicitent fortement le bas du dos. Un gainage ciblé, incluant des rotations contrôlées, réduit le risque de lombalgie chronique." },
   { position: "Gardien", title: "Échauffement articulaire complet avant plongeons", description: "Un échauffement spécifique des épaules, hanches et poignets avant toute séance impliquant des plongeons réduit significativement le risque de blessure aiguë." },
+  { position: "Gardien", title: "Renforcement excentrique des ischio-jambiers", description: "Les relances et sorties explosives sollicitent aussi les ischio-jambiers, souvent moins travaillés chez le gardien que chez les joueurs de champ malgré un risque comparable sur les efforts brusques." },
+  { position: "Gardien", title: "Éducation à la chute contrôlée", description: "Apprendre à amortir la chute lors d'un plongeon — répartir le contact sur l'avant-bras et la hanche plutôt qu'un impact direct — réduit le risque de traumatisme à l'épaule et au poignet sur les plongeons répétés." },
 
   // --- Défenseur ---
   { position: "Défenseur", title: "Renforcement des ischio-jambiers en excentrique", description: "Les courses arrière et changements de direction fréquents exposent fortement à ce type de lésion musculaire. Un renforcement excentrique régulier réduit ce risque." },
@@ -16263,6 +16265,8 @@ const STARTER_PREVENTION_PROTOCOLS = [
   { position: "Défenseur", title: "Renforcement du tronc pour les duels aériens", description: "Un gainage solide protège la colonne vertébrale lors des sauts et contacts aériens répétés, fréquents à ce poste." },
   { position: "Défenseur", title: "Éducation aux techniques de tacle sécurisées", description: "Travailler la technique du tacle (angle d'approche, position du corps), pas seulement la force, réduit le risque de blessure au genou pour le défenseur comme pour l'adversaire." },
   { position: "Défenseur", title: "Renforcement excentrique du quadriceps", description: "Les décélérations brutales fréquentes en couverture défensive sollicitent fortement le genou. Un renforcement excentrique du quadriceps protège l'articulation." },
+  { position: "Défenseur", title: "Renforcement des adducteurs pour les interventions latérales", description: "Les déplacements latéraux rapides et les interceptions en extension sollicitent fortement l'aine — un renforcement régulier réduit le risque de pubalgie propre à ce poste." },
+  { position: "Défenseur", title: "Travail de la lecture du jeu pour anticiper le contact", description: "Une part des contacts et blessures de contact vient d'une anticipation tardive du duel. Travailler la lecture du jeu et le placement en amont réduit indirectement l'exposition aux contacts mal négociés." },
 
   // --- Milieu ---
   { position: "Milieu", title: "Prévention des pubalgies par renforcement adducteurs/abdominaux", description: "Le volume élevé de changements de direction expose fortement les milieux à ce type de blessure. Un renforcement combiné adducteurs/sangle abdominale réduit ce risque." },
@@ -16270,6 +16274,8 @@ const STARTER_PREVENTION_PROTOCOLS = [
   { position: "Milieu", title: "Renforcement des mollets et prévention des tendinopathies achilléennes", description: "Les accélérations et décélérations fréquentes sollicitent fortement le tendon d'Achille. Un renforcement régulier des mollets en excentrique réduit ce risque." },
   { position: "Milieu", title: "Mobilité thoracique et lombaire", description: "Les rotations fréquentes du tronc en couverture de terrain sollicitent particulièrement cette zone. Un travail de mobilité régulier prévient les tensions chroniques." },
   { position: "Milieu", title: "Renforcement des stabilisateurs de hanche", description: "Les milieux couvrent le plus de terrain et changent fréquemment de direction, sollicitant fortement les stabilisateurs latéraux de hanche — un point souvent négligé par rapport aux ischio-jambiers." },
+  { position: "Milieu", title: "Prévention de la fatigue neuromusculaire en fin de match", description: "Le volume de course élevé des milieux augmente le risque de blessure en fin de rencontre, quand la fatigue dégrade le contrôle moteur. Un travail de résistance spécifique en condition de fatigue réduit ce risque." },
+  { position: "Milieu", title: "Équilibre entre adducteurs et abducteurs de hanche", description: "Les changements de direction répétés sollicitent l'ensemble de la ceinture de hanche, pas seulement les adducteurs — un déséquilibre entre les deux groupes musculaires augmente le risque de blessure." },
 
   // --- Attaquant ---
   { position: "Attaquant", title: "Prévention des lésions aux ischio-jambiers par sprints contrôlés", description: "Les sprints explosifs répétés sont la principale cause de blessure musculaire chez les attaquants. Un travail de vitesse progressif et régulier, pas seulement en match, réduit ce risque." },
@@ -16277,6 +16283,8 @@ const STARTER_PREVENTION_PROTOCOLS = [
   { position: "Attaquant", title: "Travail de la stabilité de cheville sur réception de saut", description: "Les duels aériens et frappes en extension exposent à l'entorse de cheville à la réception. Un travail spécifique de stabilité dynamique réduit ce risque." },
   { position: "Attaquant", title: "Prévention des tendinopathies rotuliennes", description: "Liée aux sauts et frappes répétées (\"genou du sauteur\"), cette blessure se prévient par une surveillance de la charge et un renforcement régulier du quadriceps." },
   { position: "Attaquant", title: "Mobilité et renforcement de la cheville pour l'explosivité", description: "Les départs explosifs répétés nécessitent une cheville à la fois mobile et stable — un déficit dans l'un ou l'autre augmente le risque de blessure." },
+  { position: "Attaquant", title: "Éducation à la réception après un duel aérien", description: "Une réception déséquilibrée après un saut de tête expose à l'entorse de cheville et à la chute mal contrôlée. Travailler spécifiquement cette phase de retour au sol réduit ce risque." },
+  { position: "Attaquant", title: "Renforcement du mollet pour les départs explosifs répétés", description: "Les accélérations répétées en explosivité sollicitent fortement le triceps sural — un point de vigilance pour la prévention des lésions musculaires du mollet, fréquentes à ce poste." },
 ];
 
 function PreventionParPosteTab({ protocols, persistProtocols }) {
@@ -16310,7 +16318,7 @@ function PreventionParPosteTab({ protocols, persistProtocols }) {
   return (
     <div>
       <p className="radar-note">Des protocoles de prévention des blessures classés par poste — les besoins ne sont pas les mêmes pour un gardien, un défenseur, un milieu ou un attaquant.</p>
-      {protocols.length === 0 && <button className="btn btn-ghost btn-small" onClick={populatePreventionStarters} style={{ marginBottom: 14, display: "block" }}>Importer les protocoles de départ (20)</button>}
+      {protocols.length === 0 && <button className="btn btn-ghost btn-small" onClick={populatePreventionStarters} style={{ marginBottom: 14, display: "block" }}>Importer les protocoles de départ (28)</button>}
       <div className="tabs" style={{ marginBottom: 14 }}>
         <button className={`tab ${positionFilter === "Tous" ? "active" : ""}`} onClick={() => setPositionFilter("Tous")}>Tous</button>
         {PREVENTION_POSITIONS.map((p) => <button key={p} className={`tab ${positionFilter === p ? "active" : ""}`} onClick={() => setPositionFilter(p)}>{p}</button>)}
@@ -16471,24 +16479,28 @@ const STARTER_STRESS_TECHNIQUES = [
   { title: "Visualisation positive du match à venir", context: "Avant match", description: "Imaginer mentalement des séquences de jeu réussies avant la rencontre, pour renforcer la confiance et préparer les schémas moteurs." },
   { title: "Ancrage par le langage interne positif", context: "Avant match", description: "Remplacer les pensées anxieuses (\"et si je rate\") par des affirmations orientées action (\"je suis prêt, je fais simple\")." },
   { title: "Activation progressive du corps", context: "Avant match", description: "Enchaîner des mouvements dynamiques d'intensité croissante pour canaliser l'énergie nerveuse plutôt que la subir passivement en restant statique." },
+  { title: "Debrief mental collectif court avant l'entrée sur le terrain", context: "Avant match", description: "Un temps collectif bref (rappel des repères clés, mot d'ordre partagé) juste avant l'entrée peut réduire l'anxiété individuelle en la recadrant dans un cadre collectif rassurant." },
 
   // --- Après une erreur ---
   { title: "Protocole des 30 secondes", context: "Après une erreur", description: "S'accorder un temps très court et délimité pour ressentir la frustration, puis passer consciemment à l'action suivante — un geste physique de \"reset\" (toucher sa chaussure, ajuster ses gants) peut marquer cette transition." },
   { title: "Recentrage sur le prochain geste", context: "Après une erreur", description: "Diriger l'attention exclusivement sur la tâche immédiate suivante plutôt que ressasser ce qui vient de se passer — l'erreur est déjà dans le passé, le prochain geste ne l'est pas." },
   { title: "Respiration courte de récupération", context: "Après une erreur", description: "Trois respirations profondes et lentes pour faire redescendre l'activation physiologique liée à la frustration ou la colère avant de reprendre le jeu." },
   { title: "Dialogue interne correctif sans auto-critique excessive", context: "Après une erreur", description: "Reformuler l'erreur en termes factuels et constructifs (\"j'étais mal placé, je me replace\") plutôt qu'en jugement de valeur sur soi-même (\"je suis nul\")." },
+  { title: "Soutien verbal immédiat d'un coéquipier", context: "Après une erreur", description: "Un mot bref et positif d'un partenaire juste après une erreur peut accélérer le retour à la concentration, davantage qu'un silence qui laisse le joueur seul avec son erreur." },
 
   // --- Retour de blessure ---
   { title: "Visualisation de gestes sans appréhension", context: "Retour de blessure", description: "Imaginer mentalement la réalisation de gestes spécifiques liés à la blessure (un tacle, un saut) pour désensibiliser progressivement l'appréhension avant de les refaire réellement." },
   { title: "Objectifs progressifs et mesurables", context: "Retour de blessure", description: "Se fixer des étapes concrètes et atteignables (durée d'entraînement, intensité) plutôt qu'un objectif flou de \"retour à 100 %\", pour maintenir la motivation sur la durée." },
   { title: "Acceptation de la peur sans lutte contre elle", context: "Retour de blessure", description: "Reconnaître verbalement l'appréhension (\"j'ai un peu peur de ce duel\") plutôt que la nier — cette reconnaissance réduit paradoxalement son intensité." },
   { title: "Communication régulière avec le staff médical et technique", context: "Retour de blessure", description: "Réduire l'incertitude anxiogène en ayant des points d'étape clairs sur la progression et les échéances, plutôt que de laisser le joueur dans le flou." },
+  { title: "Reprise progressive de l'opposition, pas seulement de l'intensité", context: "Retour de blessure", description: "Revenir progressivement au contact et à l'opposition, pas seulement retrouver le volume et la vitesse, est souvent l'étape qui rassure le plus mentalement — à intégrer explicitement dans la progression plutôt qu'en fin de protocole." },
 
   // --- Pendant l'entraînement ---
   { title: "Focalisation sur un objectif technique unique", context: "Pendant l'entraînement", description: "Réduire la charge mentale en se concentrant sur un seul point d'amélioration à la fois plutôt que de vouloir tout corriger simultanément." },
   { title: "Gestion de la frustration face à la répétition", context: "Pendant l'entraînement", description: "Reformuler la répétition d'un exercice comme un chemin vers la maîtrise plutôt qu'un échec qui se répète — le geste s'améliore même quand ce n'est pas visible immédiatement." },
   { title: "Feedback immédiat et constructif entre pairs", context: "Pendant l'entraînement", description: "Encourager les joueurs à s'encourager mutuellement pendant l'exercice, pour maintenir un climat mental positif au sein du groupe." },
   { title: "Ancrage corporel pour rester présent", context: "Pendant l'entraînement", description: "Se concentrer brièvement sur les sensations physiques (appuis au sol, respiration) pour revenir à l'instant présent en cas de dispersion mentale ou de rumination." },
+  { title: "Valorisation explicite de l'effort, pas seulement du résultat", context: "Pendant l'entraînement", description: "Un retour du coach qui reconnaît l'effort ou la bonne intention, même sur une action ratée, maintient l'engagement mental sur la durée mieux qu'un retour uniquement basé sur la réussite." },
 ];
 
 function TechniquesStressTab({ techniques, persistTechniques, roster, techniqueUsage, persistTechniqueUsage }) {
@@ -16611,7 +16623,7 @@ function TechniquesStressTab({ techniques, persistTechniques, roster, techniqueU
 
       {viewMode === "bibliotheque" && (
         <>
-      {techniques.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateStressStarters} style={{ marginBottom: 14, display: "block" }}>Importer les techniques de départ (17)</button>}
+      {techniques.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateStressStarters} style={{ marginBottom: 14, display: "block" }}>Importer les techniques de départ (21)</button>}
       <div className="tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className={`tab ${contextFilter === "Tous" ? "active" : ""}`} onClick={() => setContextFilter("Tous")}>Tous</button>
         {STRESS_CONTEXTS.map((c) => <button key={c} className={`tab ${contextFilter === c ? "active" : ""}`} onClick={() => setContextFilter(c)}>{c}</button>)}
@@ -16798,14 +16810,14 @@ function ChargeGardienScreen({ roster }) {
 // Protocole d'échauffement gardien de départ — progression classique du général au spécifique,
 // mobilité puis intensité croissante jusqu'aux réflexes proches de l'intensité du match.
 const STARTER_GOALKEEPER_WARMUP = [
-  { title: "Mobilité articulaire générale (hanches, chevilles, épaules)", duration: "5 min" },
-  { title: "Activation cardio-vasculaire légère (course légère, pas chassés)", duration: "5 min" },
-  { title: "Étirements dynamiques (jambes, dos)", duration: "5 min" },
-  { title: "Prises de balle au sol, faible intensité", duration: "5 min" },
-  { title: "Plongeons progressifs, courte distance", duration: "5 min" },
-  { title: "Sorties aériennes, intensité moyenne", duration: "5 min" },
-  { title: "Un-contre-un et réflexes, intensité proche du match", duration: "5 min" },
-  { title: "Retour au calme technique, prises simples", duration: "3 min" },
+  { title: "Mobilité articulaire générale (hanches, chevilles, épaules)", duration: "5 min", notes: "Mouvements circulaires amples, sans à-coups — préparer les articulations les plus sollicitées par les plongeons avant toute intensité." },
+  { title: "Activation cardio-vasculaire légère (course légère, pas chassés)", duration: "5 min", notes: "Élever progressivement la fréquence cardiaque sans viser la performance — l'objectif est la mise en route, pas l'effort." },
+  { title: "Étirements dynamiques (jambes, dos)", duration: "5 min", notes: "Étirements en mouvement (balancements, fentes), jamais des étirements statiques prolongés qui réduiraient la réactivité juste avant l'effort." },
+  { title: "Prises de balle au sol, faible intensité", duration: "5 min", notes: "Ballons roulés ou faiblement lancés, à deux mains — reprendre les repères techniques de base avant d'augmenter la vitesse." },
+  { title: "Plongeons progressifs, courte distance", duration: "5 min", notes: "Augmenter la distance et la vitesse des ballons petit à petit — jamais un plongeon à pleine intensité dès la première tentative." },
+  { title: "Sorties aériennes, intensité moyenne", duration: "5 min", notes: "Quelques sorties sur centres pour retrouver le timing de saut et de captation, sans opposition à ce stade." },
+  { title: "Un-contre-un et réflexes, intensité proche du match", duration: "5 min", notes: "Dernière étape avant le coup d'envoi — intensité et vitesse proches de celles du match pour arriver prêt dès la première situation réelle." },
+  { title: "Retour au calme technique, prises simples", duration: "3 min", notes: "Quelques prises faciles pour terminer en confiance, jamais sur un arrêt manqué juste avant le coup d'envoi." },
 ];
 
 function EchauffementGardienScreen() {
@@ -16813,6 +16825,7 @@ function EchauffementGardienScreen() {
   const [warmupSteps, setWarmupSteps] = useState([]);
   const [stepTitle, setStepTitle] = useState("");
   const [stepDuration, setStepDuration] = useState("");
+  const [stepNotes, setStepNotes] = useState("");
 
   useEffect(() => {
     try { setWarmupSteps(JSON.parse(localStorage.getItem("tf_goalkeeper_warmup") || "[]")); } catch (e) {}
@@ -16822,8 +16835,8 @@ function EchauffementGardienScreen() {
   function persistWarmup(next) { setWarmupSteps(next); try { localStorage.setItem("tf_goalkeeper_warmup", JSON.stringify(next)); } catch (e) {} }
   function addWarmupStep() {
     if (!stepTitle.trim()) { alert("Décris l'étape avant de l'ajouter."); return; }
-    persistWarmup([...warmupSteps, { id: newId(), title: stepTitle.trim(), duration: stepDuration.trim() }]);
-    setStepTitle(""); setStepDuration("");
+    persistWarmup([...warmupSteps, { id: newId(), title: stepTitle.trim(), duration: stepDuration.trim(), notes: stepNotes.trim() }]);
+    setStepTitle(""); setStepDuration(""); setStepNotes("");
   }
   function removeWarmupStep(id) {
     if (!confirm("Supprimer cette étape d'échauffement ?")) return;
@@ -16841,9 +16854,10 @@ function EchauffementGardienScreen() {
     <div>
       <p className="radar-note">Le protocole d'échauffement type avant chaque séance ou match — les étapes, dans l'ordre.</p>
       {warmupSteps.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateWarmupStarters} style={{ marginBottom: 14, display: "block" }}>Importer le protocole de départ (8 étapes)</button>}
-      <div className="scout-obs-add" style={{ marginBottom: 16 }}>
+      <div className="scout-obs-add" style={{ marginBottom: 16, flexWrap: "wrap" }}>
         <input type="text" placeholder="Étape (ex. Mobilité articulaire)" value={stepTitle} onChange={(e) => setStepTitle(e.target.value)} />
         <input type="text" placeholder="Durée (ex. 5 min)" value={stepDuration} onChange={(e) => setStepDuration(e.target.value)} style={{ maxWidth: 100 }} />
+        <input type="text" placeholder="Consigne (optionnel)" value={stepNotes} onChange={(e) => setStepNotes(e.target.value)} />
         <button className="btn btn-ghost btn-small" onClick={addWarmupStep}>+ Ajouter</button>
       </div>
       {warmupSteps.length === 0 && <div className="empty-state">Aucune étape définie pour l'instant. Utilise le champ ci-dessus pour en ajouter une.</div>}
@@ -16852,6 +16866,7 @@ function EchauffementGardienScreen() {
           <div className="scouting-card" key={s.id}>
             <div className="scouting-info">
               <div className="scouting-name">{i + 1}. {s.title} {s.duration && <span className="scouting-club">{s.duration}</span>}</div>
+              {s.notes && <div className="scouting-meta">{s.notes}</div>}
             </div>
             <button className="icon-btn" onClick={() => removeWarmupStep(s.id)} aria-label="Supprimer"><X size={14} /></button>
           </div>
@@ -17021,6 +17036,31 @@ function FootballFemininScreen() {
   );
 }
 
+// Base de sensibilisation, pas un protocole médical — cohérent avec l'avertissement affiché dans
+// l'écran ("pas de suivi individuel de santé ici, juste de la documentation"). Les points chiffrés
+// bien établis (facteurs de risque LCA, protocoles type FIFA 11+) sont formulés sans statistique
+// précise non vérifiée ; les sujets encore débattus scientifiquement (cycle menstruel) sont présentés
+// comme tels plutôt que comme une règle à appliquer.
+const STARTER_FEMININE_RESOURCES = [
+  { category: "Prévention blessures", title: "Risque accru de rupture du ligament croisé antérieur (LCA)", content: "De nombreuses études sportives documentent un risque de rupture du LCA nettement plus élevé chez les footballeuses que chez les footballeurs, notamment à l'adolescence. Les facteurs avancés combinent contrôle neuromusculaire, mécanique de réception et de changement de direction, et profil hormonal — d'où l'intérêt de programmes de prévention réguliers plutôt que d'un simple échauffement classique." },
+  { category: "Prévention blessures", title: "Programme d'échauffement neuromusculaire type FIFA 11+", content: "Des protocoles d'échauffement structurés (le plus documenté étant le FIFA 11+) combinent course, renforcement, équilibre et pliométrie, et ont montré une réduction du risque de blessure quand ils sont appliqués régulièrement. L'efficacité dépend surtout de la régularité (plusieurs fois par semaine) et de la qualité d'exécution, pas de la simple présence de l'exercice au programme." },
+  { category: "Prévention blessures", title: "Technique de réception au sol, un point de vigilance particulier", content: "Une réception avec les genoux qui rentrent vers l'intérieur (valgus dynamique) est un facteur de risque identifié pour le LCA, et semble plus fréquent chez les joueuses. Corriger cet appui lors des sauts, réceptions et changements de direction est un axe de prévention concret à intégrer aux échauffements et exercices athlétiques." },
+  { category: "Prévention blessures", title: "Cycle menstruel et fluctuation du risque de blessure", content: "Une partie de la recherche suggère que le risque de blessure ligamentaire pourrait varier selon les phases du cycle menstruel, mais le sujet reste activement débattu et les résultats ne sont pas unanimes d'une étude à l'autre. À traiter comme un axe de vigilance et de dialogue avec les joueuses, pas comme une règle certaine à appliquer telle quelle." },
+  { category: "Prévention blessures", title: "Disponibilité énergétique et santé osseuse à l'adolescence", content: "Un apport énergétique insuffisant par rapport à la charge d'entraînement, notamment pendant les pics de croissance, peut fragiliser la santé osseuse et augmenter le risque de blessure (syndrome de déficit énergétique relatif dans le sport, RED-S). Rester attentif aux signaux de fatigue excessive ou de récupération anormalement longue, et orienter vers un avis médical en cas de doute plutôt que de gérer ça seul en tant que coach." },
+  { category: "Préparation physique", title: "Périodisation de la charge autour du cycle menstruel", content: "De plus en plus de staffs en football féminin de haut niveau ajustent la charge d'entraînement selon les phases du cycle menstruel, sur la base du ressenti individuel rapporté par chaque joueuse plutôt que d'une règle uniforme. Le sujet doit rester confidentiel et basé sur le volontariat, jamais une question posée publiquement ou une obligation de déclaration." },
+  { category: "Préparation physique", title: "Renforcement du haut du corps pour les duels et le jeu aérien", content: "Le haut du corps est parfois moins sollicité par défaut dans la préparation physique généraliste. Un renforcement spécifique des épaules, du dos et du tronc aide à la protection du ballon en duel et à l'efficacité dans le jeu aérien, sans viser une transformation esthétique — juste une fonction de jeu." },
+  { category: "Préparation physique", title: "Pliométrie avec attention portée à la réception", content: "Le travail de pliométrie (sauts, bondissements) reste pertinent pour la puissance et la vitesse, mais gagne à être encadré d'une vigilance particulière sur l'alignement genou-pied à la réception, en lien avec le profil de risque du LCA évoqué en prévention. Progresser en volume seulement quand la qualité de réception est maîtrisée." },
+  { category: "Préparation physique", title: "Renforcement du tronc et stabilité du bassin", content: "Un gainage régulier et un travail de stabilité pelvienne contribuent à la prévention des douleurs lombaires et pubiennes, et soutiennent la qualité de course et de frappe. Un axe de travail simple à intégrer en routine, pas seulement en cas de gêne déjà installée." },
+  { category: "Préparation physique", title: "Écoute des signaux de fatigue pendant la croissance", content: "Les pics de croissance à l'adolescence s'accompagnent parfois d'une fatigue ou d'une sensibilité articulaire accrue. Adapter temporairement le volume ou l'intensité plutôt que d'imposer une charge fixe, et rester attentif aux plaintes répétées sur une même zone plutôt que de les considérer comme un simple manque d'habitude." },
+  { category: "Pédagogie", title: "Le même niveau d'exigence technique et tactique", content: "Le contenu pédagogique (exigence technique, tactique, exercices proposés) n'a pas de raison de différer entre une équipe féminine et une équipe masculine du même âge et du même niveau. Vérifier régulièrement que le discours du staff ne sous-entend pas, même involontairement, un niveau d'exigence revu à la baisse." },
+  { category: "Pédagogie", title: "Vestiaires et intimité, un cadre à poser explicitement", content: "L'organisation des vestiaires et des temps de récupération mérite d'être pensée explicitement pour le respect de l'intimité, en particulier à l'adolescence — ce n'est pas un sujet à considérer comme réglé par défaut simplement parce qu'un vestiaire existe. En parler avec le club plutôt que de le supposer acquis." },
+  { category: "Pédagogie", title: "Visibilité de modèles et de références", content: "Rendre visibles des références concrètes (joueuses, coachs, arbitres, dirigeantes) aide à l'engagement dans la durée, particulièrement à l'adolescence — une période où le taux d'abandon du sport est documenté comme plus élevé chez les filles que chez les garçons. Des interventions ponctuelles (rencontre, visionnage de match) peuvent y contribuer simplement." },
+  { category: "Pédagogie", title: "Encadrement mixte, un levier documenté", content: "Un encadrement mixte (voir l'onglet \"Mixité de l'encadrement\" de cet écran pour l'état réel au club) est régulièrement cité comme un facteur favorable à la fois pour la diversité des profils et pour la crédibilité de l'encadrement auprès des joueuses. Un objectif à viser progressivement, pas à exiger d'un seul coup." },
+  { category: "Pédagogie", title: "Parler du cycle menstruel sans tabou ni intrusion", content: "Former le staff à réagir avec justesse quand une joueuse signale un inconfort lié au cycle — ni ignorer, ni sur-réagir, ni le rendre visible au reste du groupe. L'objectif est que ce soit un sujet que la joueuse peut aborder si elle le souhaite, jamais une question qu'on lui pose de façon systématique ou publique." },
+  { category: "Autre", title: "Équipement et confort adaptés", content: "Le confort de l'équipement (notamment un maintien adapté à l'activité) reste un sujet peu formalisé dans le football amateur alors qu'il influe directement sur l'adhésion à la pratique. Un sujet à pouvoir aborder simplement avec les joueuses concernées plutôt qu'à ignorer par gêne." },
+  { category: "Autre", title: "Ressources et formations fédérales existantes", content: "La FFF (et d'autres fédérations) proposent des ressources et formations spécifiquement dédiées au football féminin — un point de départ utile pour aller plus loin que cette simple liste, qui reste une base de sensibilisation et non une formation complète." },
+];
+
 function ResourcesFeminineTab({ resources, persistResources }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -17040,12 +17080,20 @@ function ResourcesFeminineTab({ resources, persistResources }) {
     if (!confirm("Supprimer cette ressource ?")) return;
     persistResources(resources.filter((r) => r.id !== id));
   }
+  function populateFeminineStarters() {
+    const existingTitles = new Set(resources.map((r) => r.title));
+    const toAdd = STARTER_FEMININE_RESOURCES.filter((r) => !existingTitles.has(r.title)).map((r) => ({ id: newId(), ...r }));
+    if (toAdd.length === 0) { alert("Les ressources de départ sont déjà toutes présentes."); return; }
+    persistResources([...resources, ...toAdd]);
+    alert(`${toAdd.length} ressource${toAdd.length > 1 ? "s" : ""} ajoutée${toAdd.length > 1 ? "s" : ""}.`);
+  }
 
   const filtered = categoryFilter === "Tous" ? resources : resources.filter((r) => r.category === categoryFilter);
 
   return (
     <div>
       <p className="radar-note">Des ressources sur les spécificités physiologiques du football féminin — prévention des blessures (LCA notamment), préparation physique adaptée, pédagogie. Pas de suivi individuel de santé ici, juste de la documentation.</p>
+      {resources.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateFeminineStarters} style={{ marginBottom: 14 }}>Importer les ressources de départ (17)</button>}
       <div className="tabs" style={{ marginBottom: 14 }}>
         <button className={`tab ${categoryFilter === "Tous" ? "active" : ""}`} onClick={() => setCategoryFilter("Tous")}>Tous</button>
         {FEMININE_RESOURCE_CATEGORIES.map((c) => <button key={c} className={`tab ${categoryFilter === c ? "active" : ""}`} onClick={() => setCategoryFilter(c)}>{c}</button>)}
