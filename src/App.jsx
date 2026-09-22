@@ -30582,7 +30582,7 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
 }
 
 export function emptyExerciseForm() {
-  return { name: "", objectif: "", duree: 15, nbJoueurs: "", materiel: "", description: "", gameplanSection: "", gameplanChoice: "", gameplanLinks: [], diagram: [], diagramFrames: [], category: "tactique", theme: "", ageFormat: "standard", fffBracket: "", fffCategory: "", curriculumFederation: "", forGoalkeepers: false, goalkeeperSkill: "", intensite: "moderee", linkedPedagogyItemIds: [] };
+  return { name: "", objectif: "", duree: 15, nbJoueurs: "", materiel: "", description: "", pointsCles: "", variantes: "", comportementAttendu: "", criteresRealisation: "", gameplanSection: "", gameplanChoice: "", gameplanLinks: [], diagram: [], diagramFrames: [], category: "tactique", theme: "", ageFormat: "standard", fffBracket: "", fffCategory: "", curriculumFederation: "", forGoalkeepers: false, goalkeeperSkill: "", intensite: "moderee", linkedPedagogyItemIds: [], newBatch: "" };
 }
 const EXERCISE_INTENSITIES = [{ key: "faible", label: "Faible" }, { key: "moderee", label: "Modérée" }, { key: "elevee", label: "Élevée" }];
 // La séquence complète d'un exercice = son image de base (diagram, inchangée pour compat avec
@@ -30599,6 +30599,21 @@ const CURRICULUM_FEDERATIONS = [
   { key: "DFB", label: "Allemagne (DFB)" },
   { key: "FIGC", label: "Italie (FIGC)" },
   { key: "RBFA", label: "Belgique (RBFA)" },
+  { key: "RFEF", label: "Espagne (RFEF)" },
+  { key: "KNVB", label: "Pays-Bas (KNVB)" },
+  { key: "FPF", label: "Portugal (FPF)" },
+  { key: "CBF", label: "Brésil (CBF)" },
+  { key: "AFA", label: "Argentine (AFA)" },
+  { key: "HNS", label: "Croatie (HNS)" },
+  { key: "JFA", label: "Japon (JFA)" },
+  { key: "AUF", label: "Uruguay (AUF)" },
+  { key: "DBU", label: "Danemark (DBU)" },
+  { key: "NFF", label: "Norvège (NFF)" },
+  { key: "ASF", label: "Suisse (ASF/SFV)" },
+  { key: "OEFB", label: "Autriche (ÖFB)" },
+  { key: "KSI", label: "Islande (KSÍ)" },
+  { key: "USSF", label: "États-Unis (US Soccer)" },
+  { key: "FRMF", label: "Maroc (FRMF)" },
 ];
 const EXERCISE_AGE_FORMATS = [
   { key: "standard", label: "Foot à 11 (U14 à Vétérans)" },
@@ -30607,10 +30622,16 @@ const EXERCISE_AGE_FORMATS = [
   { key: "foot_a_8", label: "Foot à 8 (U10 à U13)" },
   { key: "futsal", label: "Futsal" },
 ];
-// Référentiels officiels des fédérations (CFI FFF, England DNA, DFB Ausbildungskonzeption, FIGC Sviluppo Territoriale, RBFA Formafoot),
-// tels qu'ils figurent dans les documents consultés par l'utilisateur.
+// Référentiels des fédérations. Les 5 premières (CFI FFF, England DNA, DFB Ausbildungskonzeption,
+// FIGC Sviluppo Territoriale, RBFA Formafoot) reprennent les documents consultés par Gregory.
+// Les 15 suivantes, ajoutées le 20/09/2026 à sa demande pour élargir le tour d'horizon au-delà de
+// ces 5 pays, s'appuient sur la terminologie par tranche d'âge propre à chaque fédération, largement
+// documentée publiquement (site fédéral, presse spécialisée) — pas sur un document interne consulté
+// comme pour les 5 premières : à traiter comme une bonne approximation à affiner, pas une source
+// officielle vérifiée au même niveau. Chaque tranche est rattachée au format (foot_a_4/5/8/standard)
+// le plus proche de celui réellement utilisé dans ce pays à cet âge.
 const CURRICULUM_BRACKETS = [
-  { key: "u6_7", federation: "FFF", label: "U6-U7", ageFormat: "foot_a_5" },
+  { key: "u6_7", federation: "FFF", label: "U6-U7", ageFormat: "foot_a_4" },
   { key: "u8_9", federation: "FFF", label: "U8-U9", ageFormat: "foot_a_5" },
   { key: "u10_11", federation: "FFF", label: "U10-U11", ageFormat: "foot_a_8" },
   { key: "u12_13", federation: "FFF", label: "U12-U13", ageFormat: "foot_a_8" },
@@ -30619,7 +30640,7 @@ const CURRICULUM_BRACKETS = [
   { key: "foundation", federation: "FA", label: "Foundation Phase (5-11 ans)", ageFormat: "foot_a_5" },
   { key: "youth_dev", federation: "FA", label: "Youth Development Phase (12-16 ans)", ageFormat: "foot_a_8" },
   { key: "pro_dev", federation: "FA", label: "Professional Development Phase (17-21 ans)", ageFormat: "standard" },
-  { key: "bambini", federation: "DFB", label: "Bambini (jusqu'à U7)", ageFormat: "foot_a_5" },
+  { key: "bambini", federation: "DFB", label: "Bambini (jusqu'à U7)", ageFormat: "foot_a_4" },
   { key: "f_junioren", federation: "DFB", label: "F-Junioren (U8-U9)", ageFormat: "foot_a_5" },
   { key: "e_junioren", federation: "DFB", label: "E-Junioren (U10-U11)", ageFormat: "foot_a_8" },
   { key: "d_junioren", federation: "DFB", label: "D-Junioren (U12-U13)", ageFormat: "foot_a_8" },
@@ -30627,10 +30648,92 @@ const CURRICULUM_BRACKETS = [
   { key: "ba_junioren", federation: "DFB", label: "B/A-Junioren (U16-U19)", ageFormat: "standard" },
   { key: "piccoli_primi", federation: "FIGC", label: "Piccoli Amici / Primi Calci (5-8 ans)", ageFormat: "foot_a_5" },
   { key: "pulcini_esord", federation: "FIGC", label: "Pulcini / Esordienti (9-12 ans)", ageFormat: "foot_a_8" },
-  { key: "be_u67", federation: "RBFA", label: "U6-U7 — Ik en de bal (2v2/3v3)", ageFormat: "foot_a_5" },
+  { key: "be_u67", federation: "RBFA", label: "U6-U7 — Ik en de bal (2v2/3v3)", ageFormat: "foot_a_4" },
   { key: "be_u89", federation: "RBFA", label: "U8-U9 — Collectief spel dichtbij (5v5)", ageFormat: "foot_a_5" },
   { key: "be_u1011", federation: "RBFA", label: "U10-U11 — 8v8 fase 1 (dubbele ruit)", ageFormat: "foot_a_8" },
   { key: "be_u1213", federation: "RBFA", label: "U12-U13 — 8v8 fase 2 (dubbele ruit)", ageFormat: "foot_a_8" },
+
+  { key: "es_prebenjamin", federation: "RFEF", label: "Prebenjamín (U6-U7)", ageFormat: "foot_a_4" },
+  { key: "es_benjamin", federation: "RFEF", label: "Benjamín (U8-U9)", ageFormat: "foot_a_5" },
+  { key: "es_alevin", federation: "RFEF", label: "Alevín (U10-U11)", ageFormat: "foot_a_8" },
+  { key: "es_infantil", federation: "RFEF", label: "Infantil (U12-U13)", ageFormat: "foot_a_8" },
+  { key: "es_cadete_juvenil", federation: "RFEF", label: "Cadete-Juvenil (U14-U19)", ageFormat: "standard" },
+
+  { key: "nl_fpupillen", federation: "KNVB", label: "F-pupillen (U6-U7)", ageFormat: "foot_a_4" },
+  { key: "nl_epupillen", federation: "KNVB", label: "E-pupillen (U8-U9)", ageFormat: "foot_a_5" },
+  { key: "nl_dpupillen", federation: "KNVB", label: "D-pupillen (U10-U11)", ageFormat: "foot_a_8" },
+  { key: "nl_cjunioren", federation: "KNVB", label: "C-junioren (U12-U13)", ageFormat: "foot_a_8" },
+  { key: "nl_ba_junioren", federation: "KNVB", label: "B/A-junioren (U14-U19)", ageFormat: "standard" },
+
+  { key: "pt_traquinas", federation: "FPF", label: "Traquinas (U6-U7)", ageFormat: "foot_a_4" },
+  { key: "pt_benjamins", federation: "FPF", label: "Benjamins (U8-U9)", ageFormat: "foot_a_5" },
+  { key: "pt_infantis", federation: "FPF", label: "Infantis (U10-U11)", ageFormat: "foot_a_8" },
+  { key: "pt_iniciados", federation: "FPF", label: "Iniciados (U12-U13)", ageFormat: "foot_a_8" },
+  { key: "pt_juvenis_juniores", federation: "FPF", label: "Juvenis-Juniores (U14-U19)", ageFormat: "standard" },
+
+  { key: "br_sub9", federation: "CBF", label: "Sub-9", ageFormat: "foot_a_5" },
+  { key: "br_sub11", federation: "CBF", label: "Sub-11", ageFormat: "foot_a_5" },
+  { key: "br_sub13", federation: "CBF", label: "Sub-13", ageFormat: "foot_a_8" },
+  { key: "br_sub15", federation: "CBF", label: "Sub-15", ageFormat: "foot_a_8" },
+  { key: "br_sub17_20", federation: "CBF", label: "Sub-17 à Sub-20", ageFormat: "standard" },
+
+  { key: "ar_sub9", federation: "AFA", label: "Sub-9 (Novena)", ageFormat: "foot_a_5" },
+  { key: "ar_sub11", federation: "AFA", label: "Sub-11 (Octava)", ageFormat: "foot_a_5" },
+  { key: "ar_sub13", federation: "AFA", label: "Sub-13 (Séptima)", ageFormat: "foot_a_8" },
+  { key: "ar_sub15", federation: "AFA", label: "Sub-15 (Sexta)", ageFormat: "foot_a_8" },
+  { key: "ar_sub17_19", federation: "AFA", label: "Sub-17 à Sub-19 (Quinta-Cuarta)", ageFormat: "standard" },
+
+  { key: "hr_u7", federation: "HNS", label: "U6-U7", ageFormat: "foot_a_4" },
+  { key: "hr_u9", federation: "HNS", label: "U8-U9", ageFormat: "foot_a_5" },
+  { key: "hr_u11_13", federation: "HNS", label: "U10-U13", ageFormat: "foot_a_8" },
+  { key: "hr_u15_19", federation: "HNS", label: "U14-U19", ageFormat: "standard" },
+
+  { key: "jp_u12", federation: "JFA", label: "U-12 (Shōgakusei, école primaire)", ageFormat: "foot_a_8" },
+  { key: "jp_u12_petit", federation: "JFA", label: "U-8/U-9 (petit-sided, école primaire)", ageFormat: "foot_a_5" },
+  { key: "jp_u15", federation: "JFA", label: "U-15 (Chūgakusei, collège)", ageFormat: "standard" },
+  { key: "jp_u18", federation: "JFA", label: "U-18 (Kōkōsei, lycée)", ageFormat: "standard" },
+
+  { key: "uy_sub9", federation: "AUF", label: "Sub-9 (Baby fútbol)", ageFormat: "foot_a_5" },
+  { key: "uy_sub11", federation: "AUF", label: "Sub-11 (Baby fútbol)", ageFormat: "foot_a_5" },
+  { key: "uy_sub13", federation: "AUF", label: "Sub-13", ageFormat: "foot_a_8" },
+  { key: "uy_sub15_19", federation: "AUF", label: "Sub-15 à Sub-19", ageFormat: "standard" },
+
+  { key: "dk_u7", federation: "DBU", label: "U6-U7 (Børnefodbold)", ageFormat: "foot_a_4" },
+  { key: "dk_u9", federation: "DBU", label: "U8-U9 (Børnefodbold)", ageFormat: "foot_a_5" },
+  { key: "dk_u11_13", federation: "DBU", label: "U10-U13", ageFormat: "foot_a_8" },
+  { key: "dk_u15_19", federation: "DBU", label: "U14-U19", ageFormat: "standard" },
+
+  { key: "no_u7", federation: "NFF", label: "U6-U7 (Barnefotball)", ageFormat: "foot_a_4" },
+  { key: "no_u9", federation: "NFF", label: "U8-U9 (Barnefotball)", ageFormat: "foot_a_5" },
+  { key: "no_u11_13", federation: "NFF", label: "U10-U13", ageFormat: "foot_a_8" },
+  { key: "no_u15_19", federation: "NFF", label: "U14-U19 (Ungdomsfotball)", ageFormat: "standard" },
+
+  { key: "ch_f", federation: "ASF", label: "F-Junioren (U6-U7)", ageFormat: "foot_a_4" },
+  { key: "ch_e", federation: "ASF", label: "E-Junioren (U8-U9)", ageFormat: "foot_a_5" },
+  { key: "ch_d", federation: "ASF", label: "D-Junioren (U10-U11)", ageFormat: "foot_a_8" },
+  { key: "ch_c", federation: "ASF", label: "C-Junioren (U12-U13)", ageFormat: "foot_a_8" },
+  { key: "ch_ba", federation: "ASF", label: "B/A-Junioren (U14-U19)", ageFormat: "standard" },
+
+  { key: "at_u78", federation: "OEFB", label: "U7-U8 (Kleinfeld)", ageFormat: "foot_a_5" },
+  { key: "at_u910", federation: "OEFB", label: "U9-U10", ageFormat: "foot_a_5" },
+  { key: "at_u1112", federation: "OEFB", label: "U11-U12", ageFormat: "foot_a_8" },
+  { key: "at_u1314", federation: "OEFB", label: "U13-U14", ageFormat: "foot_a_8" },
+  { key: "at_u1518", federation: "OEFB", label: "U15-U18", ageFormat: "standard" },
+
+  { key: "is_u7", federation: "KSI", label: "U6-U7 (5. flokkur)", ageFormat: "foot_a_4" },
+  { key: "is_u9", federation: "KSI", label: "U8-U9 (5. flokkur)", ageFormat: "foot_a_5" },
+  { key: "is_u1113", federation: "KSI", label: "U10-U13 (4.-3. flokkur)", ageFormat: "foot_a_8" },
+  { key: "is_u1519", federation: "KSI", label: "U14-U19 (2.-1. flokkur)", ageFormat: "standard" },
+
+  { key: "us_u67", federation: "USSF", label: "U6-U7 (Discover)", ageFormat: "foot_a_4" },
+  { key: "us_u89", federation: "USSF", label: "U8-U9 (Foundational)", ageFormat: "foot_a_5" },
+  { key: "us_u1012", federation: "USSF", label: "U10-U12 (Formative)", ageFormat: "foot_a_8" },
+  { key: "us_u1319", federation: "USSF", label: "U13-U19 (Performance)", ageFormat: "standard" },
+
+  { key: "ma_ecole", federation: "FRMF", label: "École de football (U6-U9)", ageFormat: "foot_a_5" },
+  { key: "ma_poussins", federation: "FRMF", label: "Poussins-Benjamins (U10-U13)", ageFormat: "foot_a_8" },
+  { key: "ma_minimes_cadets", federation: "FRMF", label: "Minimes-Cadets (U14-U17)", ageFormat: "standard" },
+  { key: "ma_juniors", federation: "FRMF", label: "Juniors (U18-U19)", ageFormat: "standard" },
 ];
 const FFF_BRACKETS = CURRICULUM_BRACKETS; // alias conservé pour compatibilité
 // U6-U7 et U8-U9 : 4 catégories. U10-U11 à Seniors : 9 sous-thèmes identiques (on a le ballon / on n'a pas le ballon).
@@ -30796,7 +30899,11 @@ function ExerciseFormPanel({ form, setForm, onSave, onCancel, gameplan, pedagogy
         <label>Nombre de joueurs<input type="text" placeholder="ex. 8-12" value={form.nbJoueurs} onChange={(e) => setForm((f) => ({ ...f, nbJoueurs: e.target.value }))} /></label>
       </div>
       <label>Matériel<input type="text" placeholder="ex. 8 plots, 2 chasubles" value={form.materiel} onChange={(e) => setForm((f) => ({ ...f, materiel: e.target.value }))} /></label>
-      <label>Description / consignes<textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></label>
+      <label>Déroulé<textarea rows={3} placeholder="Comment se joue l'exercice, étape par étape" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></label>
+      <label>Comportement attendu<textarea rows={2} placeholder="Ce que le joueur doit montrer pendant l'exercice" value={form.comportementAttendu} onChange={(e) => setForm((f) => ({ ...f, comportementAttendu: e.target.value }))} /></label>
+      <label>Critères de réalisation<textarea rows={2} placeholder="Ce qui permet de dire, en le regardant, que c'est réussi" value={form.criteresRealisation} onChange={(e) => setForm((f) => ({ ...f, criteresRealisation: e.target.value }))} /></label>
+      <label>Points clés<textarea rows={2} placeholder="Ce que le coach doit dire ou corriger" value={form.pointsCles} onChange={(e) => setForm((f) => ({ ...f, pointsCles: e.target.value }))} /></label>
+      <label>Variantes<textarea rows={2} placeholder="Comment complexifier ou simplifier" value={form.variantes} onChange={(e) => setForm((f) => ({ ...f, variantes: e.target.value }))} /></label>
 
       <div className="roster-form-section-title">Lien principal avec le Projet de jeu (optionnel)</div>
       <label>
@@ -31078,7 +31185,10 @@ function ExerciseCard({ ex, subtitle, metaExtra, actions, onCardClick }) {
       style={{ display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box", overflow: "hidden", cursor: onCardClick ? "pointer" : undefined }}
       onClick={onCardClick}
     >
-      <div className="roster-card-name" style={{ width: "100%", boxSizing: "border-box", wordBreak: "normal", overflowWrap: "break-word" }}>{ex.name}</div>
+      <div className="roster-card-name" style={{ width: "100%", boxSizing: "border-box", wordBreak: "normal", overflowWrap: "break-word" }}>
+        {ex.name}
+        {ex.newBatch && <span className="clip-theme-chip" style={{ marginLeft: 6, background: "#8a4fff", color: "white", fontSize: 10, verticalAlign: "middle" }}>Nouveau</span>}
+      </div>
       <div style={{ width: "100%", boxSizing: "border-box" }}>
         <ExerciseThumbnail diagram={ex.diagram} large isFutsal={ex.ageFormat === "futsal"} />
       </div>
@@ -31246,6 +31356,10 @@ function ExerciseDetailModal({ exercise, onClose, onEdit, onDelete }) {
   const links = getExerciseGameplanLinks(exercise);
   const cat = EXERCISE_CATEGORIES.find((c) => c.key === (exercise.category || "tactique"));
   const frames = getExerciseFrames(exercise);
+  const ageFormatLabel = EXERCISE_AGE_FORMATS.find((f) => f.key === (exercise.ageFormat || "standard"))?.label;
+  const federationLabel = CURRICULUM_FEDERATIONS.find((f) => f.key === exercise.curriculumFederation)?.label;
+  const bracketLabel = CURRICULUM_BRACKETS.find((b) => b.key === exercise.fffBracket)?.label;
+  const intensityLabel = EXERCISE_INTENSITIES.find((i) => i.key === exercise.intensite)?.label;
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(10,15,12,0.72)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
@@ -31255,7 +31369,13 @@ function ExerciseDetailModal({ exercise, onClose, onEdit, onDelete }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <div>
             <div className="panel-heading" style={{ marginTop: 0, marginBottom: 4 }}>{exercise.name}</div>
-            {cat && <span className="scouting-club">{cat.label}</span>}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {exercise.newBatch && <span className="clip-theme-chip" style={{ background: "var(--accent, #8a4fff)", color: "white" }}>Nouveau</span>}
+              {cat && <span className="scouting-club">{cat.label}</span>}
+              {ageFormatLabel && <span className="scouting-club">{ageFormatLabel}</span>}
+              {intensityLabel && <span className="scouting-club">Intensité {intensityLabel.toLowerCase()}</span>}
+              {federationLabel && <span className="scouting-club">{federationLabel}{bracketLabel ? ` · ${bracketLabel}` : ""}</span>}
+            </div>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Fermer"><X size={18} /></button>
         </div>
@@ -31274,8 +31394,33 @@ function ExerciseDetailModal({ exercise, onClose, onEdit, onDelete }) {
           </div>
         </div>
 
-        <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Description / consignes</p>
+        <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Déroulé</p>
         <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{exercise.description || "—"}</p>
+
+        {exercise.comportementAttendu && (
+          <>
+            <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Comportement attendu</p>
+            <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{exercise.comportementAttendu}</p>
+          </>
+        )}
+        {exercise.criteresRealisation && (
+          <>
+            <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Critères de réalisation</p>
+            <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{exercise.criteresRealisation}</p>
+          </>
+        )}
+        {exercise.pointsCles && (
+          <>
+            <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Points clés</p>
+            <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{exercise.pointsCles}</p>
+          </>
+        )}
+        {exercise.variantes && (
+          <>
+            <p className="radar-note" style={{ marginTop: 14, marginBottom: 4, fontWeight: 600, color: "var(--ink)" }}>Variantes</p>
+            <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{exercise.variantes}</p>
+          </>
+        )}
 
         {links.length > 0 && (
           <>
@@ -31312,6 +31457,7 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
   const [viewingExercise, setViewingExercise] = useState(null);
   const [pedagogyEntries, setPedagogyEntries] = useState([]);
   const [pedagogyFilterItemId, setPedagogyFilterItemId] = useState("");
+  const newExercises = exercises.filter((ex) => ex.newBatch);
 
   useEffect(() => {
     try { setPedagogyEntries(JSON.parse(localStorage.getItem("tf_club_pedagogy") || "[]")); } catch (e) {}
@@ -31346,6 +31492,26 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
 
   return (
     <div>
+      {newExercises.length > 0 && (
+        <details className="no-print" open style={{ marginBottom: 20 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Nouveautés ({newExercises.length})</summary>
+          <p className="hint" style={{ marginTop: 6 }}>Exercices ajoutés récemment, tous formats et catégories confondus — à relire avant de les utiliser en séance.</p>
+          <PaginatedGrid
+            items={newExercises}
+            renderItem={(ex) => (
+              <ExerciseCard
+                key={ex.id}
+                ex={ex}
+                onCardClick={() => setViewingExercise(ex)}
+                actions={<>
+                  <button className="btn btn-ghost btn-small" onClick={() => shareToClub(ex)}>Partager au club</button>
+                  {onAddToSession && <button className="btn btn-ghost btn-small" onClick={() => onAddToSession(ex)}>+ Ajouter</button>}
+                </>}
+              />
+            )}
+          />
+        </details>
+      )}
       <div className="tabs" style={{ marginBottom: 6 }}>
         {EXERCISE_AGE_FORMATS.map((f) => (
           <button key={f.key} className={`tab ${ageFormatFilter === f.key ? "active" : ""}`} onClick={() => setAgeFormatFilter(f.key)}>{f.label}</button>
