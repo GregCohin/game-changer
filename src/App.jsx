@@ -22204,6 +22204,83 @@ function LinkedClipsSection({ clipIds, onRemove }) {
   );
 }
 
+// Ce que le classement et l'historique disent de l'échéance — reprend computeMatchStakes (déjà
+// utilisée dans Compétitions) plutôt que de recalculer l'enjeu autrement. Rien sur "le dernier match
+// de l'adversaire" n'est automatisable : l'app ne suit que les résultats DE CE club (aucune source
+// de résultats des autres clubs) — un champ texte libre couvre ce que le coach a regardé lui-même.
+function EcheanceTab({ causerie, updateCauserie, allFullMatches }) {
+  const [comp, setComp] = useState(null);
+  const [clubName, setClubName] = useState("");
+
+  useEffect(() => {
+    try { setComp(loadCompetitionsData()); } catch (e) {}
+    try { setClubName(JSON.parse(localStorage.getItem("tf_club_info") || "{}").name || ""); } catch (e) {}
+  }, []);
+
+  if (!causerie.opponent) {
+    return <div className="empty-state">Renseigne l'adversaire de cette causerie (champ "Adversaire" à la création, ou en dupliquant depuis Compétitions) pour voir le classement et l'historique face à lui.</div>;
+  }
+
+  let matchingCompetition = null, matchingFixture = null;
+  (comp?.competitions || []).forEach((c) => {
+    if (matchingFixture) return;
+    const f = (c.fixtures || []).find((fx) => fx.opponent === causerie.opponent);
+    if (f) { matchingCompetition = c; matchingFixture = f; }
+  });
+  const standings = matchingCompetition
+    ? matchingCompetition.standings.map((t) => ({ ...t, points: Number(t.wins || 0) * 3 + Number(t.draws || 0) })).sort((a, b) => b.points - a.points)
+    : [];
+  const myRow = standings.findIndex((t) => t.team === clubName);
+  const oppRow = standings.findIndex((t) => t.team === causerie.opponent);
+  const stakes = matchingCompetition && matchingFixture ? computeMatchStakes(matchingFixture, matchingCompetition, clubName) : null;
+
+  const headToHead = allFullMatches
+    .filter((m) => m.closed && (m.opponent === causerie.opponent || m.teamA === causerie.opponent || m.teamB === causerie.opponent))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return (
+    <div>
+      <p className="radar-note">Ce que dit le classement, et ce que tu sais déjà de {causerie.opponent} — à piocher pour la causerie.</p>
+
+      <div className="panel-heading">Classement</div>
+      {standings.length === 0 && <div className="empty-state">Aucun classement renseigné pour cette compétition — à saisir dans Compétitions → Classement.</div>}
+      {standings.length > 0 && (myRow === -1 || oppRow === -1) && <div className="empty-state">Classement trouvé, mais "{myRow === -1 ? clubName || "ton club" : causerie.opponent}" n'y figure pas sous ce nom exact.</div>}
+      {myRow !== -1 && oppRow !== -1 && (
+        <>
+          <div className="roster-physical-grid">
+            <div className="dashboard-card">
+              <div className="dashboard-card-title">Nous</div>
+              <div className="dashboard-card-main">{myRow + 1}<sup>e</sup></div>
+              <div className="hint" style={{ marginTop: 0 }}>{standings[myRow].points} pts</div>
+            </div>
+            <div className="dashboard-card">
+              <div className="dashboard-card-title">{causerie.opponent}</div>
+              <div className="dashboard-card-main">{oppRow + 1}<sup>e</sup></div>
+              <div className="hint" style={{ marginTop: 0 }}>{standings[oppRow].points} pts</div>
+            </div>
+          </div>
+          {stakes && <p className="hint">Enjeu estimé : <strong>{stakes.level}</strong> — {stakes.reason}</p>}
+        </>
+      )}
+
+      <div className="panel-heading" style={{ marginTop: 20 }}>Historique face à {causerie.opponent}</div>
+      {headToHead.length === 0 && <div className="empty-state">Aucun match précédent enregistré contre cet adversaire (Studio ou Observation).</div>}
+      {headToHead.slice(0, 5).map((m) => (
+        <div key={m.id} className="week-agenda-item" style={{ marginBottom: 4 }}>{formatDateFr(m.date)} — {m.name || (m.source === "observation" ? `${m.teamA} vs ${m.teamB}` : "Match")}</div>
+      ))}
+
+      <div className="panel-heading" style={{ marginTop: 20 }}>Forme récente de l'adversaire</div>
+      <p className="hint" style={{ marginTop: 0 }}>Pas de source automatique — l'app ne suit que tes propres résultats, pas ceux des autres clubs. Note ici ce que tu as vu passer (site de la ligue, bouche-à-oreille...).</p>
+      <textarea
+        rows={3}
+        placeholder="ex. 3 victoires sur les 4 derniers matchs, gros volume offensif d'après le dernier compte-rendu de ligue"
+        value={causerie.opponentForm || ""}
+        onChange={(e) => updateCauserie({ ...causerie, opponentForm: e.target.value })}
+      />
+    </div>
+  );
+}
+
 function CauserieScreen({ roster, matches }) {
   const [causeries, setCauseries] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -22381,12 +22458,14 @@ function CauserieScreen({ roster, matches }) {
 
           <div className="tabs no-print">
             <button className={`tab ${subTab === "selection" ? "active" : ""}`} onClick={() => setSubTab("selection")}>Sélection des joueurs</button>
+            <button className={`tab ${subTab === "echeance" ? "active" : ""}`} onClick={() => setSubTab("echeance")}>Échéance</button>
             <button className={`tab ${subTab === "signaux" ? "active" : ""}`} onClick={() => setSubTab("signaux")}>Signaux</button>
             <button className={`tab ${subTab === "fiches" ? "active" : ""}`} onClick={() => setSubTab("fiches")}>Fiches imprimables</button>
             <button className={`tab ${subTab === "notes" ? "active" : ""}`} onClick={() => setSubTab("notes")}>Notes</button>
           </div>
 
           {subTab === "selection" && <SquadSelectionTab roster={roster} causerie={selected} updateCauserie={updateCauserie} allFullMatches={allFullMatches} />}
+          {subTab === "echeance" && <EcheanceTab causerie={selected} updateCauserie={updateCauserie} allFullMatches={allFullMatches} />}
           {subTab === "signaux" && <SignalsTab causerie={selected} updateCauserie={updateCauserie} allFullMatches={allFullMatches} gameplan={gameplan} roster={roster} />}
           {subTab === "fiches" && <PrintableSheetsTab causerie={selected} updateCauserie={updateCauserie} roster={roster} gameplan={gameplan} allFullMatches={allFullMatches} />}
           {subTab === "notes" && (
