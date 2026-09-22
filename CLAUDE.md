@@ -94,7 +94,7 @@ supabase/                        ← `config.toml` + `migrations/` (schéma, RLS
 video-pipeline/                  ← pipeline Python d'extraction vidéo
 ```
 
-- La bibliothèque d'exercices contient 478 exercices.
+- La bibliothèque d'exercices contient 531 exercices (`src/data/starterContent.js`, 57 tableaux `STARTER_EXERCISES*`), chacun avec les 5 champs de description (déroulé, comportement attendu, critères de réalisation, points clés, variantes).
 - `AdvancedAnalyticsPanel` a un callback `onImport` et un schéma `emptyAdvancedAnalytics()` déjà prêts à recevoir les futures sorties du pipeline vidéo.
 - Le build Vite (`npm run build`) produit un bundle staff d'environ 2,2 Mo (≈530 Ko gzip) avec un avertissement de taille — pas bloquant, mais réel : temps de chargement à surveiller, en particulier pour un usage mobile en bord de terrain avec un signal faible. La page parent est un bundle séparé (≈14 Ko) mais charge aussi le chunk partagé du client Supabase (≈370 Ko, ≈105 Ko gzip) : ≈110 Ko gzip au total, très en dessous du staff, mais pas « quelques Ko ». Passer `@ffmpeg` en import dynamique n'a gagné que ~7 Ko (le WASM est de toute façon chargé depuis un CDN) : le vrai poids vient probablement de `recharts`/`lucide-react` et d'`App.jsx` lui-même (non mesuré).
 
@@ -167,6 +167,7 @@ Chercher de nouvelles fonctionnalités à ce stade a des rendements décroissant
 - Pipeline vidéo intégré au dépôt (`video-pipeline/`, une quarantaine de commits du 12 au 18/09).
 - App parent vérifiée sur téléphone (375, 360, 390 et 320 px) puis corrigée : champs à 16 px, cibles tactiles à 44 px, étape de blessure lisible au lieu de la clé technique, dates en français, bouton « Complet » grisé et boutons de covoiturage espacés du texte, en-tête aligné, liens longs qui ne débordent plus. Un lien sans point de coupure débordait de sa carte (mesuré : 596 px de contenu sur 375) alors que la première vérification l'avait jugé « OK » : toujours tester avec un mot sans espace, pas seulement de longues phrases.
 - Domaine `game-changer.fr` acheté et authentifié, SMTP passé de Supabase par défaut à Brevo (secours) puis à Resend (actif, 10/10 sur mail-tester) : voir « Email et connexion » pour le détail, la limite encore ouverte (iCloud classe toujours en indésirables, question de réputation du domaine plus que de configuration) et le piège du copier-coller d'un modèle d'email (accents corrompus).
+- Fiche exercice enrichie à 5 champs (déroulé/comportement attendu/critères de réalisation/points clés/variantes), tour de fédérations élargi de 5 à 20, premier lot Foot à 4 (15 exercices, tranche jusque-là inexistante), 56 nouveaux exercices au total — puis le même format à 5 champs rétrofité sur les 475 exercices pré-existants (registre adapté par tranche : ludique pour Foot à 4/5, transitoire pour Foot à 8, technique pour standard et les tableaux génériques). Bibliothèque complète (531 exercices) désormais homogène. Au passage : 25 descriptions vides pré-existantes comblées (RBFA, DFB_1, DFB_2, plusieurs tableaux NATIONS) et 4 exercices DFB_1 « Bambini » avec un `ageFormat` obsolète corrigés (`foot_a_5` → `foot_a_4`, même classe de bug que déjà rencontrée sur FFF/RBFA).
 
 ## Prochaines étapes envisagées
 
