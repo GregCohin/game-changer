@@ -13048,6 +13048,116 @@ Nous vous souhaitons une belle continuation, sportive ou autre.
 Cordialement,
 [NOM]
 [FONCTION]` },
+
+  { title: "Convocation à un entraînement exceptionnel ou un stage", content: `Objet : Convocation — [NOM DE LA SÉANCE OU DU STAGE]
+
+Bonjour,
+
+[NOM DU JOUEUR] est convoqué(e) pour [NOM DE LA SÉANCE OU DU STAGE], qui se déroulera le [DATE] de [HEURE DÉBUT] à [HEURE FIN], à [LIEU].
+
+Merci de prévoir : [ÉQUIPEMENT NÉCESSAIRE].
+
+Merci de confirmer la présence avant le [DATE LIMITE].
+
+Sportivement,
+[NOM]
+[FONCTION]` },
+
+  { title: "Point sur un comportement lors d'une séance ou d'un match", content: `Objet : Point sur le comportement de [NOM DU JOUEUR] — [DATE]
+
+Bonjour,
+
+Nous souhaitons vous faire part d'un point concernant le comportement de [NOM DU JOUEUR] lors de [CONTEXTE : entraînement, match] du [DATE] : [DESCRIPTION FACTUELLE DES FAITS].
+
+Ce comportement n'est pas conforme aux valeurs et au règlement intérieur du club. Nous souhaitons en discuter avec vous et [NOM DU JOUEUR] afin de trouver ensemble une solution constructive.
+
+Nous restons disponibles pour un échange à ce sujet, au [CONTACT].
+
+Cordialement,
+[NOM]
+[FONCTION]` },
+
+  { title: "Remerciement à un bénévole", content: `Objet : Merci pour votre engagement
+
+Cher/Chère [NOM DU BÉNÉVOLE],
+
+Au nom de tout le [NOM DU CLUB], nous tenons à vous remercier sincèrement pour votre engagement bénévole durant la saison [SAISON], notamment pour [PRÉCISER : covoiturage, buvette, arbitrage, organisation d'événements...].
+
+Notre club ne pourrait pas fonctionner sans des bénévoles comme vous. Votre implication compte énormément pour nous et pour tous les licenciés.
+
+Avec toute notre reconnaissance,
+[NOM]
+[FONCTION]` },
+
+  { title: "Bilan de fin de saison", content: `Objet : Bilan de la saison [SAISON]
+
+Chers licenciés et familles,
+
+La saison [SAISON] touche à sa fin. Nous souhaitons revenir avec vous sur les temps forts de cette année : [RÉSULTATS SPORTIFS, ÉVÉNEMENTS MARQUANTS, ÉVOLUTIONS DU CLUB].
+
+[REMERCIEMENTS : joueurs, familles, éducateurs, bénévoles, partenaires]
+
+Rendez-vous à la rentrée [DATE PRÉVISIONNELLE] pour une nouvelle saison !
+
+Sportivement,
+[NOM]
+Président du [NOM DU CLUB]` },
+
+  { title: "Proposition de partenariat à une entreprise", content: `Objet : Proposition de partenariat avec le [NOM DU CLUB]
+
+Madame, Monsieur,
+
+Le [NOM DU CLUB] compte aujourd'hui [NOMBRE] licenciés répartis sur [NOMBRE] équipes, de [CATÉGORIE LA PLUS JEUNE] à [CATÉGORIE LA PLUS ÂGÉE].
+
+Nous souhaiterions vous proposer un partenariat pour la saison [SAISON], qui pourrait prendre la forme de [FORME DU PARTENARIAT : visibilité sur les équipements, panneau publicitaire, soutien financier...].
+
+En contrepartie, nous vous proposons [CONTREPARTIES PROPOSÉES].
+
+Nous serions ravis d'échanger avec vous sur les modalités d'un tel partenariat, à votre convenance.
+
+Restant à votre disposition,
+[NOM DU PRÉSIDENT]
+Président du [NOM DU CLUB]` },
+
+  { title: "Rappel de certificat médical manquant", content: `Objet : Certificat médical manquant — [NOM DU JOUEUR]
+
+Bonjour,
+
+Le dossier d'inscription de [NOM DU JOUEUR] pour la saison [SAISON] est incomplet : il nous manque le certificat médical de non contre-indication à la pratique du football (ou l'attestation de renouvellement selon la réglementation en vigueur).
+
+Merci de nous le transmettre avant le [DATE] ; sans ce document, [NOM DU JOUEUR] ne pourra malheureusement pas participer aux entraînements et matchs.
+
+N'hésitez pas à nous contacter en cas de question.
+
+Cordialement,
+[NOM]
+[FONCTION]` },
+
+  { title: "Annulation d'entraînement ou de match", content: `Objet : Annulation — [ENTRAÎNEMENT/MATCH] du [DATE]
+
+Bonjour,
+
+En raison de [MOTIF : intempéries, terrain impraticable, décision de la ligue...], [ENTRAÎNEMENT/MATCH] prévu le [DATE] à [HEURE] est annulé.
+
+[INFORMATION DE REPORT SI CONNUE]
+
+Merci de votre compréhension,
+[NOM]
+[FONCTION]` },
+
+  { title: "Félicitations pour un résultat sportif", content: `Objet : Félicitations !
+
+Chers joueurs et joueuses,
+
+Toutes nos félicitations pour [PRÉCISER : la montée en [DIVISION], le titre de champion [CATÉGORIE], la qualification en [COMPÉTITION]...] !
+
+Ce résultat récompense votre travail et votre engagement tout au long de la saison. Le club tout entier est fier de vous.
+
+[MENTION D'UN ÉVÉNEMENT DE CÉLÉBRATION SI PRÉVU]
+
+Bravo à tous,
+[NOM]
+[FONCTION]` },
 ];
 
 function ModelesCourriersTab() {
@@ -13111,7 +13221,7 @@ function ModelesCourriersTab() {
   return (
     <div>
       <p className="radar-note">Des modèles de courriers et documents administratifs types.</p>
-      {templates.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateLetterStarters} style={{ marginBottom: 14 }}>Importer les modèles de départ (10)</button>}
+      {templates.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateLetterStarters} style={{ marginBottom: 14 }}>Importer les modèles de départ (18)</button>}
       <button className="btn btn-primary btn-large" onClick={openNew} style={{ marginBottom: 16 }}>+ Nouveau modèle</button>
       {templates.length === 0 && <div className="empty-state">Aucun modèle pour l'instant. Utilise le bouton ci-dessus pour en ajouter un.</div>}
       <div className="scouting-list">
@@ -13395,6 +13505,12 @@ const STARTER_SESSION_TEMPLATES = [
   { title: "Vitesse et répétition d'efforts", category: "Athlétique — vitesse", exerciseNames: ["Mobilité articulaire (hanches, chevilles, dos)", "Sprint linéaire, développement de la vitesse", "Répétition de sprints (RSA)", "Vitesse et agilité de couloir"] },
   { title: "Circulation et jeu de passes", category: "Technique — passes", exerciseNames: ["Mobilité articulaire dynamique", "Passes courtes en grille (rondo technique)", "Changer de côté en deux passes maximum", "Passes et contrôles en mouvement"] },
   { title: "Coups de pied arrêtés", category: "Tactique — coups de pied arrêtés", exerciseNames: ["Mobilité et prévention simple", "Corner offensif joué au sol", "Corner défensif en marquage mixte", "Coup franc offensif, centre dans la surface"] },
+  { title: "Jeu de tête et duels aériens", category: "Technique — jeu de tête", exerciseNames: ["Mobilité articulaire dynamique", "Centre et première approche du jeu de tête", "Centre et jeu de tête", "Dégagement et jeu de tête défensif puissant"] },
+  { title: "Relance et sortie de balle propre", category: "Tactique — relance", exerciseNames: ["Mobilité articulaire (hanches, chevilles, dos)", "Relance courte sous les 4 secondes du gardien", "Sortie de balle en losange, double pivot", "Décider entre dégagement et relance en contexte réel"] },
+  { title: "1 contre 1, attaque et défense", category: "Technique — duel", exerciseNames: ["Mobilité articulaire dynamique", "Duel 1 contre 1 puis passe simple", "1 contre 1 en couloir, attaque et défense", "Prise de risque encouragée en 1 contre 1"] },
+  { title: "Possession en espace réduit", category: "Tactique — possession", exerciseNames: ["Mobilité articulaire (hanches, chevilles, dos)", "Rondo positionnel en zones fixes", "Jeu réduit 4 contre 4 en espace restreint", "Contrôle et passe en une-deux touches en espace restreint"] },
+  { title: "Endurance et VMA", category: "Athlétique — endurance", exerciseNames: ["Mobilité articulaire dynamique", "Fractionné, développement de la VMA", "Intermittent modéré et ludique"] },
+  { title: "Reprise douce (retour de trêve ou de vacances)", category: "Athlétique — reprise", exerciseNames: ["Récupération active et étirements", "Mobilité et prévention simple", "Gainage et renforcement du tronc"] },
 ];
 
 function SeancesTypesTab() {
@@ -13454,7 +13570,7 @@ function SeancesTypesTab() {
   return (
     <div>
       <p className="radar-note">Une bibliothèque de séances-types réutilisables — une structure complète d'exercices, distincte des séances datées de la programmation habituelle.</p>
-      {templates.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateStarterTemplates} style={{ marginBottom: 14 }}>Importer les séances-types de départ (10 modèles)</button>}
+      {templates.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateStarterTemplates} style={{ marginBottom: 14 }}>Importer les séances-types de départ (16 modèles)</button>}
       {!showForm && <button className="btn btn-primary btn-large" onClick={openNew} style={{ marginBottom: 16 }}>+ Nouvelle séance-type</button>}
       {showForm && (
         <div className="new-match-card" style={{ marginBottom: 16 }}>
