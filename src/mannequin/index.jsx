@@ -317,8 +317,9 @@ const HUMAIN_PROPORTIONS = {
 // bois à boules". Une seule courbe de Bézier quadratique de chaque côté (proche→loin), avec le
 // point du milieu (coude/genou) comme simple guide : sa largeur influence le pincement de
 // l'articulation sans jamais devenir un coin dur, contrairement à un rond posé par-dessus.
-function drawLimbSilhouette(ctx, p0, p1, p2, r0, r1, r2, alpha) {
+function drawLimbSilhouette(ctx, p0, p1, p2, width0, width1, width2, alpha) {
   if (!p0 || !p1 || !p2) return;
+  const r0 = width0 / 2, r1 = width1 / 2, r2 = width2 / 2;
   const d0x = p1.x - p0.x, d0y = p1.y - p0.y, len0 = Math.hypot(d0x, d0y) || 0.001;
   const d1x = p2.x - p1.x, d1y = p2.y - p1.y, len1 = Math.hypot(d1x, d1y) || 0.001;
   const perp0x = -d0y / len0, perp0y = d0x / len0;
@@ -427,6 +428,127 @@ function drawMannequinHumain(ctx, pose, w, h, proportions = HUMAIN_PROPORTIONS) 
   ctx.globalAlpha = 1;
   const headAngle2 = Math.atan2(epaule.y - tete.y, epaule.x - tete.x) - Math.PI / 2;
   ctx.beginPath(); ctx.ellipse(tete.x, tete.y, scale * proportions.headWidth, scale * proportions.headHeight, headAngle2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// ============================================================================
+// PROPOSITION : quatrième style, sur une idée volontairement différente des trois
+// précédents plutôt qu'un raffinement de la même technique (les styles "réaliste" et
+// "silhouette humaine" dessinent tous les deux le contour d'une forme — polygone ou
+// courbe — ce qui reste, de l'aveu de Gregory, une variation assez proche l'une de
+// l'autre). Ici, aucun contour n'est calculé : chaque bras, chaque jambe et le torse
+// sont une CHAÎNE DE CERCLES pleins, assez rapprochés pour que leur union se lise
+// comme un tube continu. Un cercle n'ayant pas de coin, la rondeur à un coude ou un
+// genou est automatique, quel que soit l'angle du pli — pas de courbe à raccorder,
+// pas de rond à poser par-dessus pour cacher une jointure. Le torse utilise le même
+// principe (une chaîne à quatre points : épaule/poitrine/taille/hanche) plutôt qu'une
+// construction séparée : une seule technique pour tout le corps.
+// ============================================================================
+const TUBULAIRE_PROPORTIONS = {
+  shoulderWidth: 0.11, chestWidth: 0.125, waistWidth: 0.078, hipWidth: 0.105,
+  chestPosition: 0.32, waistPosition: 0.62,
+  headWidth: 0.05, headHeight: 0.068, neckWidth: 0.034,
+  armWidthShoulder: 0.052, armWidthElbow: 0.034, armWidthWrist: 0.026, handSize: 0.034,
+  legWidthHip: 0.078, legWidthKnee: 0.05, legWidthAnkle: 0.032, footSize: 0.044,
+  backLimbOpacity: 0.5,
+};
+
+// Une chaîne de cercles pleins entre plusieurs points, rayon interpolé linéairement entre chaque
+// paire consécutive — assez de cercles rapprochés pour que l'union se lise comme un tube continu
+// plutôt qu'un chapelet de ronds séparés. Sert aussi bien à un membre (2-3 points) qu'au torse
+// (4 points) : une seule fonction pour toute la silhouette. Le nombre de cercles se recalcule sur
+// la distance réelle en pixels (un centre tous les `spacing` px) plutôt qu'un nombre fixe : un
+// nombre fixe suffisait à l'écran mais laissait un bord en "pile de pièces" visible dès qu'on
+// agrandit le canvas (aperçu large, export vidéo, zoom navigateur).
+function drawTubeChain(ctx, waypoints, alpha, spacing = 3) {
+  ctx.globalAlpha = alpha;
+  for (let seg = 0; seg < waypoints.length - 1; seg++) {
+    const a = waypoints[seg], b = waypoints[seg + 1];
+    if (!a.p || !b.p) continue;
+    const dist = Math.hypot(b.p.x - a.p.x, b.p.y - a.p.y);
+    const steps = Math.max(6, Math.ceil(dist / spacing));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = a.p.x + (b.p.x - a.p.x) * t, y = a.p.y + (b.p.y - a.p.y) * t;
+      const r = a.r + (b.r - a.r) * t;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+function drawMannequinTubulaire(ctx, pose, w, h, proportions = TUBULAIRE_PROPORTIONS) {
+  if (!pose) return;
+  const P = (name) => ({ x: pose[name].x * w, y: pose[name].y * h });
+  ctx.save();
+  ctx.fillStyle = "#2B2235";
+
+  const tete = P("tete"), epaule = P("epaule"), hanche = P("hanche");
+  const coudeA = pose.coude_avant ? P("coude_avant") : null, mainA = pose.main_avant ? P("main_avant") : null;
+  const genouA = pose.genou_avant ? P("genou_avant") : null, chevilleA = pose.cheville_avant ? P("cheville_avant") : null, piedA = pose.pied_avant ? P("pied_avant") : null;
+  const coudeR = pose.coude_arriere ? P("coude_arriere") : null, mainR = pose.main_arriere ? P("main_arriere") : null;
+  const genouR = pose.genou_arriere ? P("genou_arriere") : null, chevilleR = pose.cheville_arriere ? P("cheville_arriere") : null, piedR = pose.pied_arriere ? P("pied_arriere") : null;
+
+  const scale = Math.min(w, h);
+  const backAlpha = proportions.backLimbOpacity;
+  const rShoulder = (scale * proportions.armWidthShoulder) / 2, rElbow = (scale * proportions.armWidthElbow) / 2, rWrist = (scale * proportions.armWidthWrist) / 2;
+  const rHip = (scale * proportions.legWidthHip) / 2, rKnee = (scale * proportions.legWidthKnee) / 2, rAnkle = (scale * proportions.legWidthAnkle) / 2;
+
+  // Membres arrière : composés à part sur un calque séparé, appliqué en un seul passage à opacité
+  // réduite. Les cercles d'une même chaîne se chevauchent volontairement beaucoup (c'est ce qui les
+  // fait lire comme un tube) : les compositer un par un déjà semi-transparents les aurait fait
+  // s'accumuler et paraître plus denses aux chevauchements qu'un membre avant plein.
+  if (coudeR || genouR) {
+    const layer = document.createElement("canvas");
+    layer.width = w; layer.height = h;
+    const lctx = layer.getContext("2d");
+    lctx.fillStyle = "#2B2235";
+    if (coudeR && mainR) {
+      drawTubeChain(lctx, [{ p: epaule, r: rShoulder }, { p: coudeR, r: rElbow }, { p: mainR, r: rWrist }], 1);
+      drawHandFoot(lctx, coudeR, mainR, scale * proportions.handSize, 1);
+    }
+    if (genouR && chevilleR) {
+      drawTubeChain(lctx, [{ p: hanche, r: rHip }, { p: genouR, r: rKnee }, { p: chevilleR, r: rAnkle }], 1);
+      if (piedR) drawHandFoot(lctx, chevilleR, piedR, scale * proportions.footSize, 1);
+    }
+    ctx.globalAlpha = backAlpha;
+    ctx.drawImage(layer, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  // Torse : une seule chaîne à quatre points (épaule/poitrine/taille/hanche) le long de l'axe
+  // épaule-hanche — mêmes quatre largeurs que le style réaliste.
+  const spineX = hanche.x - epaule.x, spineY = hanche.y - epaule.y;
+  const spineLen = Math.hypot(spineX, spineY) || 0.001;
+  const alongSpine = (t) => ({ x: epaule.x + spineX * t, y: epaule.y + spineY * t });
+  drawTubeChain(ctx, [
+    { p: epaule, r: (spineLen * proportions.shoulderWidth) / 2 },
+    { p: alongSpine(proportions.chestPosition), r: (spineLen * proportions.chestWidth) / 2 },
+    { p: alongSpine(proportions.waistPosition), r: (spineLen * proportions.waistWidth) / 2 },
+    { p: hanche, r: (spineLen * proportions.hipWidth) / 2 },
+  ], 1);
+
+  // Cou
+  drawTubeChain(ctx, [
+    { p: tete, r: scale * proportions.neckWidth * 0.425 },
+    { p: epaule, r: scale * proportions.neckWidth * 0.575 },
+  ], 1);
+
+  // Membres avant — épaule/hanche partagent exactement le même point que le premier maillon du
+  // torse : deux cercles centrés au même endroit s'unissent sans laisser de coin, aucun raccord
+  // séparé à dessiner par-dessus (contrairement aux styles précédents).
+  if (coudeA && mainA) {
+    drawTubeChain(ctx, [{ p: epaule, r: rShoulder }, { p: coudeA, r: rElbow }, { p: mainA, r: rWrist }], 1);
+    drawHandFoot(ctx, coudeA, mainA, scale * proportions.handSize, 1);
+  }
+  if (genouA && chevilleA) {
+    drawTubeChain(ctx, [{ p: hanche, r: rHip }, { p: genouA, r: rKnee }, { p: chevilleA, r: rAnkle }], 1);
+    if (piedA) drawHandFoot(ctx, chevilleA, piedA, scale * proportions.footSize, 1);
+  }
+
+  // Tête
+  ctx.globalAlpha = 1;
+  const headAngle3 = Math.atan2(epaule.y - tete.y, epaule.x - tete.x) - Math.PI / 2;
+  ctx.beginPath(); ctx.ellipse(tete.x, tete.y, scale * proportions.headWidth, scale * proportions.headHeight, headAngle3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -793,6 +915,8 @@ function MannequinPreview({ movementKey, large, proportions, style, onCanvasRead
       drawMannequinRealiste(ctx, movement.poses[frameIdx], w, h, proportions || REALISTIC_PROPORTIONS);
     } else if (style === "humain") {
       drawMannequinHumain(ctx, movement.poses[frameIdx], w, h, proportions || HUMAIN_PROPORTIONS);
+    } else if (style === "tubulaire") {
+      drawMannequinTubulaire(ctx, movement.poses[frameIdx], w, h, proportions || TUBULAIRE_PROPORTIONS);
     } else {
       drawMannequin(ctx, movement.poses[frameIdx], w, h, proportions || DEFAULT_MANNEQUIN_PROPORTIONS);
     }
@@ -1197,6 +1321,40 @@ const HUMAIN_SLIDER_GROUPS = [
   ]},
 ];
 
+// Même principe, pour le style "tubulaire". Pas de champ "raccord" ici : deux cercles centrés au
+// même point (épaule ou hanche, partagé entre le torse et le membre) s'unissent sans coin par
+// construction, inutile de dessiner un rond en plus par-dessus pour cacher une jointure.
+const TUBULAIRE_SLIDER_GROUPS = [
+  { title: "Torse", fields: [
+    { key: "shoulderWidth", label: "Largeur épaules", min: 0.05, max: 0.16, step: 0.002 },
+    { key: "chestWidth", label: "Largeur poitrine", min: 0.06, max: 0.2, step: 0.002 },
+    { key: "waistWidth", label: "Largeur taille", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "hipWidth", label: "Largeur hanches", min: 0.05, max: 0.18, step: 0.002 },
+    { key: "chestPosition", label: "Position poitrine", min: 0.15, max: 0.45, step: 0.01 },
+    { key: "waistPosition", label: "Position taille", min: 0.45, max: 0.8, step: 0.01 },
+  ]},
+  { title: "Tête et cou", fields: [
+    { key: "headWidth", label: "Largeur tête", min: 0.02, max: 0.08, step: 0.002 },
+    { key: "headHeight", label: "Hauteur tête", min: 0.02, max: 0.1, step: 0.002 },
+    { key: "neckWidth", label: "Épaisseur cou", min: 0.01, max: 0.08, step: 0.002 },
+  ]},
+  { title: "Bras", fields: [
+    { key: "armWidthShoulder", label: "Épaisseur bras (à l'épaule)", min: 0.02, max: 0.12, step: 0.002 },
+    { key: "armWidthElbow", label: "Épaisseur au coude", min: 0.015, max: 0.08, step: 0.002 },
+    { key: "armWidthWrist", label: "Épaisseur au poignet", min: 0.01, max: 0.06, step: 0.002 },
+    { key: "handSize", label: "Taille main", min: 0.015, max: 0.07, step: 0.002 },
+  ]},
+  { title: "Jambes", fields: [
+    { key: "legWidthHip", label: "Épaisseur cuisse (à la hanche)", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "legWidthKnee", label: "Épaisseur au genou", min: 0.02, max: 0.09, step: 0.002 },
+    { key: "legWidthAnkle", label: "Épaisseur à la cheville", min: 0.01, max: 0.06, step: 0.002 },
+    { key: "footSize", label: "Taille pied", min: 0.015, max: 0.09, step: 0.002 },
+  ]},
+  { title: "Profondeur", fields: [
+    { key: "backLimbOpacity", label: "Opacité membre arrière", min: 0.1, max: 1, step: 0.05 },
+  ]},
+];
+
 function emptyEditingPose() {
   const pose = {};
   MANNEQUIN_JOINTS.forEach((j) => { pose[j] = { x: 0.5, y: 0.5 }; });
@@ -1319,6 +1477,7 @@ export function MouvementsAnimesTab() {
   const [proportions, setProportions] = useState(DEFAULT_MANNEQUIN_PROPORTIONS);
   const [realisticProportions, setRealisticProportions] = useState(REALISTIC_PROPORTIONS);
   const [humainProportions, setHumainProportions] = useState(HUMAIN_PROPORTIONS);
+  const [tubulaireProportions, setTubulaireProportions] = useState(TUBULAIRE_PROPORTIONS);
   const [showSettings, setShowSettings] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [renderStyle, setRenderStyle] = useState("actuel");
@@ -1327,8 +1486,8 @@ export function MouvementsAnimesTab() {
   const [videoExportUnsupported, setVideoExportUnsupported] = useState(false);
   const canvasElRef = useRef(null);
   const categories = [...new Set(Object.values(MANNEQUIN_MOVEMENTS).map((m) => m.category))];
-  const activeProportions = renderStyle === "humain" ? humainProportions : renderStyle === "realiste" ? realisticProportions : proportions;
-  const sliderGroups = renderStyle === "humain" ? HUMAIN_SLIDER_GROUPS : renderStyle === "realiste" ? REALISTIC_SLIDER_GROUPS : PROPORTION_SLIDER_GROUPS;
+  const activeProportions = renderStyle === "tubulaire" ? tubulaireProportions : renderStyle === "humain" ? humainProportions : renderStyle === "realiste" ? realisticProportions : proportions;
+  const sliderGroups = renderStyle === "tubulaire" ? TUBULAIRE_SLIDER_GROUPS : renderStyle === "humain" ? HUMAIN_SLIDER_GROUPS : renderStyle === "realiste" ? REALISTIC_SLIDER_GROUPS : PROPORTION_SLIDER_GROUPS;
 
   useEffect(() => {
     try {
@@ -1342,6 +1501,10 @@ export function MouvementsAnimesTab() {
     try {
       const savedHumain = JSON.parse(localStorage.getItem("tf_mannequin_proportions_humain") || "null");
       if (savedHumain) setHumainProportions({ ...HUMAIN_PROPORTIONS, ...savedHumain });
+    } catch (e) {}
+    try {
+      const savedTubulaire = JSON.parse(localStorage.getItem("tf_mannequin_proportions_tubulaire") || "null");
+      if (savedTubulaire) setTubulaireProportions({ ...TUBULAIRE_PROPORTIONS, ...savedTubulaire });
     } catch (e) {}
   }, []);
 
@@ -1381,8 +1544,20 @@ export function MouvementsAnimesTab() {
     setHumainProportions(HUMAIN_PROPORTIONS);
     try { localStorage.removeItem("tf_mannequin_proportions_humain"); } catch (e) {}
   }
-  const updateActiveProportion = renderStyle === "humain" ? updateHumainProportion : renderStyle === "realiste" ? updateRealisticProportion : updateProportion;
-  const resetActiveProportions = renderStyle === "humain" ? resetHumainProportions : renderStyle === "realiste" ? resetRealisticProportions : resetProportions;
+  function updateTubulaireProportion(key, value) {
+    setTubulaireProportions((prev) => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem("tf_mannequin_proportions_tubulaire", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }
+  function resetTubulaireProportions() {
+    if (!confirm("Revenir aux proportions par défaut du style tubulaire ? Tes réglages actuels seront perdus.")) return;
+    setTubulaireProportions(TUBULAIRE_PROPORTIONS);
+    try { localStorage.removeItem("tf_mannequin_proportions_tubulaire"); } catch (e) {}
+  }
+  const updateActiveProportion = renderStyle === "tubulaire" ? updateTubulaireProportion : renderStyle === "humain" ? updateHumainProportion : renderStyle === "realiste" ? updateRealisticProportion : updateProportion;
+  const resetActiveProportions = renderStyle === "tubulaire" ? resetTubulaireProportions : renderStyle === "humain" ? resetHumainProportions : renderStyle === "realiste" ? resetRealisticProportions : resetProportions;
   function toggleGroup(title) {
     setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
   }
@@ -1452,9 +1627,11 @@ export function MouvementsAnimesTab() {
         <button className={`qcm-option ${renderStyle === "actuel" ? "selected" : ""}`} onClick={() => setRenderStyle("actuel")}>Style actuel</button>
         <button className={`qcm-option ${renderStyle === "realiste" ? "selected" : ""}`} onClick={() => setRenderStyle("realiste")}>Nouveau style (proposition)</button>
         <button className={`qcm-option ${renderStyle === "humain" ? "selected" : ""}`} onClick={() => setRenderStyle("humain")}>Silhouette humaine (proposition)</button>
+        <button className={`qcm-option ${renderStyle === "tubulaire" ? "selected" : ""}`} onClick={() => setRenderStyle("tubulaire")}>Style tubulaire (proposition)</button>
       </div>
       {renderStyle === "realiste" && <p className="hint" style={{ marginBottom: 12 }}>Membres effilés (plus larges près du tronc) et torse en une seule silhouette, plutôt que deux ovales superposés.</p>}
       {renderStyle === "humain" && <p className="hint" style={{ marginBottom: 12 }}>Bras et jambes en une seule silhouette courbe, sans rond au coude ni au genou, et torse aux contours arrondis plutôt qu'à angles nets — pour se rapprocher encore d'un vrai corps.</p>}
+      {renderStyle === "tubulaire" && <p className="hint" style={{ marginBottom: 12 }}>Technique différente des deux précédentes : bras, jambes et torse sont chacun une chaîne de cercles superposés plutôt qu'un contour dessiné — la rondeur à un coude ou un genou vient du cercle lui-même, pas d'une courbe à ajuster.</p>}
       <button className="btn btn-ghost btn-small" onClick={() => setShowSettings((s) => !s)} style={{ marginBottom: 12 }}>{showSettings ? "Masquer les réglages" : "Régler les proportions"}</button>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
