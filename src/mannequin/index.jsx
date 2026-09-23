@@ -288,6 +288,148 @@ function drawMannequinRealiste(ctx, pose, w, h, proportions = REALISTIC_PROPORTI
   ctx.restore();
 }
 
+// ============================================================================
+// PROPOSITION : troisième style de rendu, pour se rapprocher encore d'un vrai corps
+// humain. Même principe que "réaliste" (aucune coordonnée d'articulation retouchée,
+// seul le dessin change), avec deux différences supplémentaires — les deux points qui
+// font le plus "pantin en bois" dans les styles précédents :
+// - Chaque bras et chaque jambe est UNE seule silhouette continue (épaule→coude→
+//   poignet, hanche→genou→cheville) au lieu de deux segments effilés raccordés par un
+//   rond au niveau du coude/genou — plus de "boule" d'articulation ; la largeur au
+//   coude/genou se règle directement et pince naturellement la silhouette, comme une
+//   vraie peau qui se resserre là où elle plie.
+// - Le torse relie ses quatre largeurs (épaule/poitrine/taille/hanche) par des courbes
+//   plutôt que des segments droits, pour des contours arrondis à la place des angles
+//   nets du style "réaliste".
+// ============================================================================
+const HUMAIN_PROPORTIONS = {
+  shoulderWidth: 0.11, chestWidth: 0.125, waistWidth: 0.078, hipWidth: 0.105,
+  chestPosition: 0.32, waistPosition: 0.62,
+  headWidth: 0.05, headHeight: 0.068, neckWidth: 0.034,
+  armWidthShoulder: 0.05, armWidthElbow: 0.032, armWidthWrist: 0.026, handSize: 0.032,
+  legWidthHip: 0.075, legWidthKnee: 0.046, legWidthAnkle: 0.03, footSize: 0.044,
+  shoulderJointSize: 0.028, hipJointSize: 0.032,
+  backLimbOpacity: 0.5,
+};
+
+// Un membre entier (ex. épaule→coude→poignet) en une seule silhouette continue, au lieu de deux
+// segments effilés raccordés par un rond au niveau de l'articulation — évite l'effet "pantin en
+// bois à boules". Une seule courbe de Bézier quadratique de chaque côté (proche→loin), avec le
+// point du milieu (coude/genou) comme simple guide : sa largeur influence le pincement de
+// l'articulation sans jamais devenir un coin dur, contrairement à un rond posé par-dessus.
+function drawLimbSilhouette(ctx, p0, p1, p2, r0, r1, r2, alpha) {
+  if (!p0 || !p1 || !p2) return;
+  const d0x = p1.x - p0.x, d0y = p1.y - p0.y, len0 = Math.hypot(d0x, d0y) || 0.001;
+  const d1x = p2.x - p1.x, d1y = p2.y - p1.y, len1 = Math.hypot(d1x, d1y) || 0.001;
+  const perp0x = -d0y / len0, perp0y = d0x / len0;
+  const perp1x = -d1y / len1, perp1y = d1x / len1;
+  let bx = perp0x + perp1x, by = perp0y + perp1y;
+  const bLen = Math.hypot(bx, by) || 0.001;
+  bx /= bLen; by /= bLen;
+
+  const L0x = p0.x + perp0x * r0, L0y = p0.y + perp0y * r0;
+  const L1x = p1.x + bx * r1, L1y = p1.y + by * r1;
+  const L2x = p2.x + perp1x * r2, L2y = p2.y + perp1y * r2;
+  const R0x = p0.x - perp0x * r0, R0y = p0.y - perp0y * r0;
+  const R1x = p1.x - bx * r1, R1y = p1.y - by * r1;
+  const R2x = p2.x - perp1x * r2, R2y = p2.y - perp1y * r2;
+
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.moveTo(L0x, L0y);
+  ctx.quadraticCurveTo(L1x, L1y, L2x, L2y);
+  ctx.lineTo(R2x, R2y);
+  ctx.quadraticCurveTo(R1x, R1y, R0x, R0y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Relie une suite de points par des courbes lissées : le premier et le dernier point restent
+// exacts (de vraies articulations, épaule/hanche, où le reste du corps se raccorde), les points
+// intermédiaires (poitrine/taille) ne servent qu'à arrondir le passage plutôt qu'à créer un coin
+// dur — même principe que drawLimbSilhouette, étendu à plus de deux segments pour le torse.
+function smoothSidePath(ctx, points, isFirst) {
+  if (isFirst) ctx.moveTo(points[0].x, points[0].y); else ctx.lineTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length - 1; i++) {
+    const next = points[i + 1];
+    const midx = (points[i].x + next.x) / 2, midy = (points[i].y + next.y) / 2;
+    ctx.quadraticCurveTo(points[i].x, points[i].y, midx, midy);
+  }
+  ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+}
+
+// Torse en une seule silhouette aux contours arrondis — mêmes quatre largeurs (épaule / poitrine /
+// taille / hanche) et le même calcul de coupe transversale que drawTorsoRealiste ; seule la façon
+// de relier les quatre largeurs entre elles change (courbes via smoothSidePath plutôt que segments
+// droits).
+function drawTorsoHumain(ctx, epaule, hanche, proportions) {
+  const spineX = hanche.x - epaule.x, spineY = hanche.y - epaule.y;
+  const spineLen = Math.hypot(spineX, spineY) || 0.001;
+  const perpX = -spineY / spineLen, perpY = spineX / spineLen;
+  function crossSection(t, widthFactor) {
+    const cx = epaule.x + spineX * t, cy = epaule.y + spineY * t;
+    const r = (spineLen * widthFactor) / 2;
+    return { left: { x: cx + perpX * r, y: cy + perpY * r }, right: { x: cx - perpX * r, y: cy - perpY * r } };
+  }
+  const shoulder = crossSection(0, proportions.shoulderWidth);
+  const chest = crossSection(proportions.chestPosition, proportions.chestWidth);
+  const waist = crossSection(proportions.waistPosition, proportions.waistWidth);
+  const hip = crossSection(1, proportions.hipWidth);
+
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  smoothSidePath(ctx, [shoulder.left, chest.left, waist.left, hip.left], true);
+  smoothSidePath(ctx, [hip.right, waist.right, chest.right, shoulder.right], false);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMannequinHumain(ctx, pose, w, h, proportions = HUMAIN_PROPORTIONS) {
+  if (!pose) return;
+  const P = (name) => ({ x: pose[name].x * w, y: pose[name].y * h });
+  ctx.save();
+  ctx.fillStyle = "#2B2235";
+  ctx.strokeStyle = "#2B2235";
+
+  const tete = P("tete"), epaule = P("epaule"), hanche = P("hanche");
+  const coudeA = pose.coude_avant ? P("coude_avant") : null, mainA = pose.main_avant ? P("main_avant") : null;
+  const genouA = pose.genou_avant ? P("genou_avant") : null, chevilleA = pose.cheville_avant ? P("cheville_avant") : null, piedA = pose.pied_avant ? P("pied_avant") : null;
+  const coudeR = pose.coude_arriere ? P("coude_arriere") : null, mainR = pose.main_arriere ? P("main_arriere") : null;
+  const genouR = pose.genou_arriere ? P("genou_arriere") : null, chevilleR = pose.cheville_arriere ? P("cheville_arriere") : null, piedR = pose.pied_arriere ? P("pied_arriere") : null;
+
+  const scale = Math.min(w, h);
+  const backAlpha = proportions.backLimbOpacity;
+
+  // Membres arrière : bras et jambe en une seule silhouette chacun
+  drawLimbSilhouette(ctx, epaule, coudeR, mainR, scale * proportions.armWidthShoulder, scale * proportions.armWidthElbow, scale * proportions.armWidthWrist, backAlpha);
+  drawLimbSilhouette(ctx, hanche, genouR, chevilleR, scale * proportions.legWidthHip, scale * proportions.legWidthKnee, scale * proportions.legWidthAnkle, backAlpha);
+  drawHandFoot(ctx, coudeR, mainR, scale * proportions.handSize, backAlpha);
+  drawHandFoot(ctx, chevilleR, piedR, scale * proportions.footSize, backAlpha);
+
+  // Torse (silhouette pleine aux contours arrondis)
+  drawTorsoHumain(ctx, epaule, hanche, proportions);
+
+  // Cou : trapèze effilé, comme le style réaliste (segment trop court pour que la courbure
+  // change grand-chose à l'échelle du pantin)
+  drawTaperedLimb(ctx, tete, epaule, scale * proportions.neckWidth * 0.85, scale * proportions.neckWidth * 1.15, 1);
+
+  // Membres avant
+  drawLimbSilhouette(ctx, epaule, coudeA, mainA, scale * proportions.armWidthShoulder, scale * proportions.armWidthElbow, scale * proportions.armWidthWrist, 1);
+  drawLimbSilhouette(ctx, hanche, genouA, chevilleA, scale * proportions.legWidthHip, scale * proportions.legWidthKnee, scale * proportions.legWidthAnkle, 1);
+  drawHandFoot(ctx, coudeA, mainA, scale * proportions.handSize, 1);
+  drawHandFoot(ctx, chevilleA, piedA, scale * proportions.footSize, 1);
+
+  // Épaule et hanche : petit raccord entre le torse et les membres, comme le style réaliste
+  drawJointCircle(ctx, epaule, scale * proportions.shoulderJointSize, 1);
+  drawJointCircle(ctx, hanche, scale * proportions.hipJointSize, 1);
+
+  // Tête
+  ctx.globalAlpha = 1;
+  const headAngle2 = Math.atan2(epaule.y - tete.y, epaule.x - tete.x) - Math.PI / 2;
+  ctx.beginPath(); ctx.ellipse(tete.x, tete.y, scale * proportions.headWidth, scale * proportions.headHeight, headAngle2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 
 const MANNEQUIN_MOVEMENTS = {
   reference: {
@@ -648,7 +790,9 @@ function MannequinPreview({ movementKey, large, proportions, style, onCanvasRead
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, h * 0.97); ctx.lineTo(w, h * 0.97); ctx.stroke();
     if (style === "realiste") {
-      drawMannequinRealiste(ctx, movement.poses[frameIdx], w, h, REALISTIC_PROPORTIONS);
+      drawMannequinRealiste(ctx, movement.poses[frameIdx], w, h, proportions || REALISTIC_PROPORTIONS);
+    } else if (style === "humain") {
+      drawMannequinHumain(ctx, movement.poses[frameIdx], w, h, proportions || HUMAIN_PROPORTIONS);
     } else {
       drawMannequin(ctx, movement.poses[frameIdx], w, h, proportions || DEFAULT_MANNEQUIN_PROPORTIONS);
     }
@@ -979,6 +1123,80 @@ const PROPORTION_SLIDER_GROUPS = [
   ]},
 ];
 
+// Même principe que PROPORTION_SLIDER_GROUPS, pour le style "réaliste" — jusqu'ici seul le style
+// "actuel" avait des réglages, le nouveau style restait figé sur REALISTIC_PROPORTIONS sans qu'on
+// puisse l'ajuster en le regardant.
+const REALISTIC_SLIDER_GROUPS = [
+  { title: "Torse", fields: [
+    { key: "shoulderWidth", label: "Largeur épaules", min: 0.05, max: 0.16, step: 0.002 },
+    { key: "chestWidth", label: "Largeur poitrine", min: 0.06, max: 0.2, step: 0.002 },
+    { key: "waistWidth", label: "Largeur taille", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "hipWidth", label: "Largeur hanches", min: 0.05, max: 0.18, step: 0.002 },
+    { key: "chestPosition", label: "Position poitrine", min: 0.15, max: 0.45, step: 0.01 },
+    { key: "waistPosition", label: "Position taille", min: 0.45, max: 0.8, step: 0.01 },
+  ]},
+  { title: "Tête et cou", fields: [
+    { key: "headWidth", label: "Largeur tête", min: 0.02, max: 0.08, step: 0.002 },
+    { key: "headHeight", label: "Hauteur tête", min: 0.02, max: 0.1, step: 0.002 },
+    { key: "neckWidth", label: "Épaisseur cou", min: 0.01, max: 0.08, step: 0.002 },
+  ]},
+  { title: "Bras", fields: [
+    { key: "armWidthNear", label: "Épaisseur bras (près du tronc)", min: 0.02, max: 0.12, step: 0.002 },
+    { key: "forearmWidthNear", label: "Épaisseur avant-bras (près du coude)", min: 0.02, max: 0.1, step: 0.002 },
+    { key: "elbowSize", label: "Taille coude", min: 0.01, max: 0.06, step: 0.002 },
+    { key: "handSize", label: "Taille main", min: 0.015, max: 0.07, step: 0.002 },
+    { key: "shoulderJointSize", label: "Taille épaule (articulation)", min: 0.01, max: 0.07, step: 0.002 },
+  ]},
+  { title: "Jambes", fields: [
+    { key: "thighWidthNear", label: "Épaisseur cuisse (près de la hanche)", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "shinWidthNear", label: "Épaisseur mollet (près du genou)", min: 0.02, max: 0.12, step: 0.002 },
+    { key: "kneeSize", label: "Taille genou", min: 0.01, max: 0.07, step: 0.002 },
+    { key: "footSize", label: "Taille pied", min: 0.015, max: 0.09, step: 0.002 },
+    { key: "hipJointSize", label: "Taille hanche (articulation)", min: 0.01, max: 0.08, step: 0.002 },
+    { key: "wristAnkleSize", label: "Taille cheville", min: 0.01, max: 0.06, step: 0.002 },
+  ]},
+  { title: "Effilement et profondeur", fields: [
+    { key: "taperFactor", label: "Effilement des membres (1 = épaisseur uniforme)", min: 0.3, max: 1, step: 0.02 },
+    { key: "backLimbOpacity", label: "Opacité membre arrière", min: 0.1, max: 1, step: 0.05 },
+  ]},
+];
+
+// Même principe que PROPORTION_SLIDER_GROUPS / REALISTIC_SLIDER_GROUPS, pour le style "silhouette
+// humaine". Pas de curseur d'effilement unique ici : les trois largeurs de chaque membre
+// (épaule/coude/poignet, hanche/genou/cheville) se règlent directement.
+const HUMAIN_SLIDER_GROUPS = [
+  { title: "Torse", fields: [
+    { key: "shoulderWidth", label: "Largeur épaules", min: 0.05, max: 0.16, step: 0.002 },
+    { key: "chestWidth", label: "Largeur poitrine", min: 0.06, max: 0.2, step: 0.002 },
+    { key: "waistWidth", label: "Largeur taille", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "hipWidth", label: "Largeur hanches", min: 0.05, max: 0.18, step: 0.002 },
+    { key: "chestPosition", label: "Position poitrine", min: 0.15, max: 0.45, step: 0.01 },
+    { key: "waistPosition", label: "Position taille", min: 0.45, max: 0.8, step: 0.01 },
+  ]},
+  { title: "Tête et cou", fields: [
+    { key: "headWidth", label: "Largeur tête", min: 0.02, max: 0.08, step: 0.002 },
+    { key: "headHeight", label: "Hauteur tête", min: 0.02, max: 0.1, step: 0.002 },
+    { key: "neckWidth", label: "Épaisseur cou", min: 0.01, max: 0.08, step: 0.002 },
+  ]},
+  { title: "Bras", fields: [
+    { key: "armWidthShoulder", label: "Épaisseur bras (à l'épaule)", min: 0.02, max: 0.12, step: 0.002 },
+    { key: "armWidthElbow", label: "Épaisseur au coude", min: 0.015, max: 0.08, step: 0.002 },
+    { key: "armWidthWrist", label: "Épaisseur au poignet", min: 0.01, max: 0.06, step: 0.002 },
+    { key: "handSize", label: "Taille main", min: 0.015, max: 0.07, step: 0.002 },
+    { key: "shoulderJointSize", label: "Taille épaule (raccord)", min: 0.01, max: 0.07, step: 0.002 },
+  ]},
+  { title: "Jambes", fields: [
+    { key: "legWidthHip", label: "Épaisseur cuisse (à la hanche)", min: 0.03, max: 0.14, step: 0.002 },
+    { key: "legWidthKnee", label: "Épaisseur au genou", min: 0.02, max: 0.09, step: 0.002 },
+    { key: "legWidthAnkle", label: "Épaisseur à la cheville", min: 0.01, max: 0.06, step: 0.002 },
+    { key: "footSize", label: "Taille pied", min: 0.015, max: 0.09, step: 0.002 },
+    { key: "hipJointSize", label: "Taille hanche (raccord)", min: 0.01, max: 0.08, step: 0.002 },
+  ]},
+  { title: "Profondeur", fields: [
+    { key: "backLimbOpacity", label: "Opacité membre arrière", min: 0.1, max: 1, step: 0.05 },
+  ]},
+];
+
 function emptyEditingPose() {
   const pose = {};
   MANNEQUIN_JOINTS.forEach((j) => { pose[j] = { x: 0.5, y: 0.5 }; });
@@ -1099,6 +1317,8 @@ function PoseEditorTab() {
 export function MouvementsAnimesTab() {
   const [selected, setSelected] = useState("reference");
   const [proportions, setProportions] = useState(DEFAULT_MANNEQUIN_PROPORTIONS);
+  const [realisticProportions, setRealisticProportions] = useState(REALISTIC_PROPORTIONS);
+  const [humainProportions, setHumainProportions] = useState(HUMAIN_PROPORTIONS);
   const [showSettings, setShowSettings] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [renderStyle, setRenderStyle] = useState("actuel");
@@ -1107,11 +1327,21 @@ export function MouvementsAnimesTab() {
   const [videoExportUnsupported, setVideoExportUnsupported] = useState(false);
   const canvasElRef = useRef(null);
   const categories = [...new Set(Object.values(MANNEQUIN_MOVEMENTS).map((m) => m.category))];
+  const activeProportions = renderStyle === "humain" ? humainProportions : renderStyle === "realiste" ? realisticProportions : proportions;
+  const sliderGroups = renderStyle === "humain" ? HUMAIN_SLIDER_GROUPS : renderStyle === "realiste" ? REALISTIC_SLIDER_GROUPS : PROPORTION_SLIDER_GROUPS;
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("tf_mannequin_proportions") || "null");
       if (saved) setProportions({ ...DEFAULT_MANNEQUIN_PROPORTIONS, ...saved });
+    } catch (e) {}
+    try {
+      const savedRealiste = JSON.parse(localStorage.getItem("tf_mannequin_proportions_realiste") || "null");
+      if (savedRealiste) setRealisticProportions({ ...REALISTIC_PROPORTIONS, ...savedRealiste });
+    } catch (e) {}
+    try {
+      const savedHumain = JSON.parse(localStorage.getItem("tf_mannequin_proportions_humain") || "null");
+      if (savedHumain) setHumainProportions({ ...HUMAIN_PROPORTIONS, ...savedHumain });
     } catch (e) {}
   }, []);
 
@@ -1127,6 +1357,32 @@ export function MouvementsAnimesTab() {
     setProportions(DEFAULT_MANNEQUIN_PROPORTIONS);
     try { localStorage.removeItem("tf_mannequin_proportions"); } catch (e) {}
   }
+  function updateRealisticProportion(key, value) {
+    setRealisticProportions((prev) => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem("tf_mannequin_proportions_realiste", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }
+  function resetRealisticProportions() {
+    if (!confirm("Revenir aux proportions par défaut du nouveau style ? Tes réglages actuels seront perdus.")) return;
+    setRealisticProportions(REALISTIC_PROPORTIONS);
+    try { localStorage.removeItem("tf_mannequin_proportions_realiste"); } catch (e) {}
+  }
+  function updateHumainProportion(key, value) {
+    setHumainProportions((prev) => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem("tf_mannequin_proportions_humain", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }
+  function resetHumainProportions() {
+    if (!confirm("Revenir aux proportions par défaut de la silhouette humaine ? Tes réglages actuels seront perdus.")) return;
+    setHumainProportions(HUMAIN_PROPORTIONS);
+    try { localStorage.removeItem("tf_mannequin_proportions_humain"); } catch (e) {}
+  }
+  const updateActiveProportion = renderStyle === "humain" ? updateHumainProportion : renderStyle === "realiste" ? updateRealisticProportion : updateProportion;
+  const resetActiveProportions = renderStyle === "humain" ? resetHumainProportions : renderStyle === "realiste" ? resetRealisticProportions : resetProportions;
   function toggleGroup(title) {
     setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
   }
@@ -1175,7 +1431,7 @@ export function MouvementsAnimesTab() {
         <button className={`qcm-option ${screenMode === "editeur" ? "selected" : ""}`} onClick={() => setScreenMode("editeur")}>Éditeur de pose</button>
       </div>
 
-      {screenMode === "enchainement" && <SequenceBuilder proportions={proportions} renderStyle={renderStyle} />}
+      {screenMode === "enchainement" && <SequenceBuilder proportions={activeProportions} renderStyle={renderStyle} />}
       {screenMode === "editeur" && <PoseEditorTab />}
 
       {screenMode === "bibliotheque" && (
@@ -1195,23 +1451,25 @@ export function MouvementsAnimesTab() {
       <div className="qcm-options" style={{ marginBottom: 12 }}>
         <button className={`qcm-option ${renderStyle === "actuel" ? "selected" : ""}`} onClick={() => setRenderStyle("actuel")}>Style actuel</button>
         <button className={`qcm-option ${renderStyle === "realiste" ? "selected" : ""}`} onClick={() => setRenderStyle("realiste")}>Nouveau style (proposition)</button>
+        <button className={`qcm-option ${renderStyle === "humain" ? "selected" : ""}`} onClick={() => setRenderStyle("humain")}>Silhouette humaine (proposition)</button>
       </div>
-      {renderStyle === "realiste" && <p className="hint" style={{ marginBottom: 12 }}>Membres effilés (plus larges près du tronc) et torse en une seule silhouette, plutôt que deux ovales superposés. Pas encore de réglages pour cette version — dis-moi ce qui te semble aller ou non, et j'ajusterai.</p>}
-      {renderStyle === "actuel" && <button className="btn btn-ghost btn-small" onClick={() => setShowSettings((s) => !s)} style={{ marginBottom: 12 }}>{showSettings ? "Masquer les réglages" : "Régler les proportions"}</button>}
+      {renderStyle === "realiste" && <p className="hint" style={{ marginBottom: 12 }}>Membres effilés (plus larges près du tronc) et torse en une seule silhouette, plutôt que deux ovales superposés.</p>}
+      {renderStyle === "humain" && <p className="hint" style={{ marginBottom: 12 }}>Bras et jambes en une seule silhouette courbe, sans rond au coude ni au genou, et torse aux contours arrondis plutôt qu'à angles nets — pour se rapprocher encore d'un vrai corps.</p>}
+      <button className="btn btn-ghost btn-small" onClick={() => setShowSettings((s) => !s)} style={{ marginBottom: 12 }}>{showSettings ? "Masquer les réglages" : "Régler les proportions"}</button>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ flex: "1 1 320px", minWidth: 280, maxWidth: 420, position: "sticky", top: 10 }}>
-          <MannequinPreview movementKey={selected} large proportions={proportions} style={renderStyle} onCanvasReady={(c) => { canvasElRef.current = c; }} />
+          <MannequinPreview movementKey={selected} large proportions={activeProportions} style={renderStyle} onCanvasReady={(c) => { canvasElRef.current = c; }} />
           <p className="hint" style={{ marginTop: 10 }}>{MANNEQUIN_MOVEMENTS[selected].poses.length > 1 ? `${MANNEQUIN_MOVEMENTS[selected].poses.length} poses-clés, en boucle.` : "Pose statique (mouvement isométrique)."}</p>
           <button className="btn btn-ghost btn-small" onClick={exportVideo} disabled={exportingVideo}>{exportingVideo ? "Enregistrement en cours…" : "Exporter en vidéo"}</button>
           {videoExportUnsupported && <p className="hint" style={{ color: "var(--crimson)" }}>L'enregistrement vidéo n'est pas pris en charge par ce navigateur.</p>}
         </div>
 
-        {showSettings && renderStyle === "actuel" && (
+        {showSettings && (
           <div style={{ flex: "1 1 320px", minWidth: 280 }}>
             <div className="new-match-card">
-              <p className="hint" style={{ marginTop: 0 }}>L'aperçu à côté se met à jour en temps réel. Replie un groupe une fois qu'il te convient pour te concentrer sur le reste. Tes réglages sont sauvegardés et s'appliquent à tous les mouvements.</p>
-              {PROPORTION_SLIDER_GROUPS.map((group) => {
+              <p className="hint" style={{ marginTop: 0 }}>L'aperçu à côté se met à jour en temps réel. Replie un groupe une fois qu'il te convient pour te concentrer sur le reste. Tes réglages sont sauvegardés et s'appliquent à tous les mouvements{renderStyle !== "actuel" ? ", indépendamment des autres styles" : ""}.</p>
+              {sliderGroups.map((group) => {
                 const isCollapsed = !!collapsedGroups[group.title];
                 return (
                   <div key={group.title} style={{ marginBottom: 10, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
@@ -1223,12 +1481,12 @@ export function MouvementsAnimesTab() {
                       <span className="hint" style={{ margin: 0 }}>{isCollapsed ? "▶ afficher" : "▼ replier"}</span>
                     </button>
                     {!isCollapsed && group.fields.map((f) => (
-                      <ProportionSlider key={f.key} label={f.label} value={proportions[f.key]} min={f.min} max={f.max} step={f.step} onChange={(v) => updateProportion(f.key, v)} />
+                      <ProportionSlider key={f.key} label={f.label} value={activeProportions[f.key]} min={f.min} max={f.max} step={f.step} onChange={(v) => updateActiveProportion(f.key, v)} />
                     ))}
                   </div>
                 );
               })}
-              <button className="btn btn-ghost btn-small" onClick={resetProportions}>Réinitialiser les proportions par défaut</button>
+              <button className="btn btn-ghost btn-small" onClick={resetActiveProportions}>Réinitialiser les proportions par défaut</button>
             </div>
           </div>
         )}
