@@ -11038,6 +11038,8 @@ const STARTER_SPONSOR_PACKAGES = [
   { title: "Pack Argent", price: "[À définir]", benefits: "Tout le pack Bronze, logo sur les panneaux de terrain, mention dans la newsletter du club, 2 invitations par match à domicile." },
   { title: "Pack Or", price: "[À définir]", benefits: "Tout le pack Argent, logo sur les maillots d'entraînement, visibilité prioritaire lors des événements du club, rencontre annuelle avec le bureau." },
   { title: "Pack Ponctuel — Événement", price: "[À définir]", benefits: "Visibilité ciblée sur un événement précis (tournoi, loto...) plutôt qu'un engagement à l'année — logo sur la communication de l'événement, stand possible sur place." },
+  { title: "Pack Platine", price: "[À définir]", benefits: "Tout le pack Or, logo sur le flocage des maillots de match (pas seulement entraînement), statut de partenaire titre sur les événements majeurs du club, communication dédiée sur les réseaux sociaux plusieurs fois dans la saison." },
+  { title: "Pack Commerce de proximité", price: "[À définir]", benefits: "Formule accessible pensée pour les petits commerces locaux : mention sur le site et les réseaux, affichette du commerce au club-house — sans les contreparties logo terrain/maillot des packs plus élevés." },
 ];
 
 function PackagesSponsoringTab() {
@@ -11072,7 +11074,7 @@ function PackagesSponsoringTab() {
   return (
     <div>
       <p className="radar-note">Des packages types à proposer à de nouveaux partenaires.</p>
-      {packages.length === 0 && <button className="btn btn-ghost btn-small" onClick={populatePackageStarters} style={{ marginBottom: 14, display: "block" }}>Importer les packages de départ (4)</button>}
+      {packages.length === 0 && <button className="btn btn-ghost btn-small" onClick={populatePackageStarters} style={{ marginBottom: 14, display: "block" }}>Importer les packages de départ (6)</button>}
       {!showForm && <button className="btn btn-primary btn-large" onClick={openNew} style={{ marginBottom: 16 }}>+ Nouveau package</button>}
       {showForm && (
         <div className="new-match-card" style={{ marginBottom: 16 }}>
