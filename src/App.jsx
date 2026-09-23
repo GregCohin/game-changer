@@ -15362,6 +15362,9 @@ const STARTER_NUTRITION_RESOURCES = [
   { ageGroup: "U9-U13", title: "Le goûter d'après l'entraînement", content: "Un encas simple (fruit, pain, produit laitier) dans l'heure qui suit l'effort aide à la récupération et évite le coup de fatigue en fin de journée." },
   { ageGroup: "U9-U13", title: "Manger de tout, sans excès ni interdit", content: "À cet âge, le message clé est la diversité alimentaire et le plaisir de manger, pas la restriction. Éviter tout discours centré sur le poids ou la privation, y compris en plaisanterie." },
   { ageGroup: "U9-U13", title: "Le rôle des parents dans les habitudes alimentaires", content: "Le club peut sensibiliser les familles à l'importance d'un rythme de repas régulier les jours d'entraînement et de match, sans se substituer à leur rôle ni donner de consignes précises." },
+  { ageGroup: "U9-U13", title: "Le sommeil, aussi important que l'assiette", content: "À cet âge, la récupération passe autant par le sommeil que par l'alimentation. Rappeler aux familles qu'un coucher tardif la veille d'un entraînement ou d'un match réduit les bénéfices d'une bonne alimentation." },
+  { ageGroup: "U9-U13", title: "Boire de l'eau, pas des boissons sucrées, pendant l'effort", content: "L'eau reste la boisson de référence pour cet âge, y compris pendant l'effort. Les boissons sucrées ou gazeuses n'apportent rien de plus pour la performance et habituent à un goût très sucré." },
+  { ageGroup: "U9-U13", title: "Le fruit plutôt que la barre industrielle en collation", content: "Un fruit frais ou une compote reste une collation aussi efficace qu'une barre industrielle, moins chère et sans emballage — sans pour autant interdire strictement les barres, qui restent pratiques en déplacement." },
 
   // --- U15-U17 ---
   { ageGroup: "U15-U17", title: "Manger suffisamment pendant la croissance", content: "Cette période de développement physique demande davantage d'énergie. Freiner l'appétit à cet âge, y compris par souci d'esthétique ou de poids, peut nuire à la croissance et à la récupération." },
@@ -15369,6 +15372,9 @@ const STARTER_NUTRITION_RESOURCES = [
   { ageGroup: "U15-U17", title: "Hydratation autour de l'entraînement", content: "Boire avant, pendant et après l'effort, avec une attention particulière lors des séances estivales ou particulièrement intenses." },
   { ageGroup: "U15-U17", title: "Repas avant un match ou une séance intense", content: "Privilégier un repas digeste 2 à 3 heures avant l'effort, riche en glucides complexes (pâtes, riz, pain), pour disposer d'énergie sans lourdeur digestive." },
   { ageGroup: "U15-U17", title: "Sensibilisation aux boissons énergisantes", content: "Distinguer les boissons énergisantes (déconseillées à cet âge) des boissons de l'effort, et rappeler que l'eau reste la référence pour la grande majorité des séances." },
+  { ageGroup: "U15-U17", title: "Fer et croissance, une vigilance particulière chez les filles", content: "Les besoins en fer augmentent avec la croissance et, chez les filles, avec les règles. Une fatigue inhabituelle et persistante mérite d'en parler à un médecin plutôt que de la mettre systématiquement sur le compte du sport." },
+  { ageGroup: "U15-U17", title: "Petit-déjeuner solide avant un match du matin", content: "Pour un match tôt le matin, prévoir un petit-déjeuner complet suffisamment tôt (au moins 2 heures avant) pour laisser le temps à la digestion, plutôt que de partir à jeun ou de manger juste avant le coup d'envoi." },
+  { ageGroup: "U15-U17", title: "Attention aux régimes restrictifs à cet âge", content: "Un régime restrictif non encadré médicalement, même motivé par la performance, peut nuire à la croissance et à la récupération à cet âge. Orienter vers un professionnel de santé plutôt que de donner des conseils nutritionnels précis en tant que club." },
 
   // --- U19+/Seniors ---
   { ageGroup: "U19+/Seniors", title: "Stratégie d'hydratation en match", content: "Adapter la quantité bue selon la chaleur et l'intensité, avec des repères simples (sensation de bouche sèche, couleur des urines) plutôt que des calculs complexes de volume." },
@@ -15376,6 +15382,9 @@ const STARTER_NUTRITION_RESOURCES = [
   { ageGroup: "U19+/Seniors", title: "Charge en glucides avant une échéance importante", content: "Augmenter légèrement la part de glucides complexes dans les jours précédant un match à forte intensité, sans bouleverser radicalement les habitudes alimentaires habituelles." },
   { ageGroup: "U19+/Seniors", title: "Gestion de l'alimentation en période de double séance", content: "Fractionner les apports (collations entre les séances) plutôt que de se limiter à trois repas, pour maintenir l'énergie disponible sur l'ensemble de la journée." },
   { ageGroup: "U19+/Seniors", title: "Alcool et récupération sportive", content: "Sensibiliser à l'impact de l'alcool sur la récupération musculaire et la qualité du sommeil, particulièrement dans les heures suivant un match." },
+  { ageGroup: "U19+/Seniors", title: "Nutrition en période de blessure", content: "Pendant une période d'indisponibilité, les besoins énergétiques diminuent mais les besoins en protéines restent élevés pour limiter la fonte musculaire — éviter à la fois la surconsommation par ennui et la sous-alimentation par culpabilité." },
+  { ageGroup: "U19+/Seniors", title: "Compléments alimentaires, prudence et avis professionnel", content: "Un complément alimentaire non contrôlé expose à un risque de contrôle antidopage positif par contamination. Toute prise de complément devrait passer par l'avis d'un professionnel, jamais une décision individuelle isolée." },
+  { ageGroup: "U19+/Seniors", title: "Gérer les repas lors des longs déplacements", content: "Prévoir des repas et collations adaptés pour les déplacements longs (repas digeste avant le trajet, collations pour la route) plutôt que de compter sur les options disponibles sur place, souvent limitées." },
 ];
 
 function RessourcesNutritionTab({ resources, persistResources }) {
@@ -15409,7 +15418,7 @@ function RessourcesNutritionTab({ resources, persistResources }) {
   return (
     <div>
       <p className="radar-note">Des ressources pédagogiques nutrition adaptées à l'âge — les besoins et les messages ne sont pas les mêmes pour un U9 et un senior.</p>
-      {resources.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateNutritionStarters} style={{ marginBottom: 14, display: "block" }}>Importer les ressources de départ (15)</button>}
+      {resources.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateNutritionStarters} style={{ marginBottom: 14, display: "block" }}>Importer les ressources de départ (24)</button>}
       <div className="tabs" style={{ marginBottom: 14 }}>
         <button className={`tab ${ageFilter === "Tous" ? "active" : ""}`} onClick={() => setAgeFilter("Tous")}>Tous</button>
         {NUTRITION_AGE_GROUPS.map((a) => <button key={a} className={`tab ${ageFilter === a ? "active" : ""}`} onClick={() => setAgeFilter(a)}>{a}</button>)}
@@ -15626,18 +15635,22 @@ const STARTER_FOOTWEAR_RECOMMENDATIONS = [
   { fieldType: "Naturel sec", recommendation: "Crampons moulés courts ou lames plutôt que vissés — un terrain sec offre déjà une bonne accroche naturelle, des crampons trop longs gênent les appuis et augmentent le risque de blessure au genou ou à la cheville." },
   { fieldType: "Naturel sec", recommendation: "Privilégier une semelle à crampons multi-directionnels pour accompagner les changements d'appui fréquents sur un sol dur." },
   { fieldType: "Naturel sec", recommendation: "Vérifier régulièrement l'usure des crampons — un terrain sec et dur les use plus vite que prévu, ce qui réduit progressivement l'accroche sans que ce soit toujours visible d'un coup d'œil." },
+  { fieldType: "Naturel sec", recommendation: "Renouveler les crampons dès qu'ils sont émoussés plutôt que d'attendre la fin de saison — un crampon usé glisse avant même de sembler cassé." },
 
   { fieldType: "Naturel humide", recommendation: "Crampons vissés longs (métal ou plastique) pour une meilleure pénétration dans un sol détrempé et éviter les glissades incontrôlées." },
   { fieldType: "Naturel humide", recommendation: "Éviter les crampons moulés courts sur terrain très gras — ils offrent une accroche insuffisante dans ces conditions et augmentent le risque de chute." },
   { fieldType: "Naturel humide", recommendation: "Nettoyer et vérifier le serrage des crampons vissés après chaque utilisation sur terrain humide — l'humidité favorise l'oxydation et le desserrage progressif." },
+  { fieldType: "Naturel humide", recommendation: "Prévoir une paire de chaussettes sèches pour la mi-temps par forte humidité — un pied qui macère augmente le risque d'ampoule et d'irritation." },
 
   { fieldType: "Synthétique", recommendation: "Crampons moulés courts et nombreux (type \"turf\") plutôt que vissés, qui s'usent très rapidement sur cette surface plus dure et abrasive." },
   { fieldType: "Synthétique", recommendation: "Attention aux frottements cutanés, plus fréquents sur synthétique — des chaussettes anti-ampoules réduisent ce risque en cas de sensibilité connue." },
   { fieldType: "Synthétique", recommendation: "Éviter les crampons vissés sur synthétique : au-delà de l'usure rapide, des crampons émoussés deviennent inconfortables voire dangereux sur cette surface." },
+  { fieldType: "Synthétique", recommendation: "Choisir une taille bien ajustée plutôt que large sur synthétique : le jeu au pied plus rapide sur cette surface accentue les frottements liés à un mauvais maintien du pied." },
 
   { fieldType: "Salle/futsal", recommendation: "Chaussures à semelle plate et lisse spécifiques futsal, jamais de crampons — la surface intérieure lisse demande une adhérence différente et les crampons l'abîment." },
   { fieldType: "Salle/futsal", recommendation: "Vérifier régulièrement l'usure de la semelle, qui perd en accroche plus vite en intérieur que sur l'herbe, sans forcément que ce soit visible." },
   { fieldType: "Salle/futsal", recommendation: "Éviter les chaussures de running classiques : elles n'offrent pas l'adhérence latérale nécessaire aux changements de direction fréquents du futsal, ce qui augmente le risque d'entorse." },
+  { fieldType: "Salle/futsal", recommendation: "Vérifier que la semelle ne marque pas le sol de la salle — certains gymnases interdisent les semelles qui laissent des traces, au-delà de la seule question de performance." },
 ];
 
 function ChaussageTab({ footwear, persistFootwear }) {
@@ -15671,7 +15684,7 @@ function ChaussageTab({ footwear, persistFootwear }) {
   return (
     <div>
       <p className="radar-note">Recommandations de chaussage adapté selon le type de terrain.</p>
-      {footwear.length === 0 && <button className="btn btn-ghost btn-small no-print" onClick={populateFootwearStarters} style={{ marginBottom: 12, display: "block" }}>Importer les recommandations de départ (12)</button>}
+      {footwear.length === 0 && <button className="btn btn-ghost btn-small no-print" onClick={populateFootwearStarters} style={{ marginBottom: 12, display: "block" }}>Importer les recommandations de départ (16)</button>}
       <button className="btn btn-ghost btn-small no-print" onClick={() => window.print()} style={{ marginBottom: 12 }}><Download size={13} /> Exporter en PDF</button>
       <div className="tabs no-print" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className={`tab ${fieldFilter === "Tous" ? "active" : ""}`} onClick={() => setFieldFilter("Tous")}>Tous</button>
@@ -16068,18 +16081,29 @@ const STARTER_REHAB_EXERCISES = [
   { title: "Charge progressive lourde et lente", injuryCategory: "Tendineuse", phase: "Renforcement avancé", description: "Alternative au travail excentrique pur (Heavy Slow Resistance) — montée en charge progressive sur un tempo lent, concentrique et excentrique." },
   { title: "Étirement doux post-effort", injuryCategory: "Tendineuse", phase: "Récupération", description: "Étirement léger après l'exercice, jamais en phase aiguë douloureuse. À utiliser en routine post-séance une fois le tendon moins irritable." },
   { title: "Reprise pliométrique progressive", injuryCategory: "Tendineuse", phase: "Réathlétisation", description: "Réintroduction très progressive des sauts, sous surveillance systématique de la douleur le lendemain (règle des 24h — si douleur augmentée, revenir en arrière)." },
+  { title: "Renforcement des muscles adjacents au tendon", injuryCategory: "Tendineuse", phase: "Renforcement", description: "Au-delà du tendon lui-même, renforcer les muscles voisins qui partagent la charge mécanique (ex. mollet profond pour le tendon d'Achille) réduit la contrainte relative sur la zone lésée." },
 
   // --- Osseuse/Fracture ---
   { title: "Mobilisation douce post-immobilisation", injuryCategory: "Osseuse/Fracture", phase: "Sortie d'immobilisation", description: "Reprise très progressive de l'amplitude articulaire après retrait du plâtre ou de l'attelle, uniquement sur accord médical explicite." },
   { title: "Renforcement isométrique léger", injuryCategory: "Osseuse/Fracture", phase: "Début de renforcement", description: "Contractions statiques légères pour limiter la fonte musculaire liée à la période d'immobilisation, sans mise en charge complète." },
   { title: "Mise en charge progressive", injuryCategory: "Osseuse/Fracture", phase: "Renforcement", description: "Réintroduction du poids du corps par paliers, selon l'accord du chirurgien ou du médecin traitant — jamais accélérée par impatience du joueur ou du staff." },
+  { title: "Renforcement musculaire global du membre concerné", injuryCategory: "Osseuse/Fracture", phase: "Renforcement", description: "La période d'immobilisation entraîne une fonte musculaire globale du membre, pas seulement autour du foyer de fracture — un renforcement complet est nécessaire avant la réathlétisation." },
+  { title: "Marche sur terrain varié", injuryCategory: "Osseuse/Fracture", phase: "Réathlétisation", description: "Une fois l'appui complet validé, marcher sur des surfaces variées (herbe, terrain irrégulier) réhabitue le pied et la cheville aux appuis réels du terrain, avant de réintroduire la course." },
   { title: "Reprise de l'appui unipodal", injuryCategory: "Osseuse/Fracture", phase: "Réathlétisation", description: "Étape de validation avant la reprise de la course — teste la tolérance à la charge complète sur un seul appui, sans compensation." },
 
   // --- Contusion ---
   { title: "Mobilité douce sans étirement forcé", injuryCategory: "Contusion", phase: "Phase aiguë", description: "Amplitude légère uniquement, sans jamais étirer activement en phase aiguë — un étirement forcé sur un hématome augmente le risque de myosite ossifiante." },
   { title: "Marche et vélo sans résistance", injuryCategory: "Contusion", phase: "Récupération précoce", description: "Activité cardiovasculaire légère sans impact ni résistance, pour maintenir la circulation sanguine sans stresser mécaniquement la zone contusionnée." },
+  { title: "Massage décontracturant léger à distance de la phase aiguë", injuryCategory: "Contusion", phase: "Récupération précoce", description: "Une fois la phase aiguë passée (au moins 48-72h), un massage léger peut favoriser la résorption de l'hématome — jamais masser directement sur un hématome encore chaud ou douloureux." },
   { title: "Renforcement léger progressif", injuryCategory: "Contusion", phase: "Renforcement", description: "Une fois la douleur aiguë passée, reprise du renforcement classique à charge modérée, en surveillant l'absence de regain de gonflement." },
+  { title: "Renforcement excentrique avant reprise du contact", injuryCategory: "Contusion", phase: "Renforcement", description: "Un travail excentrique léger sur le muscle contusionné avant la reprise du contact réduit le risque de récidive sur un nouveau choc au même endroit." },
   { title: "Reprise du contact protégé", injuryCategory: "Contusion", phase: "Réathlétisation", description: "Réintroduction du contact avec protection (coquille, strapping renforcé) avant validation du retour au contact sans protection." },
+
+  // --- Commotion --- (graduel plutôt que musculaire — cohérent avec les phases du programme RTP correspondant)
+  { title: "Activité cognitive légère minutée", injuryCategory: "Commotion", phase: "Activité légère sans symptômes", description: "Courtes périodes d'activité cognitive (lecture, écran) strictement minutées, en s'arrêtant au premier signe de réapparition des symptômes, pas seulement en cas d'aggravation nette." },
+  { title: "Retour progressif à la lumière et aux écrans", injuryCategory: "Commotion", phase: "Activité légère sans symptômes", description: "Réintroduire progressivement l'exposition aux écrans et à la lumière vive, souvent des déclencheurs de symptômes résiduels, plutôt qu'un retour brutal dès la disparition des symptômes au repos." },
+  { title: "Marche ou vélo à très faible intensité", injuryCategory: "Commotion", phase: "Exercice aérobie léger", description: "Effort cardiovasculaire très modéré, sans impact ni risque de chute, pour tester la tolérance à l'élévation de la fréquence cardiaque sans réveiller les symptômes." },
+  { title: "Exercices de coordination sans contact", injuryCategory: "Commotion", phase: "Exercices spécifiques sans contact", description: "Jonglerie, passes, conduite de balle en solo — teste la coordination et la concentration sous sollicitation cognitive légère, toujours sans contact ni risque de choc à la tête." },
 ];
 
 function ExercicesReeducationTab({ rehabExercises, persistRehab }) {
@@ -16113,7 +16137,7 @@ function ExercicesReeducationTab({ rehabExercises, persistRehab }) {
   return (
     <div>
       <p className="radar-note">Une bibliothèque d'exercices de rééducation classée par type de blessure — à piocher, en complément des phases déjà définies dans les programmes de retour au jeu.</p>
-      {rehabExercises.length === 0 && <button className="btn btn-ghost btn-small no-print" onClick={populateRehabStarters} style={{ marginBottom: 12, display: "block" }}>Importer les exercices de rééducation de départ (25)</button>}
+      {rehabExercises.length === 0 && <button className="btn btn-ghost btn-small no-print" onClick={populateRehabStarters} style={{ marginBottom: 12, display: "block" }}>Importer les exercices de rééducation de départ (34)</button>}
       <button className="btn btn-ghost btn-small no-print" onClick={() => window.print()} style={{ marginBottom: 12 }}><Download size={13} /> Exporter en PDF</button>
       <div className="tabs no-print" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className={`tab ${categoryFilter === "Tous" ? "active" : ""}`} onClick={() => setCategoryFilter("Tous")}>Tous</button>
