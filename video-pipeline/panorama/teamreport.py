@@ -27,9 +27,11 @@ def series(D, team, **kw):
 
 
 def block_boot(R, seed=1):
-    """Moyennes (m) et IC 95 % par bootstrap sur des blocs de 5 min (le temps est corrélé)."""
+    """Moyennes (m) et IC 95 % par bootstrap sur des blocs de 5 min (le temps est corrélé) ; None si aucun bloc de 5 min n'atteint le minimum d'images."""
     blocks = (R[:, 0] // 300).astype(int)
     ub = [b for b in np.unique(blocks) if (blocks == b).sum() >= 50]
+    if not ub:
+        return None
     sums = np.array([[R[blocks == b, j].sum() for j in (1, 2, 3)] + [(blocks == b).sum()] for b in ub])
     rng = np.random.default_rng(seed)
     means = np.array([sums[p].sum(0)[:3] / sums[p].sum(0)[3] for p in (rng.integers(0, len(ub), len(ub)) for _ in range(BOOT))])
@@ -47,7 +49,10 @@ def block(R, half=None):
         R = R[R[:, 0] >= S.HALF_CUT_S] if len(R) else R
     if len(R) == 0:                            # classement d'équipe trop peu sûr ce match : pas assez d'images avec N_MIN joueurs à la fois
         return None
-    est, lo, hi = block_boot(R)
+    bb = block_boot(R)
+    if bb is None:                              # aucun bloc de 5 min avec assez d'images (peut arriver pour une seule mi-temps même si le match entier passe)
+        return None
+    est, lo, hi = bb
     f, flo, fhi = frac(est), frac(lo), frac(hi)
     return {"metres": {k: round(float(est[i]), 1) for k, i in (("hauteur", 0), ("largeur", 1), ("profondeur", 2))},
             "extremes_m": {"plus_recule": round(float(R[:, 7].mean()), 1), "plus_avance": round(float(R[:, 8].mean()), 1)},

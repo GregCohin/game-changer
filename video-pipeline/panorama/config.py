@@ -9,6 +9,10 @@ Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des nu
   PANORAMA_BAND       y0,y1 : bande où se trouve le terrain, pour la détection ; défaut 360,800 (capture du 1er match)
   PANORAMA_CUTS       secondes brutes (virgules) où la capture saute du temps de match sans saut d'image (montage/pause) :
                        aucune tranche de traitement ne les enjambe, pour ne jamais faire suivre une piste à travers
+  PANORAMA_BOX_MATCH_PX  tolérance (pixels) pour associer une mesure de piste à sa boîte détectée (couleur d'équipe,
+                       vignettes d'étiquetage) ; défaut 2.0 (capture du 1er match, calage très précis). Un calage moins
+                       précis (revoir calibration_finale.json) laisse passer moins de mesures à 2 px : élargir ici perd
+                       en précision par mesure individuelle mais le classement d'équipe moyenne sur toute la piste
   FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
   NUMBERS_EXPORT      export « numéros de maillot » du site (numeros-joueurs-<match>.json)
 
@@ -24,6 +28,7 @@ PANORAMA_OUT = os.environ.get("PANORAMA_OUT", "")
 PANORAMA_INNER_CROP = os.environ.get("PANORAMA_INNER_CROP", "")
 PANORAMA_BAND = os.environ.get("PANORAMA_BAND", "")
 PANORAMA_CUTS = os.environ.get("PANORAMA_CUTS", "")
+PANORAMA_BOX_MATCH_PX = float(os.environ.get("PANORAMA_BOX_MATCH_PX", "2.0"))
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
 NUMBERS_EXPORT = os.environ.get("NUMBERS_EXPORT", "")
 

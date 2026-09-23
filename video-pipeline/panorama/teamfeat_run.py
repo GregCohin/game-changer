@@ -15,6 +15,7 @@ from panorama import track as T
 from panorama import teamfeat as TF
 from panorama.geometry import PanoramaModel
 from panorama.config import open_panorama
+from panorama.config import PANORAMA_BOX_MATCH_PX
 from panorama.match import CHUNK_S, FPS, MATCH, chunk_bounds, video_info
 
 CAL = T.OUT / "calibration_finale.json"
@@ -59,7 +60,7 @@ def run():
                             continue
                         dd = np.hypot(feet[:, 0] - u, feet[:, 1] - v)
                         b = int(np.argmin(dd))
-                        if dd[b] > 2.0:
+                        if dd[b] > PANORAMA_BOX_MATCH_PX:
                             continue
                         fe = TF.features(f, dets[b]["box"])
                         if fe is not None:
