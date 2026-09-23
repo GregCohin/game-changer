@@ -2,11 +2,18 @@
 
 Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des numéros de maillot du site, qui contient les noms des joueurs.
 
-  PANORAMA_VIDEO   capture d'écran du lecteur Veo en mode panorama (mp4, m4v...) : garder l'enregistrement d'origine, ne pas le recompresser
-  PANORAMA_CROP    x,y,largeur,hauteur : zone du panorama dans la capture (le lecteur Veo entoure le panorama d'interface) ; sans lui, image entière
-  PANORAMA_OUT     dossier des résultats (défaut : video-pipeline/output/panorama) : permet de traiter une autre source sans rien écraser
-  FOLLOWCAM_VIDEO  vidéo de la caméra suiveuse Veo (mp4)
-  NUMBERS_EXPORT   export « numéros de maillot » du site (numeros-joueurs-<match>.json)
+  PANORAMA_VIDEO      capture d'écran du lecteur Veo en mode panorama (mp4, m4v...) : garder l'enregistrement d'origine, ne pas le recompresser
+  PANORAMA_CROP       x,y,largeur,hauteur : zone du panorama dans la capture (le lecteur Veo entoure le panorama d'interface) ; sans lui, image entière
+  PANORAMA_OUT        dossier des résultats (défaut : video-pipeline/output/panorama) : permet de traiter une autre source sans rien écraser
+  PANORAMA_INNER_CROP y0,y1 : zone utile dans le recadrage panorama, sans les barres du lecteur Veo restantes ; défaut 184,900 (capture du 1er match)
+  PANORAMA_BAND       y0,y1 : bande où se trouve le terrain, pour la détection ; défaut 360,800 (capture du 1er match)
+  PANORAMA_CUTS       secondes brutes (virgules) où la capture saute du temps de match sans saut d'image (montage/pause) :
+                       aucune tranche de traitement ne les enjambe, pour ne jamais faire suivre une piste à travers
+  FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
+  NUMBERS_EXPORT      export « numéros de maillot » du site (numeros-joueurs-<match>.json)
+
+Ces deux dernières et les repères de calage (panorama/calibrate.py, output/calib_seed.json du match) dépendent du
+cadrage exact de la capture d'écran : à revérifier par un coup d'œil sur une image quand le cadrage change de match en match.
 """
 import json
 import os
@@ -14,6 +21,9 @@ import os
 PANORAMA_VIDEO = os.environ.get("PANORAMA_VIDEO", "")
 PANORAMA_CROP = os.environ.get("PANORAMA_CROP", "")
 PANORAMA_OUT = os.environ.get("PANORAMA_OUT", "")
+PANORAMA_INNER_CROP = os.environ.get("PANORAMA_INNER_CROP", "")
+PANORAMA_BAND = os.environ.get("PANORAMA_BAND", "")
+PANORAMA_CUTS = os.environ.get("PANORAMA_CUTS", "")
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
 NUMBERS_EXPORT = os.environ.get("NUMBERS_EXPORT", "")
 
@@ -43,6 +53,35 @@ def panorama_crop():
     except ValueError:
         raise SystemExit('PANORAMA_CROP doit valoir "x,y,largeur,hauteur", par exemple 130,14,1660,960.')
     return x, y, w, h
+
+
+def _pair(value, var, default):
+    """(a, b) demandés par une variable d'environnement "a,b", ou le défaut (capture du 1er match)."""
+    if not value:
+        return default
+    try:
+        a, b = (int(v) for v in value.split(","))
+    except ValueError:
+        raise SystemExit(f'{var} doit valoir "a,b", par exemple "{default[0]},{default[1]}".')
+    return a, b
+
+
+def panorama_inner_crop():
+    return _pair(PANORAMA_INNER_CROP, "PANORAMA_INNER_CROP", (184, 900))
+
+
+def panorama_band():
+    return _pair(PANORAMA_BAND, "PANORAMA_BAND", (360, 800))
+
+
+def panorama_cuts():
+    """Secondes brutes des montages durs (PANORAMA_CUTS), triées ; [] s'il n'y en a pas."""
+    if not PANORAMA_CUTS:
+        return []
+    try:
+        return sorted(float(v) for v in PANORAMA_CUTS.split(","))
+    except ValueError:
+        raise SystemExit('PANORAMA_CUTS doit valoir des secondes séparées par des virgules, par exemple "2840".')
 
 
 class PanoramaCapture:

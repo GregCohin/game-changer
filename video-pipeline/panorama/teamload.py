@@ -44,7 +44,8 @@ def measurements_with_rho():
 def tracklet_contacts(D):
     """Instants de contact (deux pistes vivantes à moins de track.CONTACT_M) de chaque piste de D, dans l'ordre des indices de piste."""
     by_id = {}
-    for k in range(20):
+    n_chunks = len(list(MATCH.glob("trk2_*.pkl")))   # pas 20 en dur : un montage dur (PANORAMA_CUTS) peut ajouter une tranche
+    for k in range(n_chunks):
         for rec in pickle.load(open(MATCH / f"trk2_{k:03d}.pkl", "rb"))["tracks"]:
             if len(rec["meas"]) >= 8:
                 by_id[f'{rec["chunk"]}-{rec["id"]}'] = np.array(sorted(set(rec["contacts"])), float)

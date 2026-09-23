@@ -14,6 +14,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
+from panorama import teamfeat as TF
 from panorama.geometry import PanoramaModel
 from panorama.config import open_panorama
 from panorama.identify import load_tracklets
@@ -25,26 +26,39 @@ COLS, ROWS = 6, 8
 HFRAC = 0.21                  # hauteur d'un joueur en px ~ HFRAC x (distance du pied à l'horizon)
 
 
-def sample(n, seed=7, subdir=None):
+def sample(n, seed=7, subdir=None, n_candidates=None, box_px=6.0):
+    """Tire n_candidates pistes (n par défaut) et ne garde pour les planches que les n premières qui ont un
+    descripteur d'équipe propre (boîte détectée à box_px près de la projection) — une tolérance large « rattrape »
+    des pistes mais confond parfois la boîte d'une piste voisine, ce qui bruite l'étiquetage (vu sur ce match :
+    73 % d'exactitude sur l'entraînement à 25 px, 92 % à 6 px)."""
     out = DIR if subdir is None else DIR / subdir
     rnd = random.Random(seed)
     tls = [t for t in load_tracklets(min_hits=20)]
     w = np.array([t.t1 - t.t0 for t in tls], float)
-    idx = list(np.random.default_rng(seed).choice(len(tls), size=n, replace=False, p=w / w.sum()))
+    n_candidates = n_candidates or n
+    idx = list(np.random.default_rng(seed).choice(len(tls), size=min(n_candidates, len(tls)), replace=False, p=w / w.sum()))
     model = PanoramaModel.from_json(CAL)
     cap = open_panorama()
-    items = []
+    candidates = []
     for i in idx:
         tl = tls[int(i)]
         k = rnd.randrange(len(tl.t))
-        items.append(dict(id=f"{tl.id[0]}-{tl.id[1]}", t=float(tl.t[k]), X=float(tl.X[k]), Y=float(tl.Y[k]), dur=float(tl.t1 - tl.t0)))
-    items.sort(key=lambda d: d["t"])
+        candidates.append(dict(id=f"{tl.id[0]}-{tl.id[1]}", t=float(tl.t[k]), X=float(tl.X[k]), Y=float(tl.Y[k]), dur=float(tl.t1 - tl.t0)))
+    candidates.sort(key=lambda d: d["t"])
     out.mkdir(exist_ok=True, parents=True)
-    cells = []
-    for d in items:
+    items, cells, feats = [], [], []
+    for d in candidates:
+        if len(items) >= n:
+            break
         cap.set(cv2.CAP_PROP_POS_MSEC, d["t"] * 1000)
         ok, f = cap.read()
         u, v = model.project(np.array([[d["X"], d["Y"]]]))[0]
+        box = TF.box_at(d["t"], (u, v), max_px=box_px)
+        fe = TF.features(f, box["box"]) if box else None
+        if fe is None:
+            continue
+        items.append(d)
+        feats.append(fe)
         h = HFRAC * (v - (model.vh + model.s * (u - model.u0)))
         x0, x1, y0, y1 = u - 0.9 * h, u + 0.9 * h, v - 1.15 * h, v + 0.15 * h
         M = np.array([[OUT_W / (x1 - x0), 0, -x0 * OUT_W / (x1 - x0)], [0, OUT_H / (y1 - y0), -y0 * OUT_H / (y1 - y0)]])
@@ -63,9 +77,15 @@ def sample(n, seed=7, subdir=None):
             cv2.putText(sheet, str(s + j), (x + 3, y + 11), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
         cv2.imwrite(str(out / f"planche_{s // (COLS * ROWS):02d}.jpg"), sheet, [cv2.IMWRITE_JPEG_QUALITY, 92])
     json.dump(items, open(out / "echantillon.json", "w"), indent=1)
-    print(len(items), "pistes tirées ;", (len(items) + COLS * ROWS - 1) // (COLS * ROWS), "planches dans", out)
+    pickle.dump(feats, open(out / "feat240.pkl", "wb"))
+    print(len(items), f"pistes avec descripteur propre (sur {len(candidates)} tirées) ;",
+          (len(items) + COLS * ROWS - 1) // (COLS * ROWS), "planches dans", out)
 
 
 if __name__ == "__main__":
     if sys.argv[1] == "sample":
-        sample(int(sys.argv[2]) if len(sys.argv) > 2 else 240, int(sys.argv[3]) if len(sys.argv) > 3 else 7, sys.argv[4] if len(sys.argv) > 4 else None)
+        n = int(sys.argv[2]) if len(sys.argv) > 2 else 240
+        seed = int(sys.argv[3]) if len(sys.argv) > 3 else 7
+        subdir = sys.argv[4] if len(sys.argv) > 4 else None
+        n_candidates = int(sys.argv[5]) if len(sys.argv) > 5 else None
+        sample(n, seed, subdir, n_candidates)

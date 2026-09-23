@@ -42,9 +42,11 @@ def frac(v, L=2 * S.L_HALF, W=S.Y_NEAR - S.Y_FAR):
 
 def block(R, half=None):
     if half == 1:
-        R = R[R[:, 0] < S.HALF_CUT_S]
+        R = R[R[:, 0] < S.HALF_CUT_S] if len(R) else R
     elif half == 2:
-        R = R[R[:, 0] >= S.HALF_CUT_S]
+        R = R[R[:, 0] >= S.HALF_CUT_S] if len(R) else R
+    if len(R) == 0:                            # classement d'équipe trop peu sûr ce match : pas assez d'images avec N_MIN joueurs à la fois
+        return None
     est, lo, hi = block_boot(R)
     f, flo, fhi = frac(est), frac(lo), frac(hi)
     return {"metres": {k: round(float(est[i]), 1) for k, i in (("hauteur", 0), ("largeur", 1), ("profondeur", 2))},
@@ -62,45 +64,59 @@ def main():
         R = series(D, team)
         out[name] = {"match": block(R), "mi_temps_1": block(R, 1), "mi_temps_2": block(R, 2), "part_du_match": round(len(R) / n_all, 3)}
         full = series(D, team, n_min=10)
-        v = [full[:, 1].mean(), full[:, 2].mean(), full[:, 3].mean()]
-        out[name]["dix_joueurs"] = {"metres": {k: round(float(v[i]), 1) for k, i in (("hauteur", 0), ("largeur", 1), ("profondeur", 2))},
-                                    "fraction": {k: round(float(x), 3) for k, x in frac(v).items()}, "part_du_match": round(len(full) / n_all, 3)}
-    # sensibilité de l'équipe noire aux réglages de classement / de sélection (mètres)
-    sens = {}
-    for label, kw in (("seuil 0,8", dict(thr=0.8)), ("seuil 0,95", dict(thr=0.95)), (">=8 joueurs", dict(n_min=8)), (">=10 joueurs", dict(n_min=10)), ("sans dédoublonnage", dict(dedup_m=0.0))):
-        R = series(D, 0, **kw)
-        sens[label] = [round(float(R[:, j].mean()), 1) for j in (1, 2, 3)]
-    out["sensibilite_noir_metres"] = sens
-    # sensibilité aux dimensions du terrain retenues : fractions de l'équipe noire (match) pour d'autres étendues
-    R = series(D, 0)
-    est = [R[:, j].mean() for j in (1, 2, 3)]
-    out["sensibilite_etendue_fraction"] = {f"L={L:.0f} m, l={W:.0f} m": {k: round(float(v), 3) for k, v in frac(est, L, W).items()} for L, W in ((100, 64), (105, 68), (110, 72))}
+        if len(full) == 0:                      # classement d'équipe trop peu sûr ce match pour jamais réunir n_min joueurs à la fois (voir plus haut)
+            out[name]["dix_joueurs"] = None
+        else:
+            v = [full[:, 1].mean(), full[:, 2].mean(), full[:, 3].mean()]
+            out[name]["dix_joueurs"] = {"metres": {k: round(float(v[i]), 1) for k, i in (("hauteur", 0), ("largeur", 1), ("profondeur", 2))},
+                                        "fraction": {k: round(float(x), 3) for k, x in frac(v).items()}, "part_du_match": round(len(full) / n_all, 3)}
+    # sensibilité de l'équipe noire aux réglages de classement / de sélection (mètres) : seulement si la forme est calculable
+    R0 = series(D, 0)
+    if len(R0):
+        sens = {}
+        for label, kw in (("seuil 0,8", dict(thr=0.8)), ("seuil 0,95", dict(thr=0.95)), (">=8 joueurs", dict(n_min=8)), (">=10 joueurs", dict(n_min=10)), ("sans dédoublonnage", dict(dedup_m=0.0))):
+            R = series(D, 0, **kw)
+            sens[label] = [round(float(R[:, j].mean()), 1) for j in (1, 2, 3)] if len(R) else None
+        out["sensibilite_noir_metres"] = sens
+        # sensibilité aux dimensions du terrain retenues : fractions de l'équipe noire (match) pour d'autres étendues
+        est = [R0[:, j].mean() for j in (1, 2, 3)]
+        out["sensibilite_etendue_fraction"] = {f"L={L:.0f} m, l={W:.0f} m": {k: round(float(v), 3) for k, v in frac(est, L, W).items()} for L, W in ((100, 64), (105, 68), (110, 72))}
+    else:
+        out["sensibilite_noir_metres"] = None
+        out["sensibilite_etendue_fraction"] = None
     json.dump(out, open(T.OUT / "resultat_equipe_detail.json", "w"), ensure_ascii=False, indent=1)
 
     ours, opp = out["noir"], out["clair"]
 
     def blk(b):
+        if b is None:
+            return None
         return {"blockHeight": b["fraction"]["hauteur"], "width": b["fraction"]["largeur"], "depth": b["fraction"]["profondeur"],
                 "blockHeightM": b["metres"]["hauteur"], "widthM": b["metres"]["largeur"], "depthM": b["metres"]["profondeur"],
                 "rearM": b["extremes_m"]["plus_recule"], "frontM": b["extremes_m"]["plus_avance"]}
+    shape_ok = ours["match"] is not None       # forme d'équipe calculable ce match (>= N_MIN joueurs à la fois, assez souvent) : pas garanti (classement d'équipe difficile selon le match)
     team = {
-        "avgBlockHeight": ours["match"]["fraction"]["hauteur"], "avgWidth": ours["match"]["fraction"]["largeur"], "avgDepth": ours["match"]["fraction"]["profondeur"], "ppda": None,
+        "avgBlockHeight": ours["match"]["fraction"]["hauteur"] if shape_ok else None,
+        "avgWidth": ours["match"]["fraction"]["largeur"] if shape_ok else None,
+        "avgDepth": ours["match"]["fraction"]["profondeur"] if shape_ok else None, "ppda": None,
         "detail": {
             "minPlayers": S.N_MIN, "coverage": ours["part_du_match"],
-            "note": "précision d'environ ±4 points ; mètres réels sur un terrain de 105 × 68 m.",
+            "note": "précision d'environ ±4 points ; mètres réels sur un terrain de 105 × 68 m." if shape_ok else
+                    "forme d'équipe non calculable ce match : jamais assez de joueurs classés en même temps avec assez de certitude (classement noir/clair plus difficile que d'habitude sur cette vidéo).",
             "pitch": {"lengthM": out["etendue_terrain"]["longueur_m"], "widthM": out["etendue_terrain"]["largeur_m"], "basis": "terrain réglementaire 105 x 68 m (vue satellite du stade) ; calage vérifié contre la caméra suiveuse (pente 1,00)"},
-            "ours": {"match": blk(ours["match"]), "half1": blk(ours["mi_temps_1"]), "half2": blk(ours["mi_temps_2"])},
-            "opponent": {"match": blk(opp["match"]), "half1": blk(opp["mi_temps_1"]), "half2": blk(opp["mi_temps_2"]), "coverage": opp["part_du_match"]},
-            "ci95": {"blockHeight": ours["match"]["ic95_fraction"]["hauteur"], "width": ours["match"]["ic95_fraction"]["largeur"], "depth": ours["match"]["ic95_fraction"]["profondeur"]},
-            "fullTeam": {"blockHeight": ours["dix_joueurs"]["fraction"]["hauteur"], "width": ours["dix_joueurs"]["fraction"]["largeur"], "depth": ours["dix_joueurs"]["fraction"]["profondeur"], "coverage": ours["dix_joueurs"]["part_du_match"]},
+            "ours": {"match": blk(ours["match"]), "half1": blk(ours["mi_temps_1"]), "half2": blk(ours["mi_temps_2"])} if shape_ok else None,
+            "opponent": ({"match": blk(opp["match"]), "half1": blk(opp["mi_temps_1"]), "half2": blk(opp["mi_temps_2"]), "coverage": opp["part_du_match"]} if opp["match"] is not None else None) if shape_ok else None,
+            "ci95": {"blockHeight": ours["match"]["ic95_fraction"]["hauteur"], "width": ours["match"]["ic95_fraction"]["largeur"], "depth": ours["match"]["ic95_fraction"]["profondeur"]} if shape_ok else None,
+            "fullTeam": ({"blockHeight": ours["dix_joueurs"]["fraction"]["hauteur"], "width": ours["dix_joueurs"]["fraction"]["largeur"], "depth": ours["dix_joueurs"]["fraction"]["profondeur"], "coverage": ours["dix_joueurs"]["part_du_match"]} if ours["dix_joueurs"] else None) if shape_ok else None,
         },
     }
-    what = "forme d'équipe"
+    what = "forme d'équipe" if shape_ok else "charge physique (forme d'équipe non calculable ce match)"
     charge = T.OUT / "resultat_charge_detail.json"
     if charge.exists():                                   # produit par python -m panorama.teamload (plusieurs minutes)
         ch = json.load(open(charge))
         team["detail"]["load"] = LD.site_block(ch["periodes"], ch["etendueMethode"], ch.get("evolutionMiTemps"))
-        what += " et charge physique"
+        if shape_ok:
+            what += " et charge physique"
     else:
         print("charge physique absente du fichier : lancer d'abord python -m panorama.teamload")
     site = {"source": f"Pipeline vidéo (panoramique Veo) — {what}", "importedAt": None, "players": {}, "team": team, "passNetwork": [], "preciseEvents": []}

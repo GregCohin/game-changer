@@ -48,24 +48,28 @@ def reg_lines():
 
 
 def load_obs():
+    seed = C1.load_seed()
     crops = C1.grab_crops()
     global STATIC
     static = np.load(OUT / "static_lines.npy") if (OUT / "static_lines.npy").exists() else C1.static_lines(crops)
     STATIC = static
     th, pit = C1.tophat(crops[0]), C1.pitch_mask(crops[0])
-    pit_in = cv2.erode(pit.astype(np.uint8), np.ones((15, 15), np.uint8)).astype(bool)
-    ys, xs = np.nonzero(static & pit_in)
+    override = "touchline_points" in seed   # pitch_mask peu fiable pour ce match (couleur d'herbe hors de son réglage habituel) : ne pas s'en servir pour filtrer non plus
+    if override:
+        ys, xs = np.nonzero(static)
+    else:
+        pit_in = cv2.erode(pit.astype(np.uint8), np.ones((15, 15), np.uint8)).astype(bool)
+        ys, xs = np.nonzero(static & pit_in)
     P = np.stack([xs, ys], 1).astype(float)
-    return crops, P, C1.near_touchline(th, pit)
+    tx0, tx1 = seed["touchline_x"]
+    touche = np.array(seed["touchline_points"], float) if override else C1.near_touchline(th, pit, x0=tx0, x1=tx1)
+    return crops, P, touche, seed
 
 
 STATIC = None
-END_LEFT = [(329.5, 309.5), (418, 362), (518, 416)]          # touche proche à gauche, du coin vers le milieu (pixels du recadrage, lus sur l'image)
-END_RIGHT = [(1619, 354), (1542, 394), (1465, 438)]
-CORNERS = {"proche-gauche": ((-52.5, 34.0), (329.5, 309.5)), "proche-droit": ((52.5, 34.0), (1619.0, 354.0))}
 
 
-def assign(model, lines, P, touche, r):
+def assign(model, lines, P, touche, r, end_left, end_right):
     """Pixels observés -> ligne du modèle la plus proche (dans un rayon r px). La touche proche garde sa détection dédiée."""
     trees, names = [], []
     for k, XY in lines.items():
@@ -80,12 +84,12 @@ def assign(model, lines, P, touche, r):
         sel = (best == i) & (D[np.arange(len(P)), i] < r)
         if sel.sum() >= 15:
             obs[k] = P[sel]
-    ends = np.vstack([C1.roi(STATIC, END_LEFT, 7.0), C1.roi(STATIC, END_RIGHT, 7.0)])          # bouts de la touche proche, jusqu'aux coins
+    ends = np.vstack([C1.roi(STATIC, end_left, 7.0), C1.roi(STATIC, end_right, 7.0)])          # bouts de la touche proche, jusqu'aux coins
     obs["touche_proche"] = np.vstack([touche, ends])
     return obs
 
 
-def fit(x0, lines, obs, free, bounds):
+def fit(x0, lines, obs, free, bounds, corners):
     idx = [PARAMS.index(k) for k in free]
     base = np.array(x0, float)
 
@@ -96,7 +100,7 @@ def fit(x0, lines, obs, free, bounds):
         for k, P in obs.items():
             d = cKDTree(m.project(lines[k])).query(P)[0]
             res.append((0.5 if k == "touche_proche" else 1.0) * d / math.sqrt(max(1.0, len(P) / 150.0)))   # évite qu'une ligne longue écrase les autres
-        for XY, uv in CORNERS.values():
+        for XY, uv in corners.values():
             res.append(0.5 * (m.project(np.array([XY]))[0] - np.array(uv)))                           # coins : repères ponctuels de coordonnées connues
         return np.concatenate(res)
 
@@ -114,11 +118,13 @@ def report(m, lines, obs):
     return out
 
 
-BOUNDS = dict(Xc=(-30, 30), Yc=(30, 120), fx=(300, 1500), A=(3000, 30000), u0=(700, 1200), vh=(-600, 300), s=(-0.2, 0.2), k3=(-0.5, 0.5), c2=(-5e-4, 5e-4), B=(-3e5, 3e5), phi=(-0.3, 0.3), k5=(-0.3, 0.3))
+BOUNDS = dict(Xc=(-30, 30), Yc=(30, 120), fx=(300, 3000), A=(3000, 30000), u0=(300, 2700), vh=(-600, 300), s=(-0.2, 0.2), k3=(-0.5, 0.5), c2=(-5e-4, 5e-4), B=(-3e5, 3e5), phi=(-0.3, 0.3), k5=(-0.3, 0.3))
 
 
 def main():
-    crops, P, touche = load_obs()
+    crops, P, touche, seed = load_obs()
+    end_left, end_right = seed["end_left"], seed["end_right"]
+    corners = {k: (tuple(v[0]), tuple(v[1])) for k, v in seed["corners"].items()}
     lines = reg_lines()
     j = __import__("json").load(open(OUT / "calibration_tan__reglementaire.json"))
     x = PanoramaModel2(j["Xc"], j["Yc"], j["fx"], j["A"], j["u0"], j["vh"], j["s"]).vector()
@@ -133,15 +139,15 @@ def main():
     ]
     for free, r in free_sets:
         m = PanoramaModel2.from_vector(x)
-        obs = assign(m, lines, P, touche, r)
-        x, cost = fit(x, lines, obs, free, BOUNDS)
+        obs = assign(m, lines, P, touche, r, end_left, end_right)
+        x, cost = fit(x, lines, obs, free, BOUNDS, corners)
         m = PanoramaModel2.from_vector(x)
         rep = report(m, lines, obs)
         med = np.median([v[1] for v in rep.values()])
         print(f"r={r:4.0f} px libres={len(free):2d}  lignes {len(obs):2d}  pixels {sum(len(v) for v in obs.values()):6d}  coût {cost:9.0f}  médiane des écarts {med:.2f} px")
     print("paramètres :", {k: round(float(v), 5) for k, v in zip(PARAMS, x)})
     m0 = PanoramaModel2.from_vector(x)
-    for k, (XY, uv) in CORNERS.items():
+    for k, (XY, uv) in corners.items():
         print(f"coin {k}: prédit {np.round(m0.project(np.array([XY]))[0], 1)} observé {uv}")
     print("écarts par ligne (n, médiane px, p90 px) :")
     for k, v in rep.items():

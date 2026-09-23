@@ -15,17 +15,18 @@ from panorama import track as T
 from panorama import teamfeat as TF
 from panorama.geometry import PanoramaModel
 from panorama.config import open_panorama
-from panorama.match import CHUNK_S, FPS, MATCH, video_info
+from panorama.match import CHUNK_S, FPS, MATCH, chunk_bounds, video_info
 
 CAL = T.OUT / "calibration_finale.json"
 
 
 def run():
-    native, total, per_chunk, nchunks = video_info()
+    native, total, per_chunk, _ = video_info()
+    bounds = chunk_bounds()
     step = round(native / FPS)
     model = PanoramaModel.from_json(CAL)
     cap = open_panorama()
-    for k in range(nchunks):
+    for k, (start, end) in enumerate(bounds):
         path = MATCH / f"feat_{k:03d}.pkl"
         trk = MATCH / f"trk2_{k:03d}.pkl"
         if path.exists() or not trk.exists():
@@ -45,10 +46,8 @@ def run():
             for j in range(len(m)):
                 by_frame.setdefault(int(fi[j]), []).append((ti, j, uv[j, 0], uv[j, 1]))
         out = {(rec["chunk"], rec["id"]): np.full((len(rec["meas"]), len(TF.FEATURE_NAMES)), np.nan, np.float32) for rec in tracks}
-        start = k * per_chunk
         cap.set(cv2.CAP_PROP_POS_FRAMES, start)
         idx, fnum = start, 0
-        end = min(total, (k + 1) * per_chunk)
         while idx < end and cap.grab():
             if (idx - start) % step == 0:
                 if fnum in by_frame:
@@ -73,7 +72,7 @@ def run():
         tmp.rename(path)
         got = sum(int((~np.isnan(v[:, 0])).sum()) for v in out.values())
         allm = sum(len(v) for v in out.values())
-        print(f"tranche {k + 1}/{nchunks} : {got}/{allm} mesures décrites en {time.time() - t_start:.0f} s", flush=True)
+        print(f"tranche {k + 1}/{len(bounds)} : {got}/{allm} mesures décrites en {time.time() - t_start:.0f} s", flush=True)
     print("descripteurs terminés", flush=True)
 
 

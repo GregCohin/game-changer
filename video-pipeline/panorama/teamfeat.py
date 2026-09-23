@@ -27,9 +27,23 @@ def load_boxes(chunk, cache={}):
     return cache[chunk]
 
 
+def chunk_of(t, bounds_cache={}):
+    """Indice de tranche contenant l'instant t (secondes) : par bornes réelles en secondes (panorama.match.chunk_bounds,
+    converties par le fps natif), pas t // CHUNK_S qui suppose des tranches de durée uniforme — faux dès qu'un montage
+    dur (PANORAMA_CUTS) en a raccourci une."""
+    if "bounds_s" not in bounds_cache:
+        from panorama.match import chunk_bounds, video_info
+        native = video_info()[0]
+        bounds_cache["bounds_s"] = [(s / native, e / native) for s, e in chunk_bounds()]
+    for k, (start_s, end_s) in enumerate(bounds_cache["bounds_s"]):
+        if start_s <= t < end_s:
+            return k
+    return len(bounds_cache["bounds_s"]) - 1
+
+
 def box_at(t, foot_uv, max_px=4.0):
     """Boîte détectée (px plein cadre) dont le pied est le plus proche de foot_uv à l'instant t."""
-    chunk = int(t // CHUNK_S)
+    chunk = chunk_of(t)
     t0, frames = load_boxes(chunk)
     i = int(round((t - t0) * 10.0))
     if not (0 <= i < len(frames)):

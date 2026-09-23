@@ -12,11 +12,11 @@ import numpy as np
 from ultralytics import YOLO
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.config import PANORAMA_OUT, open_panorama
+from panorama.config import PANORAMA_OUT, open_panorama, panorama_band
 
 ROOT = Path(__file__).parent.parent
 OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else ROOT / "output" / "panorama"
-BAND_Y0, BAND_Y1 = 360, 800   # bande de l'image (pixels bruts) où se trouve le terrain, ligne de touche proche comprise
+BAND_Y0, BAND_Y1 = panorama_band()   # bande de l'image (pixels bruts) où se trouve le terrain, ligne de touche proche comprise ; PANORAMA_BAND
 WEIGHTS = ROOT / "weights" / "yolov8m-640-football-players.pt"
 
 

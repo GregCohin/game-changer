@@ -4,6 +4,7 @@ Usage : python -m panorama.calibrate [variante] (depuis video-pipeline/, venv ac
 Compare plusieurs modèles / niveaux de contraintes et écrit output/panorama/calibration_<variante>.json
 + une image de contrôle.
 """
+import json
 import math
 import sys
 from pathlib import Path
@@ -15,11 +16,37 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama.geometry import PanoramaModel, CROP_Y0, CROP_Y1
-from panorama.config import open_panorama
+from panorama.config import PANORAMA_OUT, open_panorama
 
-OUT = Path(__file__).parent.parent / "output" / "panorama"
+OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else Path(__file__).parent.parent / "output" / "panorama"
 TIMES = (900, 1800, 3600)
 REG = dict(L=105.0, W=68.0, Dp=16.5, Wp=40.32, Rc=9.15)   # dimensions réglementaires (11 contre 11)
+
+# Repères approximatifs (pixels du recadrage) pour amorcer le calage : ceux du 1er match (ALDM-FCSN). Un autre
+# match (cadrage différent) doit fournir output/calib_seed.json (dans son propre PANORAMA_OUT) avec les clés
+# qui diffèrent ; les autres gardent ce défaut. Revu à l'œil sur une image de la nouvelle capture à chaque match.
+DEFAULT_SEED = {
+    "mediane": [[971, 232], [945, 550]],
+    "surfD_avant": [[1213, 258], [1415, 343]],
+    "surfD_cote": [[1415, 343], [1503, 325]],
+    "surfG_avant": [[525, 307], [690, 253]],
+    "surfG_cote": [[525, 307], [450, 287]],
+    "circle": [967.5, 287.0, 94.0, 25.0],          # cx, cy, rx, ry (ellipse du rond central dans l'image)
+    "touchline_x": [420, 1600],                     # colonnes où chercher la touche proche
+    "end_left": [[329.5, 309.5], [418, 362], [518, 416]],     # touche proche à gauche, du coin vers le milieu
+    "end_right": [[1619, 354], [1542, 394], [1465, 438]],
+    "corners": {"proche-gauche": [[-52.5, 34.0], [329.5, 309.5]], "proche-droit": [[52.5, 34.0], [1619.0, 354.0]]},
+}
+
+
+def load_seed():
+    """Repères d'amorçage du calage pour le match courant : output/calib_seed.json s'il existe, sinon DEFAULT_SEED (1er match)."""
+    path = OUT / "calib_seed.json"
+    if not path.exists():
+        return DEFAULT_SEED
+    seed = dict(DEFAULT_SEED)
+    seed.update(json.load(open(path)))
+    return seed
 
 
 def grab_crops():
@@ -80,10 +107,10 @@ def roi(static, poly, r):
     return P[keep]
 
 
-def circle_pixels(static):
+def circle_pixels(static, cx=967.5, cy=287.0, rx=94.0, ry=25.0):
     ys, xs = np.nonzero(static)
     P = np.stack([xs, ys], 1).astype(float)
-    q = ((P[:, 0] - 967.5) / 94.0) ** 2 + ((P[:, 1] - 287.0) / 25.0) ** 2
+    q = ((P[:, 0] - cx) / rx) ** 2 + ((P[:, 1] - cy) / ry) ** 2
     return P[(q > 0.78) & (q < 1.28)]
 
 
@@ -126,12 +153,12 @@ def build(kind, x):
                          A=p.get("A"), fy=p.get("fy"), Zc=p.get("Zc"))
 
 
-def fit(obs, kind, mode, tie_fy=False):
+def fit(obs, kind, mode, tie_fy=False, cam_x0=None, touche_weight=0.5):
     fixed = {k: v for k, v in MODES[mode].items() if v is not None}
     free = [k for k in ("L", "W", "Dp", "Wp", "Rc") if k not in fixed]
     ncam = len(KINDS[kind][0])
     weight = {k: 1.0 for k in obs}
-    weight["touche_proche"] = 0.5
+    weight["touche_proche"] = touche_weight
 
     def unpack(x):
         g = dict(REG); g.update(fixed)
@@ -148,7 +175,7 @@ def fit(obs, kind, mode, tie_fy=False):
 
     lo = np.r_[KINDS[kind][2], [GEO_BOUNDS[k][0] for k in free]]
     hi = np.r_[KINDS[kind][3], [GEO_BOUNDS[k][1] for k in free]]
-    x0 = np.r_[KINDS[kind][1], [REG[k] for k in free]]
+    x0 = np.r_[cam_x0 if cam_x0 is not None else KINDS[kind][1], [REG[k] for k in free]]
     sol = least_squares(residuals, x0, bounds=(lo, hi), loss="soft_l1", f_scale=3.0, max_nfev=500)
     m, g = unpack(sol.x)
     per = {k: (float(np.median(d)), float(np.percentile(d, 90)))
@@ -158,25 +185,32 @@ def fit(obs, kind, mode, tie_fy=False):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    seed = load_seed()
     crops = grab_crops()
     static = static_lines(crops)
     th, pit = tophat(crops[0]), pitch_mask(crops[0])
+    tx0, tx1 = seed["touchline_x"]
+    r_cote = seed.get("cote_radius", 5)
+    # repères lus à l'œil sur l'image couleur (touchline_points), quand la détection automatique de la
+    # pelouse (pitch_mask) échoue à isoler le terrain du reste du décor (couleur d'herbe hors de son réglage habituel)
+    touche = np.array(seed["touchline_points"], float) if "touchline_points" in seed else near_touchline(th, pit, x0=tx0, x1=tx1)
     obs = {
-        "mediane": roi(static, [(971, 232), (945, 550)], 6),
-        "touche_proche": near_touchline(th, pit),
-        "rond": circle_pixels(static),
-        "surfD_avant": roi(static, [(1213, 258), (1415, 343)], 5),
-        "surfD_cote": roi(static, [(1415, 343), (1503, 325)], 5),
-        "surfG_avant": roi(static, [(525, 307), (690, 253)], 5),
-        "surfG_cote": roi(static, [(525, 307), (450, 287)], 5),
+        "mediane": roi(static, seed["mediane"], 6),
+        "touche_proche": touche,
+        "rond": circle_pixels(static, *seed["circle"]),
+        "surfD_avant": roi(static, seed["surfD_avant"], 5),
+        "surfD_cote": roi(static, seed["surfD_cote"], r_cote),
+        "surfG_avant": roi(static, seed["surfG_avant"], 5),
+        "surfG_cote": roi(static, seed["surfG_cote"], r_cote),
     }
     combos = [(k, m, tie) for k in ("tan", "eq") for m in MODES for tie in ((False, True) if k == "eq" else (False,))]
     if len(sys.argv) > 1 and sys.argv[1] != "toutes":
         combos = [c for c in combos if f"{c[0]}{'_iso' if c[2] else ''}__{c[1]}" == sys.argv[1]]
+    cam_x0 = seed.get("cam_x0", {})   # point de départ caméra par variante ("tan"/"eq"), sinon celui du 1er match (KINDS)
     best = {}
     for kind, mode, tie in combos:
         name = f"{kind}{'_iso' if tie else ''}__{mode}"
-        m, g, cost, per = fit(obs, kind, mode, tie)
+        m, g, cost, per = fit(obs, kind, mode, tie, cam_x0=cam_x0.get(kind), touche_weight=seed.get("touche_weight", 0.5))
         best[name] = (m, g)
         camtxt = f"fx={m.fx:.0f}" + (f" A={m.A:.0f}" if kind == "tan" else f" fy={m.fy:.0f} Zc={m.Zc:.1f}") + f" Yc={m.Yc:.1f} s={m.s:+.3f}"
         print(f"[{name:34s}] coût {cost:8.0f} | L={g['L']:.0f} W={g['W']:.1f} surface {g['Dp']:.1f}x{g['Wp']:.1f} rond {g['Rc']:.2f} | {camtxt}")

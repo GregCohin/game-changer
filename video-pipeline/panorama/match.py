@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import detect as D
 from panorama import track as T
 from panorama.geometry import PanoramaModel
-from panorama.config import open_panorama
+from panorama.config import open_panorama, panorama_cuts
 
 MATCH = T.OUT / "match"
 CHUNK_S = 300
@@ -34,18 +34,36 @@ def video_info():
     return native, total, per_chunk, math.ceil(total / per_chunk)
 
 
+def chunk_bounds():
+    """Tranches (début, fin) en images, ~CHUNK_S s chacune, jamais à cheval sur un montage dur (PANORAMA_CUTS) :
+    une piste ne peut donc jamais enjamber un saut de temps de match sans saut d'image (voir config.py)."""
+    native, total, per_chunk, _ = video_info()
+    cuts = sorted(int(round(s * native)) for s in panorama_cuts())
+    bounds, start = [], 0
+    while start < total:
+        end = min(total, start + per_chunk)
+        for c in cuts:
+            if start < c < end:
+                end = c
+                break
+        if end > start:
+            bounds.append((start, end))
+        start = end
+    return bounds
+
+
 def detect_all():
     MATCH.mkdir(parents=True, exist_ok=True)
-    native, total, per_chunk, nchunks = video_info()
+    native, total, per_chunk, _ = video_info()
+    bounds = chunk_bounds()
     step = round(native / FPS)
     model = YOLO(str(D.WEIGHTS))
     cap = open_panorama()
-    print(f"{total} images vidéo, {nchunks} tranches de {CHUNK_S} s", flush=True)
-    for k in range(nchunks):
+    print(f"{total} images vidéo, {len(bounds)} tranches (~{CHUNK_S} s, coupées aux montages s'il y en a)", flush=True)
+    for k, (start, end) in enumerate(bounds):
         path = MATCH / f"det_{k:03d}.pkl"
         if path.exists():
             continue
-        start, end = k * per_chunk, min(total, (k + 1) * per_chunk)
         cap.set(cv2.CAP_PROP_POS_FRAMES, start)
         frames, idx, t0 = [], start, time.time()
         while idx < end and cap.grab():
@@ -57,15 +75,15 @@ def detect_all():
         tmp = path.with_suffix(".tmp")
         pickle.dump(dict(frames=frames, fps=FPS, chunk=k), open(tmp, "wb"))
         tmp.rename(path)
-        print(f"tranche {k + 1}/{nchunks} : {len(frames)} images en {time.time() - t0:.0f} s", flush=True)
+        print(f"tranche {k + 1}/{len(bounds)} : {len(frames)} images en {time.time() - t0:.0f} s", flush=True)
     print("détection terminée", flush=True)
 
 
 def track_all(version="v1", wait=True):
-    native, total, per_chunk, nchunks = video_info()
+    bounds = chunk_bounds()
     model = PanoramaModel.from_json(T.OUT / "calibration_finale.json")
     prefix, run = ("trk", T.run_tracking) if version == "v1" else ("trk2", T.run_tracking_v2)
-    for k in range(nchunks):
+    for k in range(len(bounds)):
         out = MATCH / f"{prefix}_{k:03d}.pkl"
         if out.exists():
             continue
@@ -90,7 +108,7 @@ def track_all(version="v1", wait=True):
             tmp = out.with_suffix(".tmp")
             pickle.dump(dict(tracks=kept, qa=qa, t_start=data["frames"][0]["t"] if data["frames"] else None), open(tmp, "wb"))
             tmp.rename(out)
-            print(f"tranche {k + 1}/{nchunks} suivie en {time.time() - t0:.0f} s : {qa}", flush=True)
+            print(f"tranche {k + 1}/{len(bounds)} suivie en {time.time() - t0:.0f} s : {qa}", flush=True)
         except Exception:
             print(f"ERREUR tranche {k} :\n{traceback.format_exc()}", flush=True)
     print("suivi terminé", flush=True)

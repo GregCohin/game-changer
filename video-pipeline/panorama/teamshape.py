@@ -36,7 +36,8 @@ def load_measurements(half_s=2.0):
     model = C.load_model()
     cols = {k: [] for k in ("t", "X", "Y", "tid", "PN", "PW", "PA")}
     tk = []
-    for k in range(20):
+    n_chunks = len(list(MATCH.glob("trk2_*.pkl")))   # pas 20 en dur : un montage dur (PANORAMA_CUTS) peut ajouter une tranche
+    for k in range(n_chunks):
         feat = pickle.load(open(MATCH / f"feat_{k:03d}.pkl", "rb"))
         for rec in pickle.load(open(MATCH / f"trk2_{k:03d}.pkl", "rb"))["tracks"]:
             if len(rec["meas"]) < 8:
@@ -113,4 +114,7 @@ if __name__ == "__main__":
         h = np.bincount(cnt[cnt > 0], minlength=13)
         S = shape_series(D, m, team)
         print(f"{name} : {len(m)} mesures retenues ; joueurs de champ par image : moyenne {cnt[cnt > 0].mean():.2f} ; répartition {[round(100 * x / h.sum(), 1) for x in h[:12]]} %")
-        print(f"   images avec >= {N_MIN} joueurs : {len(S)} ({100 * len(S) / (D['t'].max() * FPS):.0f} % du match)  hauteur {S[:, 1].mean():.1f} m  largeur {S[:, 2].mean():.1f} m  profondeur {S[:, 3].mean():.1f} m")
+        if len(S) == 0:
+            print(f"   images avec >= {N_MIN} joueurs : 0 (0 % du match) — classement d'équipe trop peu sûr pour cette équipe sur ce match, forme non calculable")
+        else:
+            print(f"   images avec >= {N_MIN} joueurs : {len(S)} ({100 * len(S) / (D['t'].max() * FPS):.0f} % du match)  hauteur {S[:, 1].mean():.1f} m  largeur {S[:, 2].mean():.1f} m  profondeur {S[:, 3].mean():.1f} m")

@@ -10,8 +10,8 @@ Y>0 côté proche), origine au point central. Pixels de l'image vidéo brute.
 import json
 import numpy as np
 
-from panorama.config import PANORAMA_VIDEO as VIDEO      # chemin fourni par la variable d'environnement PANORAMA_VIDEO
-CROP_Y0, CROP_Y1 = 184, 900   # zone utile de la vidéo (au-dessus/au-dessous : barres et commandes du lecteur)
+from panorama.config import panorama_inner_crop
+CROP_Y0, CROP_Y1 = panorama_inner_crop()   # zone utile de la vidéo (au-dessus/au-dessous : barres et commandes du lecteur) ; PANORAMA_INNER_CROP
 
 
 class PanoramaModel:
