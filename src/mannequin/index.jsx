@@ -1,8 +1,11 @@
 // Pantin articulé animé (Vestiaire → Préparation physique → Mouvements animés) — extrait de
 // App.jsx (séparation des fichiers, sans changement de comportement).
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { newId } from "../lib/utils.js";
+
+// Personnage 3D : chargé à la demande (three + modèles glTF), jamais dans le bundle principal.
+const Personnage3DPreview = lazy(() => import("./personnage3d.jsx"));
 
 // --- Pantin articulé : bibliothèque de mouvements animés ---
 // Silhouette vue de profil, coordonnées normalisées (0-1). Chaque mouvement est une suite de 1 à 3
@@ -1481,6 +1484,7 @@ export function MouvementsAnimesTab() {
   const [showSettings, setShowSettings] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [renderStyle, setRenderStyle] = useState("actuel");
+  const [gender, setGender] = useState("garcon");
   const [screenMode, setScreenMode] = useState("bibliotheque");
   const [exportingVideo, setExportingVideo] = useState(false);
   const [videoExportUnsupported, setVideoExportUnsupported] = useState(false);
@@ -1606,7 +1610,13 @@ export function MouvementsAnimesTab() {
         <button className={`qcm-option ${screenMode === "editeur" ? "selected" : ""}`} onClick={() => setScreenMode("editeur")}>Éditeur de pose</button>
       </div>
 
-      {screenMode === "enchainement" && <SequenceBuilder proportions={activeProportions} renderStyle={renderStyle} />}
+      {screenMode === "enchainement" && renderStyle === "personnage3d" && <p className="hint" style={{ marginBottom: 12 }}>Le personnage 3D n'est pas encore disponible pour les enchaînements — affichage avec le style tubulaire.</p>}
+      {screenMode === "enchainement" && (
+        <SequenceBuilder
+          proportions={renderStyle === "personnage3d" ? tubulaireProportions : activeProportions}
+          renderStyle={renderStyle === "personnage3d" ? "tubulaire" : renderStyle}
+        />
+      )}
       {screenMode === "editeur" && <PoseEditorTab />}
 
       {screenMode === "bibliotheque" && (
@@ -1628,21 +1638,43 @@ export function MouvementsAnimesTab() {
         <button className={`qcm-option ${renderStyle === "realiste" ? "selected" : ""}`} onClick={() => setRenderStyle("realiste")}>Nouveau style (proposition)</button>
         <button className={`qcm-option ${renderStyle === "humain" ? "selected" : ""}`} onClick={() => setRenderStyle("humain")}>Silhouette humaine (proposition)</button>
         <button className={`qcm-option ${renderStyle === "tubulaire" ? "selected" : ""}`} onClick={() => setRenderStyle("tubulaire")}>Style tubulaire (proposition)</button>
+        <button className={`qcm-option ${renderStyle === "personnage3d" ? "selected" : ""}`} onClick={() => setRenderStyle("personnage3d")}>Personnage 3D (bêta)</button>
       </div>
       {renderStyle === "realiste" && <p className="hint" style={{ marginBottom: 12 }}>Membres effilés (plus larges près du tronc) et torse en une seule silhouette, plutôt que deux ovales superposés.</p>}
       {renderStyle === "humain" && <p className="hint" style={{ marginBottom: 12 }}>Bras et jambes en une seule silhouette courbe, sans rond au coude ni au genou, et torse aux contours arrondis plutôt qu'à angles nets — pour se rapprocher encore d'un vrai corps.</p>}
       {renderStyle === "tubulaire" && <p className="hint" style={{ marginBottom: 12 }}>Technique différente des deux précédentes : bras, jambes et torse sont chacun une chaîne de cercles superposés plutôt qu'un contour dessiné — la rondeur à un coude ou un genou vient du cercle lui-même, pas d'une courbe à ajuster.</p>}
-      <button className="btn btn-ghost btn-small" onClick={() => setShowSettings((s) => !s)} style={{ marginBottom: 12 }}>{showSettings ? "Masquer les réglages" : "Régler les proportions"}</button>
+      {renderStyle === "personnage3d" && (
+        <>
+          <p className="hint" style={{ marginBottom: 12 }}>Un vrai personnage 3D : tu peux le faire tourner en glissant, et zoomer. Première version — seuls quelques mouvements sont recalés en 3D pour l'instant, les autres montrent le personnage au repos.</p>
+          <div className="qcm-options" style={{ marginBottom: 12 }}>
+            <button className={`qcm-option ${gender === "garcon" ? "selected" : ""}`} onClick={() => setGender("garcon")}>Garçon</button>
+            <button className={`qcm-option ${gender === "fille" ? "selected" : ""}`} onClick={() => setGender("fille")}>Fille</button>
+          </div>
+        </>
+      )}
+      {renderStyle !== "personnage3d" && <button className="btn btn-ghost btn-small" onClick={() => setShowSettings((s) => !s)} style={{ marginBottom: 12 }}>{showSettings ? "Masquer les réglages" : "Régler les proportions"}</button>}
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ flex: "1 1 320px", minWidth: 280, maxWidth: 420, position: "sticky", top: 10 }}>
-          <MannequinPreview movementKey={selected} large proportions={activeProportions} style={renderStyle} onCanvasReady={(c) => { canvasElRef.current = c; }} />
+          {renderStyle === "personnage3d" ? (
+            <Suspense fallback={<div className="empty-state">Chargement du personnage 3D…</div>}>
+              <Personnage3DPreview
+                gender={gender}
+                movementKey={selected}
+                poses={MANNEQUIN_MOVEMENTS[selected].poses}
+                onCanvasReady={(c) => { canvasElRef.current = c; }}
+                fallback={<MannequinPreview movementKey={selected} large proportions={tubulaireProportions} style="tubulaire" onCanvasReady={(c) => { canvasElRef.current = c; }} />}
+              />
+            </Suspense>
+          ) : (
+            <MannequinPreview movementKey={selected} large proportions={activeProportions} style={renderStyle} onCanvasReady={(c) => { canvasElRef.current = c; }} />
+          )}
           <p className="hint" style={{ marginTop: 10 }}>{MANNEQUIN_MOVEMENTS[selected].poses.length > 1 ? `${MANNEQUIN_MOVEMENTS[selected].poses.length} poses-clés, en boucle.` : "Pose statique (mouvement isométrique)."}</p>
           <button className="btn btn-ghost btn-small" onClick={exportVideo} disabled={exportingVideo}>{exportingVideo ? "Enregistrement en cours…" : "Exporter en vidéo"}</button>
           {videoExportUnsupported && <p className="hint" style={{ color: "var(--crimson)" }}>L'enregistrement vidéo n'est pas pris en charge par ce navigateur.</p>}
         </div>
 
-        {showSettings && (
+        {showSettings && renderStyle !== "personnage3d" && (
           <div style={{ flex: "1 1 320px", minWidth: 280 }}>
             <div className="new-match-card">
               <p className="hint" style={{ marginTop: 0 }}>L'aperçu à côté se met à jour en temps réel. Replie un groupe une fois qu'il te convient pour te concentrer sur le reste. Tes réglages sont sauvegardés et s'appliquent à tous les mouvements{renderStyle !== "actuel" ? ", indépendamment des autres styles" : ""}.</p>
