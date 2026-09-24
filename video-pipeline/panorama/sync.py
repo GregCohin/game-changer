@@ -16,6 +16,7 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
+from panorama.config import FOLLOWCAM_TEAM
 
 MATCH = T.OUT / "match"
 L, W = 105.0, 68.0
@@ -27,7 +28,7 @@ SPAN = 1500.0
 def load_panorama(side="D"):
     ts, xs, ys = [], [], []
     n = 0
-    for p in sorted(MATCH.glob("trk_*.pkl")):
+    for p in sorted(MATCH.glob("trk_*.pkl")) or sorted(MATCH.glob("trk2_*.pkl")):      # 1er match : pistes v1 ; matchs suivants : v2 seules
         n += 1
         for tr in pickle.load(open(p, "rb"))["tracks"]:
             if tr["side"] == side:
@@ -36,7 +37,7 @@ def load_panorama(side="D"):
     return np.array(ts), np.array(xs), np.array(ys), n
 
 
-def load_followcam(team="A"):
+def load_followcam(team=FOLLOWCAM_TEAM):
     fc = pickle.load(open(T.OUT / "followcam.pkl", "rb"))
     rows = [(s[0], s[1], s[2]) for tr in fc["traces"] if tr["team"] == team for s in tr["samples"]]
     a = np.array(rows)
@@ -63,8 +64,8 @@ def offset_histogram(tree, Tp, t_fc, pts):
 
 def main():
     Tp, Xp, Yp, n = load_panorama("D")
-    t_fc, xw, yl = load_followcam("A")
-    print(f"panoramique : {n} tranches, {len(Tp)} mesures de l'équipe sombre ; vidéo suiveuse : {len(t_fc)} échantillons de l'équipe A")
+    t_fc, xw, yl = load_followcam()
+    print(f"panoramique : {n} tranches, {len(Tp)} mesures de l'équipe sombre ; vidéo suiveuse : {len(t_fc)} échantillons de l'équipe {FOLLOWCAM_TEAM}")
     tree = cKDTree(np.c_[Xp, Yp])
     results = []
     for s1, s2 in itertools.product((1, -1), repeat=2):
@@ -89,7 +90,7 @@ def refine(offset0=None, s1=None, s2=None, radius=4.0):
     S = pickle.load(open(T.OUT / "sync.pkl", "rb"))
     offset0, s1, s2 = offset0 or S["offset"], s1 or S["s1"], s2 or S["s2"]
     Tp, Xp, Yp, n = load_panorama("D")
-    t_fc, xw, yl = load_followcam("A")
+    t_fc, xw, yl = load_followcam()
     P = to_pitch(xw, yl, s1, s2)
     frame_of = {}
     for i, t in enumerate(np.round(Tp * 10).astype(int)):
@@ -106,7 +107,7 @@ def refine(offset0=None, s1=None, s2=None, radius=4.0):
             best = (off, hits)
         print(f"  décalage {off:+.1f} s : {hits} échantillons retrouvés à ≤3 m", flush=True) if abs(off - offset0) < 0.05 or hits == best[1] else None
     off = best[0]
-    print(f"\ndécalage affiné : {off:+.1f} s ({best[1]} / {len(t_fc)} échantillons de l'équipe A retrouvés à ≤3 m dans les {n} premières tranches)")
+    print(f"\ndécalage affiné : {off:+.1f} s ({best[1]} / {len(t_fc)} échantillons de l'équipe {FOLLOWCAM_TEAM} retrouvés à ≤3 m dans les {n} premières tranches)")
     pairs = []
     for i in range(len(t_fc)):
         idx = frame_of.get(int(round((t_fc[i] + off) * 10)))
@@ -117,12 +118,15 @@ def refine(offset0=None, s1=None, s2=None, radius=4.0):
                 pairs.append((P[i, 0], P[i, 1], Xp[idx[j]], Yp[idx[j]]))
     A = np.array(pairs)
     print(f"{len(A)} paires (rayon {radius} m)")
+    fit = []
     for axis, name in ((0, "X (longueur)"), (1, "Y (largeur)")):
         f = lambda p: p[0] * A[:, axis] + p[1] - A[:, 2 + axis]
         sol = least_squares(f, [1.0, 0.0], loss="soft_l1", f_scale=1.0)
         r = f(sol.x)
+        fit.append(sol.x)
         print(f"  {name} : panoramique = {sol.x[0]:.3f} × suiveuse {sol.x[1]:+.2f} m ; écart résiduel médian {np.median(np.abs(r)):.2f} m, 90e centile {np.percentile(np.abs(r), 90):.2f} m")
-    pickle.dump(dict(s1=s1, s2=s2, offset=off), open(T.OUT / "sync.pkl", "wb"))
+    affine = dict(ax=float(fit[0][0]), bx=float(fit[0][1]), ay=float(fit[1][0]), by=float(fit[1][1]))
+    pickle.dump(dict(s1=s1, s2=s2, offset=off, affine=affine), open(T.OUT / "sync.pkl", "wb"))       # label.py / crops.py relisent ce calage (propre à chaque match)
 
 
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "refine":

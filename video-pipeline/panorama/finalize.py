@@ -15,11 +15,11 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
-from panorama.config import load_numbers
+from panorama.config import MATCH_DURATION_S, load_numbers
 from panorama.identify import load_tracklets
 from panorama.player_metrics import player_metrics
 
-REFERENCE_S = 5958.0          # durée de l'enregistrement (min. jouées : la pause de mi-temps est déjà coupée)
+REFERENCE_S = MATCH_DURATION_S      # durée de l'enregistrement (min. jouées : la pause de mi-temps est déjà coupée) ; propre à chaque match, voir config.py
 
 
 def load_labels(folder):

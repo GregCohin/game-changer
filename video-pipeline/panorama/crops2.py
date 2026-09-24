@@ -17,8 +17,9 @@ from calibration import Calibrator, image_to_pitch_norm      # noqa: E402
 from tracking import DEFAULT_DETECTION_WEIGHTS               # noqa: E402
 from ultralytics import YOLO                                 # noqa: E402
 
-from panorama.config import FOLLOWCAM_VIDEO as FC_VIDEO, require      # chemin fourni par la variable d'environnement FOLLOWCAM_VIDEO
-OUT = ROOT / "output" / "panorama"
+from panorama import track as T                                       # noqa: E402
+from panorama.config import FOLLOWCAM_TEAM, FOLLOWCAM_VIDEO as FC_VIDEO, require      # chemin fourni par la variable d'environnement FOLLOWCAM_VIDEO
+OUT = T.OUT
 
 
 class FrameCropper:
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     fc = pickle.load(open(OUT / "followcam.pkl", "rb"))
     samples = {}
     for tr in fc["traces"]:
-        if tr["team"] == "A":
+        if tr["team"] == FOLLOWCAM_TEAM:
             for (t, xw, yl) in tr["samples"]:
                 samples[(tr["key"], t)] = (xw, yl)
     keys = sorted(samples, key=lambda k: k[1])[300:1200:300]

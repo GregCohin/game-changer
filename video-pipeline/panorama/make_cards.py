@@ -16,7 +16,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T, register as R, label as Lb
-from panorama.config import load_numbers
+from panorama.config import FOLLOWCAM_TEAM, load_numbers
 from panorama.crops2 import FrameCropper
 from panorama.identify import load_tracklets
 from panorama.cards import encode_bgr
@@ -34,7 +34,7 @@ def registered_pairs(tl, shifts, by_t, offset):
     for k2, sh in shifts.items():
         conf = sh["matched"] / sh["total"]
         for (key, team, X, Y, t) in by_t[k2]:
-            if team != "A":
+            if team != FOLLOWCAM_TEAM:
                 continue
             cand = by_frame.get(int(round((t + offset) * 10)))
             if not cand:
@@ -64,7 +64,7 @@ def main(max_cards=250):
     shifts = {k: s for k, s in shifts.items() if s["matched"] >= max(3, 0.6 * s["total"]) and s["matched"] - s["second"] >= 1}
     pairs = registered_pairs(tl, shifts, by_t, offset)
     fc = pickle.load(open(T.OUT / "followcam.pkl", "rb"))
-    samples = {(tr["key"], round(t, 2)): (xw, yl) for tr in fc["traces"] if tr["team"] == "A" for (t, xw, yl) in tr["samples"]}
+    samples = {(tr["key"], round(t, 2)): (xw, yl) for tr in fc["traces"] if tr["team"] == FOLLOWCAM_TEAM for (t, xw, yl) in tr["samples"]}
     order = sorted((k for k in pairs if tl[k].t1 - tl[k].t0 >= MIN_DUR), key=lambda k: -(tl[k].t1 - tl[k].t0))[:max_cards]
     print(f"horizon {horizon:.0f} s ; {len(shifts)} images recalées ; {len(order)} pistes candidates (≥{MIN_DUR:.0f} s avec au moins une vignette possible)", flush=True)
     pts = [p for p in Lb.followcam_points() if p[0] <= horizon]

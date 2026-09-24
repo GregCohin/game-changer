@@ -17,14 +17,16 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 import extract   # noqa: E402
 from panorama import track as T          # noqa: E402
-from panorama.label import AFFINE        # noqa: E402
+from panorama.config import FOLLOWCAM_TEAM, followcam_checkpoint      # noqa: E402
+from panorama.label import affine_of     # noqa: E402
 
 OUT = T.OUT
 
 
-def followcam_crops(team="A"):
+def followcam_crops(team=FOLLOWCAM_TEAM):
     S = pickle.load(open(OUT / "sync.pkl", "rb"))
-    acc, _, _ = extract._replay_from_checkpoint(str(ROOT / "output" / "checkpoint_local_v4.pkl"))
+    AFFINE = affine_of(S)
+    acc, _, _ = extract._replay_from_checkpoint(followcam_checkpoint())
     out = []
     for key, a in acc.items():
         if not key.startswith(team + "#") or not a.thumbnail_candidates or not a.samples:
@@ -42,6 +44,6 @@ def followcam_crops(team="A"):
 
 
 if __name__ == "__main__":
-    crops = followcam_crops("A")
-    print(f"{len(crops)} vignettes suiveuse (équipe A) avec position")
+    crops = followcam_crops()
+    print(f"{len(crops)} vignettes suiveuse (équipe {FOLLOWCAM_TEAM}) avec position")
     pickle.dump(crops, open(OUT / "crops.pkl", "wb"))

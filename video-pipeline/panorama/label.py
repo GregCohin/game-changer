@@ -21,19 +21,25 @@ from panorama.identify import load_tracklets
 ROOT = Path(__file__).parent.parent
 RADIUS = 2.5          # m : distance maximale entre l'échantillon suiveuse et la piste panoramique
 MARGIN = 1.0          # m : la piste retenue doit être au moins ce plus proche que la suivante
-AFFINE = dict(ax=0.950, bx=0.01, ay=0.974, by=0.18)     # suiveuse -> panoramique, mesuré par panorama.sync refine
+AFFINE = dict(ax=0.950, bx=0.01, ay=0.974, by=0.18)     # suiveuse -> panoramique du 1er match, mesuré par panorama.sync refine
+
+
+def affine_of(S):
+    """Correspondance suiveuse -> panoramique de CE match (mesurée par panorama.sync refine, écrite dans sync.pkl) ; sinon celle du 1er match."""
+    return S.get("affine", AFFINE)
 
 
 def followcam_points():
     S = pickle.load(open(T.OUT / "sync.pkl", "rb"))
+    A = affine_of(S)
     fc = pickle.load(open(T.OUT / "followcam.pkl", "rb"))
     pts = []
     for tr in fc["traces"]:
         if not tr["player"]:
             continue
         for (t, xw, yl) in tr["samples"]:
-            X = S["s1"] * (yl - 0.5) * 105.0 * AFFINE["ax"] + AFFINE["bx"]
-            Y = S["s2"] * (xw - 0.5) * 68.0 * AFFINE["ay"] + AFFINE["by"]
+            X = S["s1"] * (yl - 0.5) * 105.0 * A["ax"] + A["bx"]
+            Y = S["s2"] * (xw - 0.5) * 68.0 * A["ay"] + A["by"]
             pts.append((t + S["offset"], X, Y, tr["player"], tr["key"]))
     return pts
 

@@ -16,7 +16,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
-from panorama.label import AFFINE
+from panorama.label import affine_of
 from panorama.identify import load_tracklets
 
 SEARCH = 6.0
@@ -26,6 +26,7 @@ MATCH_R = 1.5
 
 def followcam_by_time():
     S = pickle.load(open(T.OUT / "sync.pkl", "rb"))
+    AFFINE = affine_of(S)
     fc = pickle.load(open(T.OUT / "followcam.pkl", "rb"))
     by_t = collections.defaultdict(list)
     for tr in fc["traces"]:

@@ -14,6 +14,14 @@ Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des nu
                        précis (revoir calibration_finale.json) laisse passer moins de mesures à 2 px : élargir ici perd
                        en précision par mesure individuelle mais le classement d'équipe moyenne sur toute la piste
   FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
+  FOLLOWCAM_CHECKPOINT  checkpoint extract.py pour ce match (défaut : output/checkpoint_local_v4.pkl, capture du 1er match)
+  FOLLOWCAM_ROSTER    roster certifié pour ce match, produit par la revue assistée (défaut : output/roster_v4.json,
+                       capture du 1er match) ; absent -> traces non identifiées (étape 1a)
+  FOLLOWCAM_TEAM      étiquette (A ou B) que le suivi de la vidéo suiveuse a donnée à l'équipe de Gregory ; défaut A.
+                       Ces étiquettes sortent d'un k-means sur les couleurs de maillot : arbitraires d'un run à l'autre,
+                       à vérifier sur des vignettes à chaque nouveau match
+  MATCH_DURATION_S    durée jouée de l'enregistrement en secondes (mi-temps déjà coupée) : référence de la couverture par joueur ;
+                       défaut 5958 (1er match) — à régler pour chaque match
   NUMBERS_EXPORT      export « numéros de maillot » du site (numeros-joueurs-<match>.json)
 
 Ces deux dernières et les repères de calage (panorama/calibrate.py, output/calib_seed.json du match) dépendent du
@@ -21,6 +29,7 @@ cadrage exact de la capture d'écran : à revérifier par un coup d'œil sur une
 """
 import json
 import os
+from pathlib import Path
 
 PANORAMA_VIDEO = os.environ.get("PANORAMA_VIDEO", "")
 PANORAMA_CROP = os.environ.get("PANORAMA_CROP", "")
@@ -30,7 +39,22 @@ PANORAMA_BAND = os.environ.get("PANORAMA_BAND", "")
 PANORAMA_CUTS = os.environ.get("PANORAMA_CUTS", "")
 PANORAMA_BOX_MATCH_PX = float(os.environ.get("PANORAMA_BOX_MATCH_PX", "2.0"))
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
+FOLLOWCAM_CHECKPOINT = os.environ.get("FOLLOWCAM_CHECKPOINT", "")
+FOLLOWCAM_ROSTER = os.environ.get("FOLLOWCAM_ROSTER", "")
+FOLLOWCAM_TEAM = os.environ.get("FOLLOWCAM_TEAM", "A")
+MATCH_DURATION_S = float(os.environ.get("MATCH_DURATION_S", "5958"))
 NUMBERS_EXPORT = os.environ.get("NUMBERS_EXPORT", "")
+_PIPELINE = Path(__file__).parent.parent
+
+
+def followcam_checkpoint():
+    """Checkpoint extract.py du match (FOLLOWCAM_CHECKPOINT) ; défaut : celui du 1er match."""
+    return FOLLOWCAM_CHECKPOINT or str(_PIPELINE / "output" / "checkpoint_local_v4.pkl")
+
+
+def followcam_roster():
+    """Roster certifié du match (FOLLOWCAM_ROSTER) ; défaut : celui du 1er match."""
+    return FOLLOWCAM_ROSTER or str(_PIPELINE / "output" / "roster_v4.json")
 
 
 def require(path, var):
