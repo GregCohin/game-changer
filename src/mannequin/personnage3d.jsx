@@ -4,32 +4,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { detectRig, poseRig, captureSnapshot, applySnapshot, applyBlend } from "./retarget3d.js";
-import { dressBody } from "./habillage3d.js";
+import { applySnapshot, applyBlend } from "./retarget3d.js";
+import { hasCharacterAssets, loadCharacter, buildMovement, computeFraming } from "./personnage3dCore.js";
+import { MOUVEMENTS_3D, CLIPS_3D } from "./mouvements3d.js";
 
-// Les modèles vivent dans src/assets/models/ ; import.meta.glob ne plante pas le build si un
-// fichier manque (le composant affiche alors le repli 2D au lieu de casser toute l'app).
-const MODEL_URLS = import.meta.glob("../assets/models/*.glb", { query: "?url", import: "default", eager: true });
-const modelUrl = (file) => MODEL_URLS[`../assets/models/${file}`] || null;
-
-const CHARACTERS = {
-  garcon: { body: "superhero-male.glb", hair: "hair-simpleparted.glb", hairColor: 0x3b2a1e },
-  fille: { body: "superhero-female.glb", hair: "hair-long.glb", hairColor: 0x7a4a25 },
-};
-const ANIMATIONS_FILE = "animations.glb";
-
-// Mouvements recalés en 3D à partir de leurs poses 2D (vue de face ou de profil, tourné vers la
-// droite de l'écran), et mouvements couverts par une animation toute faite. Tout le reste montre
-// le personnage au repos, avec un bandeau qui le dit : jamais une fausse animation.
-const POSE_MOVEMENTS = {
-  reference: { facing: "front" },
-  squat: { facing: "right" },
-  fente: { facing: "right" },
-  frappe_but: { facing: "right" },
-};
-const CLIP_MOVEMENTS = { sprint: { clip: "Sprint_Loop", yaw: Math.PI / 2 } };
 const POSE_PERIOD_MS = 800;
 const POSE_BLEND_START = 0.55;
 
@@ -58,9 +37,7 @@ export default function Personnage3DPreview({ gender = "garcon", movementKey, po
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return undefined;
-    const character = CHARACTERS[gender] || CHARACTERS.garcon;
-    const urls = { body: modelUrl(character.body), hair: modelUrl(character.hair), animations: modelUrl(ANIMATIONS_FILE) };
-    if (!urls.body || !urls.hair || !urls.animations) { setState({ status: "unavailable", detail: "Le modèle 3D n'est pas installé dans cette version." }); return undefined; }
+    if (!hasCharacterAssets(gender)) { setState({ status: "unavailable", detail: "Le modèle 3D n'est pas installé dans cette version." }); return undefined; }
 
     let cancelled = false;
     let cleanup = () => {};
@@ -122,34 +99,12 @@ export default function Personnage3DPreview({ gender = "garcon", movementKey, po
         cleanup = stop;
         if (cancelled) { stop(); return; }
 
-        const loader = new GLTFLoader();
-        const [characterGltf, animationsGltf, hairGltf] = await Promise.all([loader.loadAsync(urls.body), loader.loadAsync(urls.animations), loader.loadAsync(urls.hair)]);
+        // Le personnage n'est ajouté à la scène qu'une fois entièrement habillé (voir loadCharacter).
+        const { model, rig, body, scale, clips } = await loadCharacter(gender);
         if (cancelled) { stop(); return; }
-
-        // Le personnage n'est ajouté à la scène qu'une fois entièrement habillé : le corps livré
-        // porte des sous-vêtements, il ne doit jamais apparaître à l'écran dans cet état.
-        const model = characterGltf.scene;
-        model.updateMatrixWorld(true);
-        const rig = detectRig(model);
-        let body = null;
-        model.traverse((object) => { if (object.isSkinnedMesh && /superhero/i.test(object.name)) body = object; });
-        if (!body) throw new Error("corps introuvable dans le modèle");
-        body.frustumCulled = false;
-        model.traverse((object) => { if (object.isSkinnedMesh) object.frustumCulled = false; });
-        const bounds = new THREE.Box3().setFromObject(model);
-        const scale = (bounds.max.y - bounds.min.y) / 0.97;
-        dressBody(body, rig.bones);
-        // La texture des cheveux est en niveaux de gris (la couleur vient du moteur de jeu dans le pack
-        // d'origine) : on la teinte, et les sourcils avec.
-        const hairColor = new THREE.Color(character.hairColor);
-        hairGltf.scene.traverse((object) => { if (object.isMesh) object.material.color.copy(hairColor); });
-        model.traverse((object) => { if (object.isSkinnedMesh && /eyebrow/i.test(object.name)) object.material.color.copy(hairColor); });
-        rig.head.attach(hairGltf.scene);
-        model.updateMatrixWorld(true);
         scene.add(model);
 
         mixer = new THREE.AnimationMixer(model);
-        const clips = Object.fromEntries(animationsGltf.animations.map((clip) => [clip.name, clip]));
         let mode = { type: "clip" };
 
         const playClip = (name, yaw) => {
@@ -160,33 +115,64 @@ export default function Personnage3DPreview({ gender = "garcon", movementKey, po
           mode = { type: "clip" };
         };
 
+        // Accessoires du mouvement en cours (barre, banc…) : retirés et libérés à chaque changement.
+        let props = null;
+        const setProps = (group) => {
+          if (props) { scene.remove(props); disposeScene(props); }
+          props = group;
+          if (props) scene.add(props);
+        };
+
+        // Cadre le mouvement : garde l'angle de vue choisi par l'utilisateur, ajuste centre et distance.
+        const frame = (snapshots, movementProps) => {
+          const { center, distance } = computeFraming(rig, snapshots, movementProps, camera.aspect);
+          const direction = camera.position.clone().sub(controls.target).normalize();
+          controls.target.copy(center);
+          camera.position.copy(center).addScaledVector(direction, distance);
+          controls.update();
+        };
+
+        const resetFrame = () => {
+          const direction = camera.position.clone().sub(controls.target).normalize();
+          controls.target.set(0, 0.95, 0);
+          camera.position.set(0, 0.95, 0).addScaledVector(direction, 3.9);
+          controls.update();
+        };
+
         const setMovement = (key, movementPoses) => {
-          const asPose = POSE_MOVEMENTS[key];
-          const asClip = CLIP_MOVEMENTS[key];
-          if (asPose && movementPoses && movementPoses.length) {
-            mixer.stopAllAction();
-            body.skeleton.pose();
-            const snapshots = movementPoses.map((pose) => {
-              poseRig(rig, pose, { facing: asPose.facing, scale });
-              return captureSnapshot(rig);
-            });
-            mode = { type: "poses", snapshots, start: performance.now() };
-            setNotice("");
-          } else if (asClip) {
+          const config = MOUVEMENTS_3D[key];
+          const asClip = CLIPS_3D[key];
+          if (asClip) {
+            setProps(null);
+            resetFrame();
             playClip(asClip.clip, asClip.yaw);
             setNotice("");
+          } else if (config && movementPoses && movementPoses.length) {
+            mixer.stopAllAction();
+            body.skeleton.pose();
+            const built = buildMovement(rig, scale, config, movementPoses);
+            setProps(built.props);
+            frame(built.snapshots, built.props);
+            mode = { type: "poses", snapshots: built.snapshots, start: performance.now() };
+            setNotice("");
           } else {
+            setProps(null);
+            resetFrame();
             playClip("Idle_Loop", 0);
-            setNotice("Pas encore animé en 3D pour ce mouvement — le personnage reste au repos. Les mouvements déjà recalés : position de référence, squat, fente, frappe au but, sprint.");
+            setNotice("Pas encore animé en 3D pour ce mouvement — le personnage reste au repos.");
           }
         };
         apiRef.current = { setMovement };
         setMovement(movementRef.current.movementKey, movementRef.current.poses);
 
-        const clock = new THREE.Clock();
+        // THREE.Clock est déprécié : on mesure l'intervalle entre deux images nous-mêmes (plafonné pour
+        // qu'un onglet resté en arrière-plan ne fasse pas un bond au retour).
+        let lastFrame = performance.now();
         renderer.setAnimationLoop(() => {
           try {
-            const delta = clock.getDelta();
+            const now = performance.now();
+            const delta = Math.min((now - lastFrame) / 1000, 0.1);
+            lastFrame = now;
             if (mode.type === "clip") mixer.update(delta);
             else {
               const { snapshots, start } = mode;
@@ -203,7 +189,8 @@ export default function Personnage3DPreview({ gender = "garcon", movementKey, po
             renderer.render(scene, camera);
           } catch (error) {
             // Une erreur de rendu ne doit pas se répéter à chaque image : on arrête et on bascule sur le repli.
-            console.error("Personnage 3D : " + (error && error.stack ? error.stack : String(error)));            stop();
+            console.error("Personnage 3D : " + (error && error.stack ? error.stack : String(error)));
+            stop();
             if (!cancelled) setState({ status: "error", detail: String(error && error.message ? error.message : error) });
           }
         });

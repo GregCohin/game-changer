@@ -1645,7 +1645,7 @@ export function MouvementsAnimesTab() {
       {renderStyle === "tubulaire" && <p className="hint" style={{ marginBottom: 12 }}>Technique différente des deux précédentes : bras, jambes et torse sont chacun une chaîne de cercles superposés plutôt qu'un contour dessiné — la rondeur à un coude ou un genou vient du cercle lui-même, pas d'une courbe à ajuster.</p>}
       {renderStyle === "personnage3d" && (
         <>
-          <p className="hint" style={{ marginBottom: 12 }}>Un vrai personnage 3D : tu peux le faire tourner en glissant, et zoomer. Première version — seuls quelques mouvements sont recalés en 3D pour l'instant, les autres montrent le personnage au repos.</p>
+          <p className="hint" style={{ marginBottom: 12 }}>Un vrai personnage 3D : tu peux le faire tourner en glissant, et zoomer. Les 48 mouvements sont joués d'après les poses du pantin (quelques dessins d'origine ont été réécrits pour la 3D, avec barre, barres parallèles ou banc quand l'exercice l'exige) — certaines poses restent approximatives.</p>
           <div className="qcm-options" style={{ marginBottom: 12 }}>
             <button className={`qcm-option ${gender === "garcon" ? "selected" : ""}`} onClick={() => setGender("garcon")}>Garçon</button>
             <button className={`qcm-option ${gender === "fille" ? "selected" : ""}`} onClick={() => setGender("fille")}>Fille</button>
