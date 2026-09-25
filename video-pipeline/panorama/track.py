@@ -20,8 +20,9 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.config import PANORAMA_OUT
+from panorama.config import PANORAMA_OUT, PANORAMA_TRACK_MODEL, pitch_dims
 from panorama.geometry import PanoramaModel
+from panorama.geometry2 import PanoramaModel2
 
 OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else Path(__file__).parent.parent / "output" / "panorama"
 VMAX = 10.0              # m/s : vitesse maximale plausible d'un joueur
@@ -38,6 +39,17 @@ USE_SIDE_VETO = False    # la couleur du maillot à 23 px est trop instable pour
 ASSOC = dict(sig_a=5.0, rx=0.25, ry0=0.25, ry_slope=0.006)   # association : permissive
 FINAL = dict(sig_a=3.0, rx=0.10, ry0=0.10, ry_slope=0.004)   # lissage final : plus fin
 H_MEAS = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], float)
+
+
+def load_model():
+    """Modèle géométrique du suivi. Par défaut l'ancien modèle (calibration_finale.json), dont les positions sont ensuite reprojetées en mètres v2
+    (panorama.reproject), comme pour le 1er match. Avec PANORAMA_TRACK_MODEL=v2 : directement le modèle v2 (calibration_v2.json) aux dimensions de
+    PANORAMA_PITCH, donc des positions déjà en vrais mètres et une reprojection sans effet."""
+    if PANORAMA_TRACK_MODEL == "v2":
+        m = PanoramaModel2.from_json(OUT / "calibration_v2.json")
+        m.L, m.W = pitch_dims()
+        return m
+    return PanoramaModel.from_json(OUT / "calibration_finale.json")
 
 
 def R_of(rho, p):
@@ -362,7 +374,7 @@ if __name__ == "__main__":
     args = ap.parse_args()
     USE_SIDE_VETO = args.veto
     D = pickle.load(open(args.detections, "rb"))
-    model = PanoramaModel.from_json(OUT / "calibration_finale.json")
+    model = load_model()
     prepared = prepare(D["frames"], model)
     assign_sides(prepared)
     tracks, per_frame = run_tracking(prepared, D["fps"])

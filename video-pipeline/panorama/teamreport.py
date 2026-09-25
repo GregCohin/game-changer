@@ -14,6 +14,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import teamload as LD
+from panorama.config import pitch_dims
 from panorama import teamshape as S
 from panorama import track as T
 
@@ -106,9 +107,10 @@ def main():
         "avgDepth": ours["match"]["fraction"]["profondeur"] if shape_ok else None, "ppda": None,
         "detail": {
             "minPlayers": S.N_MIN, "coverage": ours["part_du_match"],
-            "note": "précision d'environ ±4 points ; mètres réels sur un terrain de 105 × 68 m." if shape_ok else
+            "note": f"précision d'environ ±4 points ; mètres réels sur un terrain de {pitch_dims()[0]:.0f} × {pitch_dims()[1]:.0f} m." if shape_ok else
                     "forme d'équipe non calculable ce match : jamais assez de joueurs classés en même temps avec assez de certitude (classement noir/clair plus difficile que d'habitude sur cette vidéo).",
-            "pitch": {"lengthM": out["etendue_terrain"]["longueur_m"], "widthM": out["etendue_terrain"]["largeur_m"], "basis": "terrain réglementaire 105 x 68 m (vue satellite du stade) ; calage vérifié contre la caméra suiveuse (pente 1,00)"},
+            "pitch": {"lengthM": out["etendue_terrain"]["longueur_m"], "widthM": out["etendue_terrain"]["largeur_m"], "basis": ("terrain réglementaire 105 x 68 m (vue satellite du stade) ; calage vérifié contre la caméra suiveuse (pente 1,00)" if pitch_dims() == (105.0, 68.0) else
+                                                                                                                                                                                       f"terrain mesuré sur l'image (calage v2 à dimensions libres) : {pitch_dims()[0]:.1f} x {pitch_dims()[1]:.1f} m")},
             "ours": {"match": blk(ours["match"]), "half1": blk(ours["mi_temps_1"]), "half2": blk(ours["mi_temps_2"])} if shape_ok else None,
             "opponent": ({"match": blk(opp["match"]), "half1": blk(opp["mi_temps_1"]), "half2": blk(opp["mi_temps_2"]), "coverage": opp["part_du_match"]} if opp["match"] is not None else None) if shape_ok else None,
             "ci95": {"blockHeight": ours["match"]["ic95_fraction"]["hauteur"], "width": ours["match"]["ic95_fraction"]["largeur"], "depth": ours["match"]["ic95_fraction"]["profondeur"]} if shape_ok else None,

@@ -45,9 +45,13 @@ def box_at(t, foot_uv, max_px=4.0):
     """Boîte détectée (px plein cadre) dont le pied est le plus proche de foot_uv à l'instant t."""
     chunk = chunk_of(t)
     t0, frames = load_boxes(chunk)
-    i = int(round((t - t0) * 10.0))
+    from panorama.match import sample_hz                       # cadence réelle des images (9,36 Hz pour une capture à 56,17 im/s), pas 10 Hz supposés
+    i = int(round((t - t0) * sample_hz()))
     if not (0 <= i < len(frames)):
         return None
+    for j in (i - 1, i + 1):                                   # arrondi : prendre l'image la plus proche en temps
+        if 0 <= j < len(frames) and abs(frames[j]["t"] - t) < abs(frames[i]["t"] - t):
+            i = j
     best = None
     for d in frames[i]["dets"]:
         b = d["box"]

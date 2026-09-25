@@ -24,9 +24,9 @@ OUT = T.OUT
 def main():
     checkpoint, roster_path = followcam_checkpoint(), followcam_roster()
     acc, _, total = extract._replay_from_checkpoint(checkpoint)
-    roster = json.load(open(roster_path)) if Path(roster_path).exists() else {}
+    roster = json.load(open(roster_path)) if roster_path and Path(roster_path).exists() else {}
     if not roster:
-        print(f"pas de roster à {roster_path} : traces écrites non identifiées (étape 1a).")
+        print(f"pas de roster ({roster_path or 'FOLLOWCAM_ROSTER non défini'}) : traces écrites non identifiées (étape 1a).")
     traces = []
     for key, a in acc.items():
         team, suffix = key.split("#", 1)

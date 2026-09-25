@@ -13,6 +13,13 @@ Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des nu
                        vignettes d'étiquetage) ; défaut 2.0 (capture du 1er match, calage très précis). Un calage moins
                        précis (revoir calibration_finale.json) laisse passer moins de mesures à 2 px : élargir ici perd
                        en précision par mesure individuelle mais le classement d'équipe moyenne sur toute la piste
+  PANORAMA_PITCH      "L,W" : dimensions du terrain en mètres, telles que mesurées par le calage v2 de CE match (calibrate3) ;
+                       défaut 105,68 (terrain réglementaire du 1er match). Tout ce qui est en mètres ou en fraction du terrain s'y rapporte
+  PANORAMA_TRACK_MODEL  "v2" : suivre directement dans le modèle v2 (calibration_v2.json, dimensions de PANORAMA_PITCH) ; vide : ancien
+                       modèle (calibration_finale.json) puis reprojection, comme pour le 1er match
+  PANORAMA_HALF_CUT_S coupure de mi-temps dans la capture, en secondes brutes (fin/début simultanés de toutes les pistes) ; défaut 2861 (1er match)
+  PANORAMA_NOIR_OWN_RIGHT_H1  "1" (défaut, 1er match) : l'équipe noire défend le but de droite (X > 0) en 1re période ; "0" : celui de gauche.
+                       À déterminer sur les données de chaque match (position moyenne des équipes juste après les coups d'envoi)
   FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
   FOLLOWCAM_CHECKPOINT  checkpoint extract.py pour ce match (défaut : output/checkpoint_local_v4.pkl, capture du 1er match)
   FOLLOWCAM_ROSTER    roster certifié pour ce match, produit par la revue assistée (défaut : output/roster_v4.json,
@@ -38,6 +45,10 @@ PANORAMA_INNER_CROP = os.environ.get("PANORAMA_INNER_CROP", "")
 PANORAMA_BAND = os.environ.get("PANORAMA_BAND", "")
 PANORAMA_CUTS = os.environ.get("PANORAMA_CUTS", "")
 PANORAMA_BOX_MATCH_PX = float(os.environ.get("PANORAMA_BOX_MATCH_PX", "2.0"))
+PANORAMA_PITCH = os.environ.get("PANORAMA_PITCH", "")
+PANORAMA_TRACK_MODEL = os.environ.get("PANORAMA_TRACK_MODEL", "")
+PANORAMA_HALF_CUT_S = os.environ.get("PANORAMA_HALF_CUT_S", "")
+PANORAMA_NOIR_OWN_RIGHT_H1 = os.environ.get("PANORAMA_NOIR_OWN_RIGHT_H1", "")
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
 FOLLOWCAM_CHECKPOINT = os.environ.get("FOLLOWCAM_CHECKPOINT", "")
 FOLLOWCAM_ROSTER = os.environ.get("FOLLOWCAM_ROSTER", "")
@@ -53,8 +64,32 @@ def followcam_checkpoint():
 
 
 def followcam_roster():
-    """Roster certifié du match (FOLLOWCAM_ROSTER) ; défaut : celui du 1er match."""
-    return FOLLOWCAM_ROSTER or str(_PIPELINE / "output" / "roster_v4.json")
+    """Roster certifié du match (FOLLOWCAM_ROSTER). Sans variable : celui du 1er match, mais seulement si le checkpoint est aussi
+    celui du 1er match ; avec un autre checkpoint, "" (aucun roster) — jamais les identités d'un autre match."""
+    if FOLLOWCAM_ROSTER:
+        return FOLLOWCAM_ROSTER
+    return "" if FOLLOWCAM_CHECKPOINT else str(_PIPELINE / "output" / "roster_v4.json")
+
+
+def pitch_dims():
+    """(longueur, largeur) du terrain en mètres : PANORAMA_PITCH "L,W", sinon le terrain réglementaire 105 x 68 du 1er match."""
+    if not PANORAMA_PITCH:
+        return 105.0, 68.0
+    try:
+        L, W = (float(v) for v in PANORAMA_PITCH.split(","))
+    except ValueError:
+        raise SystemExit('PANORAMA_PITCH doit valoir "longueur,largeur" en mètres, par exemple 101.1,65.1.')
+    return L, W
+
+
+def half_cut_s():
+    """Coupure de mi-temps dans la capture (s brutes) : PANORAMA_HALF_CUT_S, sinon celle du 1er match (2861)."""
+    return float(PANORAMA_HALF_CUT_S) if PANORAMA_HALF_CUT_S else 2861.0
+
+
+def noir_own_right_h1():
+    """True : l'équipe noire défend le but de droite (X > 0) en 1re période (1er match) ; PANORAMA_NOIR_OWN_RIGHT_H1=0 : celui de gauche."""
+    return PANORAMA_NOIR_OWN_RIGHT_H1 != "0"
 
 
 def require(path, var):

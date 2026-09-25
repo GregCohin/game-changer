@@ -25,6 +25,26 @@ CHUNK_S = 300
 FPS = 10.0
 
 
+_HZ = []
+
+
+def sample_hz():
+    """Cadence RÉELLE des images échantillonnées (Hz), lue dans la 1re tranche détectée : native / round(native / FPS). Égale à FPS seulement quand le
+    fps natif est un multiple de FPS (30 -> 10 Hz ; 56,17 -> 9,36 Hz) : supposer FPS décale l'indice d'image de plus en plus au fil d'une tranche.
+    Repli sur FPS si aucune tranche n'est encore détectée."""
+    if not _HZ:
+        hz = FPS
+        p = MATCH / "det_000.pkl"
+        if p.exists():
+            fr = pickle.load(open(p, "rb"))["frames"]
+            if len(fr) > 10 and fr[-1]["t"] > fr[0]["t"]:
+                hz = (len(fr) - 1) / (fr[-1]["t"] - fr[0]["t"])
+                if abs(hz - FPS) < 1e-3:
+                    hz = FPS
+        _HZ.append(hz)
+    return _HZ[0]
+
+
 def video_info():
     cap = open_panorama()
     native = cap.get(cv2.CAP_PROP_FPS)
@@ -81,7 +101,7 @@ def detect_all():
 
 def track_all(version="v1", wait=True):
     bounds = chunk_bounds()
-    model = PanoramaModel.from_json(T.OUT / "calibration_finale.json")
+    model = T.load_model()
     prefix, run = ("trk", T.run_tracking) if version == "v1" else ("trk2", T.run_tracking_v2)
     for k in range(len(bounds)):
         out = MATCH / f"{prefix}_{k:03d}.pkl"

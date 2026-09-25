@@ -15,14 +15,18 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import teamclass as C
 from panorama import track as T
+from panorama.config import half_cut_s, noir_own_right_h1, pitch_dims
+from panorama.match import sample_hz
 
 MATCH = T.OUT / "match"
-FPS = 10.0
-HALF_CUT_S = 2861.0                 # coupure de mi-temps dans l'enregistrement (fin/début simultanés de toutes les pistes)
-# Terrain RÉGLEMENTAIRE 105 x 68 m (confirmé sur la vue satellite du stade : rapport longueur/largeur 1,544, cercle 18,3 m, surfaces 16,5 x 40,32 m),
-# coordonnées en vrais mètres depuis le calage v2 (panorama.calibrate2). Les personnes hors du terrain (staff, spectateurs) sont écartées.
-L_HALF = 52.5                      # demi-longueur : lignes de but en X = +/- L_HALF
-Y_FAR, Y_NEAR = -34.0, 34.0        # touches (m)
+FPS = sample_hz()                   # cadence réelle des images (10 Hz pour le 1er match ; 9,36 Hz pour une capture à 56,17 im/s)
+HALF_CUT_S = half_cut_s()           # coupure de mi-temps dans l'enregistrement (fin/début simultanés de toutes les pistes) ; PANORAMA_HALF_CUT_S
+NOIR_OWN_RIGHT_H1 = noir_own_right_h1()
+# Terrain du match (PANORAMA_PITCH ; 1er match : RÉGLEMENTAIRE 105 x 68 m, confirmé sur la vue satellite du stade : rapport longueur/largeur 1,544, cercle
+# 18,3 m, surfaces 16,5 x 40,32 m), coordonnées en vrais mètres depuis le calage v2 (panorama.calibrate2 / calibrate3). Les personnes hors du terrain
+# (staff, spectateurs) sont écartées.
+L_HALF = pitch_dims()[0] / 2       # demi-longueur : lignes de but en X = +/- L_HALF
+Y_FAR, Y_NEAR = -pitch_dims()[1] / 2, pitch_dims()[1] / 2        # touches (m)
 PITCH_MARGIN = 1.0                 # tolérance autour des lignes (m)
 GK_SHARE_MAX = 0.20                # au-delà : piste de gardien (classe YOLO 1 sur >20 % de ses mesures)
 AUTRE_MAX = 0.30                   # probabilité moyenne « autre » (gardien, arbitre) au-delà de laquelle la piste est écartée
@@ -97,8 +101,8 @@ def shape_series(D, members, team=0, n_min=N_MIN):
         if b - a < n_min:
             continue
         tt = t[a]
-        # équipe noire : défend la droite (X > 0) en 1re période ; l'équipe claire l'inverse. Après la coupure, tout est inversé.
-        own_right = (team == 0) == (tt < HALF_CUT_S)
+        # équipe noire : défend la droite (X > 0) en 1re période (NOIR_OWN_RIGHT_H1) ; l'équipe claire l'inverse. Après la coupure, tout est inversé.
+        own_right = ((team == 0) == (tt < HALF_CUT_S)) == NOIR_OWN_RIGHT_H1
         d = (L_HALF - X[a:b]) if own_right else (X[a:b] + L_HALF)             # distance à sa propre ligne de but (m)
         rows.append((tt, d.mean(), Y[a:b].max() - Y[a:b].min(), d.max() - d.min(), b - a, d.std(), Y[a:b].std(), d.min(), d.max()))
     return np.array(rows)

@@ -25,7 +25,7 @@ from panorama import teamshape as S
 from panorama import track as T
 
 MATCH = T.OUT / "match"
-FPS = 10.0
+FPS = S.FPS                       # cadence réelle des images (voir teamshape) : STEP_MAX_S en dépend
 MAX_GAP_S = 0.6                      # un pas peut enjamber des images manquantes jusqu'à la limite d'un tronçon (track.segments)
 STEP_MAX_S = 1.5 / FPS               # variante stricte (sensibilité seulement) : un pas n'est retenu que si deux mesures se suivent, sans image manquante
 

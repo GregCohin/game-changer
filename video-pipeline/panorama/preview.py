@@ -19,7 +19,7 @@ OUT = T.OUT
 
 def main(path, t0, trail_s=6.0):
     D = pickle.load(open(path, "rb"))
-    model = PanoramaModel.from_json(OUT / "calibration_finale.json")
+    model = T.load_model()
     prepared = T.prepare(D["frames"], model)
     T.assign_sides(prepared)
     tracks, _ = T.run_tracking(prepared, D["fps"])

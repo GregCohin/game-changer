@@ -13,7 +13,7 @@ from panorama import track as T
 from panorama.geometry import PanoramaModel
 from panorama.geometry2 import PanoramaModel2
 
-OLD = PanoramaModel.from_json(T.OUT / "calibration_finale.json")
+OLD = T.load_model()
 NEW = PanoramaModel2.from_json(T.OUT / "calibration_v2.json")
 
 

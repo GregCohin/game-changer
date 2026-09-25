@@ -15,12 +15,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import track as T
 from panorama import teamfeat as TF
-from panorama.geometry import PanoramaModel
 from panorama.config import open_panorama
 from panorama.identify import load_tracklets
 
 DIR = T.OUT / "teamlabel"
-CAL = T.OUT / "calibration_finale.json"
 OUT_W, OUT_H = 150, 108       # taille d'une vignette de la planche (px)
 COLS, ROWS = 6, 8
 HFRAC = 0.21                  # hauteur d'un joueur en px ~ HFRAC x (distance du pied à l'horizon)
@@ -37,7 +35,7 @@ def sample(n, seed=7, subdir=None, n_candidates=None, box_px=6.0):
     w = np.array([t.t1 - t.t0 for t in tls], float)
     n_candidates = n_candidates or n
     idx = list(np.random.default_rng(seed).choice(len(tls), size=min(n_candidates, len(tls)), replace=False, p=w / w.sum()))
-    model = PanoramaModel.from_json(CAL)
+    model = T.load_model()
     cap = open_panorama()
     candidates = []
     for i in idx:
