@@ -10449,6 +10449,122 @@ const STARTER_EXERCISES_FFF_GIFE_U1213_2026 = [
   },
 ];
 
+// Banque issue de la présentation « Formafoot : functionele tussenvormen » de Voetbal Vlaanderen / KBVB (2019,
+// PDF public de 86 pages, texte néerlandais) : formes d'entraînement 8 contre 8 (U12) et 11 contre 11 (U17).
+// Textes et schémas réécrits en français (dépôt public). Les schémas du PDF sont de petites figures : les diagrammes
+// sont reconstruits d'après le texte. Les tussenvormen (formes intermédiaires) sont des exercices auxquels manque
+// au moins un des six éléments d'un vrai match ; le guide rappelle qu'en entraînement réel, les formes de match
+// doivent avoir la préférence (au moins la moitié du cœur de séance).
+const RB_U12 = { ageFormat: "foot_a_8", curriculumFederation: "RBFA", fffBracket: "be_u1213", newBatch: NEW_BATCH_TAG_SOURCES };
+const RB_STD = { ageFormat: "standard", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_FORMAFOOT_2026 = [
+  {
+    name: "Sortie de balle par le côté en carrousel : quatre formes de passe et de centre à 8", category: "tactique", ...RB_U12,
+    objectif: "Enchaîner une sortie de balle depuis le défenseur central par le côté, avec des passes tendues sur le pied éloigné, jusqu'au centre et à la finition de l'avant-centre",
+    duree: 20, nbJoueurs: "8 à 16 joueurs (une ou deux équipes de 8, qui tournent en suivant leur ballon)", materiel: "1 but avec son gardien, 6 plots, ballons, chasubles, terrain de foot à 8",
+    description: "Forme de passes et de frappes jouée depuis les postes, avec une construction depuis l'arrière. Forme 1 : le défenseur central (3) joue sur le latéral (2), qui se retourne et cherche l'ailier (7) ; celui-ci sert l'avant-centre (9), qui contrôle et finit. Après sa passe, chacun suit son ballon pour prendre la place suivante : c'est un carrousel. Forme 2 : l'ailier (7) se rend disponible vers l'intérieur, le latéral (2) le sert en diagonale puis court aussitôt dans l'espace laissé libre et reçoit le ballon en profondeur ; il centre pour l'avant-centre qui finit. Forme 3 : l'ailier (7) s'écarte de la ligne pour se rendre disponible, mais le latéral (2) s'infiltre vers l'intérieur ; l'ailier doit alors refaire un appel vers l'extérieur et reçoit la passe en profondeur du latéral, puis centre pour l'avant-centre ; le latéral poursuit son infiltration et vient en soutien devant le but. Forme 4 : l'ailier (7) se rend disponible vers l'intérieur et libère de l'espace pour l'avant-centre (9), qui plonge dans l'angle ; le latéral (2) le sert dans l'espace et l'avant-centre centre pour l'ailier qui rentre ; le latéral vient à nouveau en soutien devant le but. On peut en faire un défi : qui marque le plus vite, qui marque le plus.",
+    comportementAttendu: "Les joueurs se placent bien ouverts, orientent leur prise de balle, jouent des passes tendues sur le pied éloigné du partenaire et coordonnent leurs appels avec ceux des autres, en particulier le timing des courses.",
+    criteresRealisation: "Le ballon est enchaîné sans s'arrêter, du défenseur central jusqu'à la finition ; chaque passe est tendue et arrive sur le pied éloigné ; les joueurs suivent leur ballon pour que le carrousel reste fluide.",
+    pointsCles: "Bien se placer ouvert ; prise de balle orientée ; passe tendue sur le pied éloigné ; timing de la course (surtout en forme 4) ; en entraînement réel, préférer les formes de match : cette forme n'est qu'une étape intermédiaire.",
+    variantes: "Jouer les quatre formes à la suite, en montant en difficulté ; défi du plus rapide ou du plus efficace ; passer ensuite à une forme de match, avec des adversaires qui défendent le côté.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 8v8 (U12), tussenvormen 1 à 4",
+    diagram: [zel(0.06, 0.06, 0.94, 0.94), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.92), pel("playerA", 0.5, 0.78, { number: 3 }), pel("playerA", 0.14, 0.62, { number: 2 }), pel("playerA", 0.14, 0.36, { number: 7 }), pel("playerA", 0.5, 0.22, { number: 9 }), pel("ball", 0.53, 0.78), ael("arrowPass", 0.5, 0.78, 0.16, 0.63), ael("arrowPass", 0.14, 0.6, 0.14, 0.38), ael("arrowPass", 0.16, 0.34, 0.47, 0.22, { curved: true, cx: 0.3, cy: 0.18 }), ael("arrowPass", 0.5, 0.2, 0.5, 0.12), ...pts("cone", [[0.06, 0.5], [0.94, 0.5]])],
+  },
+  {
+    name: "Trois contre un dans une zone délimitée, puis zone de vérité : trois formes", category: "tactique", ...RB_U12,
+    objectif: "Exploiter une supériorité numérique dans une zone délimitée puis jouer vers la zone de vérité, en choisissant le partenaire démarqué, tout en défendant pour marquer dans un mini-but à la récupération",
+    duree: 20, nbJoueurs: "16 joueurs (8 contre 8, rouges contre bleus)", materiel: "1 grand but avec gardien, 2 mini-buts, 8 plots, ballons, chasubles de deux couleurs, terrain de foot à 8 avec une zone délimitée au centre",
+    description: "La sortie démarre comme dans la forme de passes : le défenseur central (3) joue sur le latéral (2). Dans la zone délimitée au centre du terrain, on joue un 3 contre 1. Si la supériorité est bien exploitée, l'équipe peut continuer jusqu'à la zone de vérité pour marquer dans le grand but : 1 point. Si le défenseur récupère le ballon, il peut marquer dans le mini-but : 2 points. Forme 6 : même jeu, mais avec un 3 contre 2 dans la zone délimitée ; le mini-but ne rapporte plus qu'un point. Forme 7 : à nouveau un 3 contre 1, mais un second défenseur attend pour intervenir dans la zone de vérité s'il le peut ; si la supériorité est bien exploitée, on peut marquer dans le grand but, et si les défenseurs récupèrent, ils marquent dans le mini-but (2 points). On joue en défi : rouges contre bleus, qui marque le plus.",
+    comportementAttendu: "Le porteur regarde qui est libre, choisit le bon partenaire, reçoit corps ouvert et joue sur le pied éloigné ; les attaquants exploitent la supériorité au bon moment ; les défenseurs tentent de récupérer pour marquer dans le mini-but.",
+    criteresRealisation: "Le 3 contre 1 (ou 3 contre 2) est joué dans la zone délimitée avant de passer à la zone de vérité ; les points sont comptés selon la forme (grand but, mini-but).",
+    pointsCles: "Se placer ouvert ; prise de balle orientée ; passe tendue sur le pied éloigné ; faire le bon choix (qui est libre ?).",
+    variantes: "Forme 6 : 3 contre 2 dans la zone, mini-but à un point ; forme 7 : 3 contre 1 avec un deuxième défenseur qui peut intervenir dans la zone de vérité ; défi rouges contre bleus.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 8v8 (U12), tussenvormen 5 à 7",
+    diagram: [zel(0.06, 0.06, 0.94, 0.94), zel(0.06, 0.38, 0.94, 0.62, "#5B8FD6"), zel(0.2, 0.08, 0.8, 0.32, "#E3B23C"), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), pel("goal", 0.38, 0.5), pel("goal", 0.62, 0.5), pel("keeper", 0.5, 0.92), pel("playerA", 0.5, 0.78, { number: 3 }), pel("playerA", 0.12, 0.7, { number: 2 }), pel("playerA", 0.22, 0.48, { number: 7 }), pel("playerA", 0.4, 0.56, { number: 8 }), pel("playerB", 0.3, 0.52), pel("ball", 0.53, 0.78), ael("arrowPass", 0.5, 0.78, 0.14, 0.69), ael("arrowPass", 0.14, 0.66, 0.22, 0.5), ael("arrowPass", 0.24, 0.46, 0.4, 0.3)],
+  },
+  {
+    name: "Sortie de balle en deux zones : gardien et 3 contre 1 en construction, puis 4 contre 3 en attaque", category: "tactique", ...RB_U12,
+    objectif: "Faire franchir la ligne médiane au ballon depuis la zone de construction en jouant en supériorité avec le gardien, puis jouer un 4 contre 3 en zone d'attaque",
+    duree: 20, nbJoueurs: "16 joueurs (8 contre 8) avec deux gardiens", materiel: "2 buts, 2 plots jaunes pour matérialiser la ligne, ballons, chasubles de deux couleurs, terrain de foot à 8 coupé en deux zones",
+    description: "Dans la zone de construction, on joue gardien plus 3 contre 1. Les attaquants doivent faire passer le ballon dans la zone d'attaque, au-delà de la ligne jaune. L'équipe qui défend a deux défenseurs de ligne, qui peuvent intercepter le ballon et lancer une contre-attaque si c'est possible. Si les attaquants réussissent à amener le ballon dans la zone d'attaque, un joueur peut monter en soutien pour créer un 4 contre 3 dans cette zone. Chaque équipe lance à tour de rôle un ballon depuis son gardien. Forme 9 : gardien plus 3 contre 0 dans la zone de construction, mais l'équipe qui défend a alors trois défenseurs de ligne qui peuvent intercepter et contre-attaquer, ce qui rend le franchissement de la ligne plus difficile ; on enchaîne de la même façon par un 4 contre 3 dans la zone d'attaque. Défi : rouges contre bleus, qui gagne la partie.",
+    comportementAttendu: "Le gardien participe comme un joueur de champ, les joueurs se placent ouverts et orientent leur prise de balle, jouent sur le pied éloigné et choisissent le moment de franchir la ligne ; les défenseurs de ligne anticipent l'interception.",
+    criteresRealisation: "Le ballon franchit la ligne jaune ; le soutien crée bien un 4 contre 3 en zone d'attaque ; les interceptions donnent lieu à des contre-attaques.",
+    pointsCles: "Se placer ouvert ; prise de balle orientée ; passe tendue sur le pied éloigné ; utiliser le gardien comme joueur supplémentaire.",
+    variantes: "Passer de 3 contre 1 à 3 contre 0 avec trois défenseurs de ligne pour rendre le franchissement plus difficile ; alterner les équipes qui lancent le ballon ; ajouter un défi de score entre rouges et bleus.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 8v8 (U12), tussenvormen 8 et 9",
+    diagram: [zel(0.06, 0.5, 0.94, 0.94), zel(0.06, 0.06, 0.94, 0.5, "#5B8FD6"), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.9), ...pts("cone", [[0.06, 0.5], [0.94, 0.5]]), ...pts("playerA", [[0.2, 0.78, 1], [0.5, 0.72, 2], [0.8, 0.78, 3]]), pel("playerB", 0.5, 0.64), ...pts("playerB", [[0.3, 0.5], [0.7, 0.5]]), ...pts("playerB", [[0.3, 0.25], [0.5, 0.22], [0.7, 0.25]]), pel("playerA", 0.86, 0.4, { number: 4 }), pel("ball", 0.53, 0.9), ael("arrowPass", 0.5, 0.9, 0.78, 0.79), ael("arrowPass", 0.8, 0.76, 0.86, 0.43)],
+  },
+  {
+    name: "Passes et centres à 16 joueurs depuis les postes : disponibilité, contrôle orienté et centre", category: "tactique", ...RB_STD,
+    objectif: "Faire circuler le ballon depuis le gardien jusqu'à un joueur de côté pour un centre, en restant en mouvement à son poste, disponible et bien orienté",
+    duree: 20, nbJoueurs: "18 joueurs (16 joueurs de champ et 2 gardiens : deux équipes en 1-3-2-1 avec deux joueurs de côté)", materiel: "2 buts, 4 ballons, chasubles de deux couleurs, terrain de foot à 11",
+    description: "Chaque équipe se place en 1-3-2-1 auquel s'ajoutent deux joueurs de côté (7 et 11) : la zone centrale est occupée par les joueurs 2, 3, 5, 8, 10 et 9, les zones latérales par les joueurs 7 et 11. Chaque équipe a un ballon. Les joueurs restent en mouvement sur leur poste : ils se rendent disponibles, créent de l'espace pour eux-mêmes, se passent le ballon et le contrôlent de façon orientée pour atteindre un joueur de côté, qui centre. Le gardien, intégré au jeu, choisit entre deux options. On peut ensuite étendre la forme : faire infiltrer les joueurs 9, 8 et 10 dans la surface (timing, qualité du centre, jeu de tête offensif, occupation devant le but) ; ajouter un défenseur (timing, jeu de tête défensif, vision périphérique) ; jouer équipe contre équipe, les zones latérales restant libres et les joueurs 7, 11, 2 et 5 pouvant s'y déplacer, avec un centre en deux touches ou en une touche, une occupation de la surface avec des limites (par exemple 3 contre 2 dans les 16 m), des moments de transition et une ligne de hors-jeu.",
+    comportementAttendu: "Chaque joueur se rend disponible, crée l'espace pour lui-même, prend de bonnes décisions, réalise des passes précises et un contrôle orienté avant de centrer ; les décalages restent à distance correcte les uns des autres.",
+    criteresRealisation: "Le ballon atteint un joueur de côté qui centre ; les joueurs restent en mouvement sur leur poste ; les extensions (infiltration, défenseur, équipe contre équipe) sont ajoutées progressivement.",
+    pointsCles: "Être disponible (aanspeelbaarheid) ; prise de décision ; créer de l'espace pour soi ; passe, contrôle et centre ; garder les distances ; en entraînement réel, préférer les formes de match.",
+    variantes: "Deux ballons par équipe ; ajouter le mouvement des 8, 10 et 9 ; laisser le gardien choisir entre deux options de relance ; infiltrer les 9, 8 et 10 dans les 16 m ; ajouter un défenseur ; jouer équipe contre équipe avec les zones latérales libres.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 11v11 (U17), forme 1 : « Pass- en trapvorm anders bekeken »",
+    diagram: [zel(0.2, 0.08, 0.8, 0.92, "#5B8FD6"), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.92), pel("ball", 0.53, 0.92), ...pts("playerA", [[0.3, 0.72, 2], [0.5, 0.78, 3], [0.7, 0.72, 5], [0.34, 0.5, 8], [0.66, 0.5, 9], [0.5, 0.4, 10], [0.07, 0.4, 7], [0.93, 0.4, 11]]), ael("arrowPass", 0.5, 0.9, 0.5, 0.8), ael("arrowPass", 0.48, 0.77, 0.32, 0.73), ael("arrowPass", 0.28, 0.7, 0.09, 0.42), ael("arrowPass", 0.09, 0.38, 0.42, 0.14, { curved: true, cx: 0.2, cy: 0.16 })],
+  },
+  {
+    name: "Jeu de position avec transition vers le but : neuf contre cinq au centre, ailiers en relais", category: "tactique", ...RB_STD,
+    objectif: "Conserver le ballon en supériorité en ouvrant large et en profondeur, puis, à la récupération, enchaîner cinq passes en impliquant les côtés pour marquer",
+    duree: 20, nbJoueurs: "18 joueurs (16 joueurs de champ et 2 gardiens ; 9 contre 5 dans la zone centrale, joueurs de côté en plus)", materiel: "2 buts, 4 ballons, plots pour délimiter la zone centrale, chasubles de deux couleurs, terrain de foot à 11",
+    description: "Dans une zone centrale délimitée, neuf joueurs bleus (gardien compris, intégré comme joueur de champ) affrontent cinq rouges (six dans la démonstration), les autres joueurs rouges se répartissant sur les côtés. Les bleus marquent un point avec cinq passes consécutives : ils ouvrent large et en profondeur, puis jouent au centre en deux touches. Les rouges défendent en bloc, et à la récupération doivent enchaîner cinq passes en impliquant les joueurs de côté avant de marquer : ce sont alors eux qui gagnent un point. Le jeu est libre après la récupération, avec des joueurs relais qui remettent en deux touches ou en une touche. Extension : faire jouer un centre court (par les latéraux 2 et 5) ou un centre normal ou tardif (par les joueurs de côté 7 et 11), avec l'occupation de la surface.",
+    comportementAttendu: "Les bleus occupent la largeur et la profondeur, intègrent le gardien et jouent en deux touches ; les rouges défendent en bloc puis basculent vite dans la transition et utilisent les côtés.",
+    criteresRealisation: "Les séries de cinq passes sont comptées pour les bleus ; les rouges enchaînent cinq passes en impliquant les côtés avant de marquer ; l'occupation de la surface est prévue quand on ajoute le centre.",
+    pointsCles: "Ouvrir large et en profondeur ; intégrer le gardien ; coaching du bloc défensif ; réussir la transition ; utiliser les relais en deux touches ou une touche.",
+    variantes: "Jouer à 9 contre 6 ; centre court (par 2 et 5) ou centre normal ou tardif (par 7 et 11) ; occupation de la surface pour finir.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 11v11 (U17), forme 2 : « Positiespel met omschakeling naar doel »",
+    diagram: [zel(0.22, 0.5, 0.78, 0.9), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.9), pel("goal", 0.5, 0.04), ...pts("playerA", [[0.3, 0.55, 1], [0.7, 0.55, 2], [0.5, 0.6, 3], [0.28, 0.75, 4], [0.72, 0.75, 5], [0.42, 0.82, 6]]), ...pts("playerB", [[0.45, 0.68], [0.55, 0.72], [0.4, 0.74], [0.6, 0.62], [0.5, 0.8]]), ...pts("playerC", [[0.07, 0.6], [0.93, 0.6], [0.07, 0.85], [0.93, 0.85]]), pel("ball", 0.32, 0.57), ael("arrowPass", 0.32, 0.57, 0.68, 0.56), ael("arrowPass", 0.7, 0.58, 0.72, 0.72)],
+  },
+  {
+    name: "Actions en cinq vagues : de 1 contre 1 à 4 contre 4 dans un couloir étroit", category: "tactique", ...RB_STD,
+    objectif: "Résoudre à tour de rôle des situations de supériorité et d'infériorité, en enchaînant action individuelle, passe ou tir et transition défense-attaque",
+    duree: 20, nbJoueurs: "18 joueurs (16 joueurs de champ et 2 gardiens, répartis en cinq vagues)", materiel: "2 buts, 4 ballons, plots pour un couloir plus étroit que la surface de réparation, chasubles de deux couleurs, moitié de terrain de foot à 11",
+    description: "Dans un espace plus étroit que la largeur de la surface de réparation (moins de 16 m), cinq vagues se succèdent : 1 contre 1, 2 contre 1, 3 contre 2, 4 contre 3, puis 4 contre 4. Dans chaque vague, les joueurs en supériorité doivent exploiter le surnombre et ceux en infériorité doivent le défendre. On travaille la transition dans les deux sens (de la possession à la perte et de la perte à la possession), l'action individuelle offensive et le travail défensif, la prise de décision (dribble, passe ou tir), les courses, le hors-jeu, et l'ouverture large ou en profondeur.",
+    comportementAttendu: "Les attaquants choisissent entre dribble, passe et tir selon la situation, font des courses adaptées, respectent le hors-jeu et ouvrent large ou en profondeur ; les défenseurs défendent en infériorité et basculent vite en attaque à la récupération.",
+    criteresRealisation: "Les cinq vagues s'enchaînent dans l'ordre ; à la fin de chaque action, la transition est jouée ; le hors-jeu est appliqué.",
+    pointsCles: "Transitions ballon perdu et ballon gagné ; action individuelle offensive et travail défensif ; prise de décision (action, passe, tir) ; courses ; hors-jeu ; ouvrir large et en profondeur.",
+    variantes: "Changer l'ordre des vagues ; réduire ou élargir le couloir ; limiter le temps d'action ; imposer une finition en une touche.",
+    intensite: "elevee", theme: "Transitions",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 11v11 (U17), forme 3 : « Actie maken en omschakelen »",
+    diagram: [zel(0.28, 0.08, 0.72, 0.92), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.9), ...pts("playerA", [[0.36, 0.72, 1], [0.5, 0.78, 2], [0.62, 0.72, 3], [0.5, 0.66, 4]]), ...pts("playerB", [[0.42, 0.4], [0.58, 0.4], [0.5, 0.3]]), pel("ball", 0.39, 0.72), ael("arrowDribble", 0.39, 0.72, 0.42, 0.5), ael("arrowPass", 0.62, 0.7, 0.58, 0.44), ael("arrowMove", 0.5, 0.64, 0.5, 0.5)],
+  },
+  {
+    name: "Jeu de position à trois équipes de six : se rendre disponible derrière la porte", category: "tactique", ...RB_STD,
+    objectif: "Utiliser les espaces en se déplaçant au bon moment, avec un bon timing et une bonne communication, pour jouer à travers des portes vers un partenaire disponible derrière",
+    duree: 20, nbJoueurs: "18 joueurs (trois équipes de six, dont les deux gardiens)", materiel: "15 portes (5 par équipe, faites de deux plots), 3 ballons (1 par équipe), 4 mini-buts pour la dernière étape, chasubles de trois couleurs, grand carré de jeu",
+    description: "Trois équipes de six jouent dans le même espace ; chaque équipe dispose de cinq portes et d'un ballon, et les gardiens sont intégrés aux équipes. On progresse par étapes : (1) jouer à travers une porte en deux touches : le partenaire doit se rendre disponible derrière la porte (espace, timing, passe précise au bon tempo, contrôle orienté vers un coéquipier placé derrière une autre porte) ; (2) contrôler le ballon en passant par la porte, en deux touches ; (3) jouer à travers la porte avec trois joueurs disponibles, en une touche, avec des passes au bon tempo ; (4) conduire le ballon à travers la porte, jouer, puis faire une remise sur un troisième joueur, avec deux joueurs disponibles et un joueur qui se retourne pour remettre ; (5) équipe 1 contre équipe 2, avec marquer dans les quatre buts : jouer à travers une porte donne la possibilité de marquer après deux touches. Extensions : marquer dans deux buts, toutes les portes contre ses propres portes, autres missions.",
+    comportementAttendu: "Les joueurs se déplacent pour se rendre disponibles derrière la porte au bon moment, communiquent, jouent des passes précises au bon tempo et contrôlent en orientant leur prise de balle vers un partenaire.",
+    criteresRealisation: "Chaque étape est validée avant la suivante ; la passe traverse bien la porte ; le nombre de touches imposé est respecté ; les buts ne sont possibles qu'après le passage par une porte.",
+    pointsCles: "Espace et timing ; passe précise au bon tempo ; contrôle orienté vers un partenaire derrière une autre porte ; se retourner pour remettre ; communication.",
+    variantes: "Marquer dans deux buts au lieu de quatre ; jouer toutes les portes contre ses propres portes ; passer de deux touches à une touche ; imposer d'autres missions.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 11v11 (U17), forme 4 : « Positiespel – nadenken in ruimtes »",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), ...pts("cone", [[0.28, 0.3], [0.36, 0.3], [0.62, 0.34], [0.7, 0.34], [0.3, 0.68], [0.38, 0.68], [0.6, 0.7], [0.68, 0.7]]), ...pts("playerA", [[0.2, 0.2, 1], [0.44, 0.42, 2], [0.5, 0.25, 3]]), ...pts("playerB", [[0.8, 0.3], [0.52, 0.5], [0.72, 0.5]]), ...pts("playerC", [[0.2, 0.78], [0.5, 0.8], [0.8, 0.75]]), pel("ball", 0.23, 0.22), ael("arrowPass", 0.23, 0.22, 0.42, 0.38)],
+  },
+  {
+    name: "Appliquer un geste technique dans un jeu à 2 contre 1 sur deux zones", category: "tactique", ...RB_STD,
+    objectif: "Jouer vite un 2 contre 1 après un geste technique de départ (passe sur le pied éloigné, contrôle au tempo), pour s'entraîner à la prise de décision",
+    duree: 20, nbJoueurs: "18 joueurs (16 joueurs de champ et 2 gardiens ; deux zones où l'on joue toujours 2 contre 1)", materiel: "2 buts, 4 mini-buts, ballons, plots, chasubles de deux couleurs, terrain de foot à 11 divisé en deux zones (A et B)",
+    description: "Le terrain est divisé en deux zones, A et B, où l'on joue toujours à 2 contre 1, gardiens intégrés. Chaque action démarre par un geste technique imposé. Exemple par poste : le joueur 1 joue à l'intérieur sur le pied éloigné du joueur 8 ; le 8 contrôle au tempo en direction de la zone A ; les joueurs 8 et 11 jouent alors le 2 contre 1 contre le défenseur adverse 2. Le but est de résoudre vite le 2 contre 1, de s'entraîner au geste technique et de bien décider (attaque contre défense).",
+    comportementAttendu: "Le joueur qui reçoit contrôle au bon tempo, orienté vers la zone où se joue le 2 contre 1 ; les deux attaquants décident vite entre dribble, passe et frappe ; le défenseur cadre et retarde.",
+    criteresRealisation: "Le geste technique de départ est réalisé correctement avant le 2 contre 1 ; le 2 contre 1 est joué rapidement ; la prise de décision est observée.",
+    pointsCles: "Passe sur le pied éloigné ; contrôle au tempo, orienté ; jouer vite le 2 contre 1 ; prise de décision.",
+    variantes: "Changer le geste technique de départ (autre type de passe, autre contrôle) ; alterner les zones A et B ; faire tourner les postes entre attaque et défense.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "Voetbal Vlaanderen / KBVB (RBFA), présentation « Formafoot : functionele tussenvormen » (2019), trainingsvormen 11v11 (U17), forme 5 : « Technische vaardigheid toepassen in spelvorm »",
+    diagram: [zel(0.06, 0.08, 0.5, 0.92), zel(0.5, 0.08, 0.94, 0.92, "#5B8FD6"), pel("goal", 0.28, 0.18), pel("goal", 0.72, 0.18), pel("goal", 0.28, 0.5), pel("goal", 0.72, 0.5), pel("playerA", 0.38, 0.8, { number: 1 }), pel("playerA", 0.3, 0.6, { number: 8 }), pel("playerA", 0.14, 0.52, { number: 11 }), pel("playerB", 0.22, 0.3), pel("playerB", 0.72, 0.3), pel("playerA", 0.68, 0.6), pel("playerA", 0.84, 0.52), pel("ball", 0.4, 0.82), ael("arrowPass", 0.4, 0.8, 0.31, 0.62), ael("arrowDribble", 0.3, 0.58, 0.26, 0.4)],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -10520,6 +10636,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_FPF_FUTSAL_2026,
   ...STARTER_EXERCISES_FA_2026,
   ...STARTER_EXERCISES_FFF_GIFE_U1213_2026,
+  ...STARTER_EXERCISES_FORMAFOOT_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
