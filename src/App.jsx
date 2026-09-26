@@ -4,7 +4,10 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 // generateCompilation est importé dynamiquement au moment de l'usage (voir runCompilation) plutôt
 // qu'ici : @ffmpeg/ffmpeg est un gros morceau du bundle principal, alors qu'il n'est nécessaire
 // que pour la fonctionnalité de compilation vidéo, utilisée par une minorité de sessions.
-import { ALL_STARTER_EXERCISES, STARTER_SESSIONS } from "./data/starterContent.js";
+// Le contenu de départ (plusieurs centaines d'exercices, ~750 Ko de source) est importé
+// dynamiquement au clic sur « Pré-remplir » / « Mettre à jour » (voir loadStarterContent) plutôt
+// qu'ici : personne n'en a besoin au premier chargement, et chaque nouvelle banque alourdirait
+// sinon le bundle principal.
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
 import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
@@ -19,6 +22,11 @@ import {
   listPlayerLinks, revokeLink,
 } from "./lib/portalSync.js";
 
+// Renvoie { ALL_STARTER_EXERCISES, STARTER_SESSIONS }, ou null (avec un message) si le chargement échoue.
+async function loadStarterContent() {
+  try { return await import("./data/starterContent.js"); }
+  catch (e) { alert("Impossible de charger les exercices de départ (connexion ?). Réessaie dans un instant."); return null; }
+}
 
 // Statut de participation d'un joueur à un match, à partir de match.playerMinutes[playerId]
 // (starter, subEntered) — trois états plutôt que le titulaire/remplaçant binaire d'origine, qui ne
@@ -31240,7 +31248,10 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
     reader.readAsText(file);
   }
 
-  function populateStarterExercises() {
+  async function populateStarterExercises() {
+    const content = await loadStarterContent();
+    if (!content) return;
+    const { ALL_STARTER_EXERCISES } = content;
     const existingNames = new Set(exercises.map((e) => e.name));
     const toAdd = ALL_STARTER_EXERCISES.filter((ex) => !existingNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     if (toAdd.length === 0) { alert("Tous les exercices de démarrage sont déjà présents dans ta banque — utilise \"Mettre à jour les schémas\" si tu les avais ajoutés avant qu'ils existent."); return; }
@@ -31248,7 +31259,10 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
     alert(`${toAdd.length} exercice${toAdd.length > 1 ? "s" : ""} ajouté${toAdd.length > 1 ? "s" : ""} — les exercices tactiques (un par thème du Projet de jeu), plus une première base d'exercices technique et athlétique, à ajuster librement.`);
   }
 
-  function updateStarterDiagrams() {
+  async function updateStarterDiagrams() {
+    const content = await loadStarterContent();
+    if (!content) return;
+    const { ALL_STARTER_EXERCISES } = content;
     const starterByName = {};
     ALL_STARTER_EXERCISES.forEach((ex) => { starterByName[ex.name] = ex.diagram; });
     let updated = 0;
@@ -31262,7 +31276,10 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
     alert(`Schéma ajouté sur ${updated} exercice${updated > 1 ? "s" : ""} déjà présent${updated > 1 ? "s" : ""} dans ta banque, sans toucher au reste de leurs informations.`);
   }
 
-  function updateStarterThemes() {
+  async function updateStarterThemes() {
+    const content = await loadStarterContent();
+    if (!content) return;
+    const { ALL_STARTER_EXERCISES } = content;
     const starterByName = {};
     ALL_STARTER_EXERCISES.forEach((ex) => { starterByName[ex.name] = ex.theme; });
     let updated = 0;
@@ -32687,7 +32704,10 @@ function SessionsScreen({ roster }) {
     setSubTab("creation_seance");
   }
 
-  function populateStarterSessions() {
+  async function populateStarterSessions() {
+    const content = await loadStarterContent();
+    if (!content) return;
+    const { ALL_STARTER_EXERCISES, STARTER_SESSIONS } = content;
     const existingExNames = new Set(exercises.map((e) => e.name));
     const newExercises = ALL_STARTER_EXERCISES.filter((ex) => !existingExNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     const allExercises = [...exercises, ...newExercises];
