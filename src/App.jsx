@@ -30809,6 +30809,7 @@ const CURRICULUM_FEDERATIONS = [
   { key: "DBU", label: "Danemark (DBU)" },
   { key: "NFF", label: "Norvège (NFF)" },
   { key: "ASF", label: "Suisse (ASF/SFV)" },
+  { key: "FACR", label: "Tchéquie (FAČR)" },
   { key: "OEFB", label: "Autriche (ÖFB)" },
   { key: "KSI", label: "Islande (KSÍ)" },
   { key: "USSF", label: "États-Unis (US Soccer)" },
@@ -30912,6 +30913,11 @@ const CURRICULUM_BRACKETS = [
   { key: "ch_d", federation: "ASF", label: "D-Junioren (U10-U11)", ageFormat: "foot_a_8" },
   { key: "ch_c", federation: "ASF", label: "C-Junioren (U12-U13)", ageFormat: "foot_a_8" },
   { key: "ch_ba", federation: "ASF", label: "B/A-Junioren (U14-U19)", ageFormat: "standard" },
+
+  { key: "cz_u67", federation: "FACR", label: "U6-U7 (minipřípravka)", ageFormat: "foot_a_4" },
+  { key: "cz_u89", federation: "FACR", label: "U8-U9 (mladší přípravka)", ageFormat: "foot_a_5" },
+  { key: "cz_u1011", federation: "FACR", label: "U10-U11 (starší přípravka)", ageFormat: "foot_a_8" },
+  { key: "cz_u1213", federation: "FACR", label: "U12-U13 (mladší žáci)", ageFormat: "foot_a_8" },
 
   { key: "at_u78", federation: "OEFB", label: "U7-U8 (Kleinfeld)", ageFormat: "foot_a_5" },
   { key: "at_u910", federation: "OEFB", label: "U9-U10", ageFormat: "foot_a_5" },
