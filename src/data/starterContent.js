@@ -5840,8 +5840,9 @@ const STARTER_EXERCISES_FOOT4_2026 = [
     comportementAttendu: "Le partenaire sans ballon se décale pour être visible, ne reste pas collé au porteur.",
     criteresRealisation: "Chaque équipe réussit au moins une passe entre les deux joueurs avant de marquer, sur au moins une action.",
     pointsCles: "Féliciter chaque tentative de passe, même ratée — l'intention compte à cet âge.",
-    variantes: "Autoriser à marquer aussi en dribble, pour ne pas forcer la passe si l'enfant n'est pas prêt.",
+    variantes: "Autoriser à marquer aussi en dribble, pour ne pas forcer la passe si l'enfant n'est pas prêt. ; version FAČR U6-U7 « 2 contre 2 sur deux buts » : terrain de 15 m sur 20 m délimité par des lignes de touche et de but (des plots suffisent), une zone symbolique de 3 m devant chaque ligne de but et un but d'environ 1,5 m sur 1 (ou des jalons ou plots) de chaque côté ; plutôt que la combinaison, on cherche à ce que les enfants se gênent le moins possible et ne se regroupent pas, sans les pousser à la passe même si les plus à l'aise se la font ; les enfants ont tendance à reculer vers leur but : leur apprendre à récupérer le ballon le plus tôt possible ; relances sans arbitre après un but ou une sortie, avec l'adversaire à 3 m au moins ; intervalles de 10 à 15 minutes, cinq à six par journée",
     intensite: "moderee", theme: "Coopération", newBatch: NEW_BATCH_TAG,
+    source: "FAČR, Příručka pro utkání kategorií U6-U7, « 2v2 na DVĚ BRANKY » (variante)",
     diagram: genVs(2, 2, { hasKeeper: false, xA: 0.3, xB: 0.7, zone: [0.1, 0.2, 0.9, 0.8] }),
   },
   {
@@ -9076,9 +9077,9 @@ const STARTER_EXERCISES_FACR_U1011_2026 = [
     comportementAttendu: "Après sa passe vers l'aile, l'attaquant s'engage dans une zone dangereuse ; celui qui a le ballon crée l'espace pour un 1 contre 1 ou trouve l'espace pour centrer.",
     criteresRealisation: "Dix actions par côté et par paire ; les buts sont comptés ; le défenseur part un mètre derrière l'attaquant.",
     pointsCles: "Après la passe à l'ailier, où courir ? (dans la zone dangereuse) ; libérer l'espace de l'ailier pour un 1 contre 1 et chercher l'espace pour une passe devant le but.",
-    variantes: "Jouer à 2 contre 2 ; changer de côté ; ajouter un gardien ou un défenseur supplémentaire.",
+    variantes: "Jouer à 2 contre 2 ; changer de côté ; ajouter un gardien ou un défenseur supplémentaire. ; version FC Bâle (U12-U13) : l'action commence par une passe vers un attaquant qui doit se libérer de son défenseur ou le garder dans son dos, le passeur créant aussitôt une solution de passe, puis un 2 contre 1 ; si le défenseur récupère, il finit dans de petits buts ou par un une-deux avec l'éducateur pendant que la paire d'attaquants passe en pressing ; consignes : contrôler du regard et de la main le placement du défenseur, s'en libérer en l'attirant de quelques pas vers le but puis en revenant chercher la passe ; si l'on remise à son partenaire, lui ouvrir l'espace par un appel sur le côté ou au centre ; côté défense : sortir sur l'attaquant et se placer entre le porteur et le partenaire qui court",
     intensite: "moderee", theme: "Animation offensive",
-    source: "FAČR, Tréninková příručka pro kategorii starších přípravek (U10-U11), cvičení C4 « Útoky 2 na 1 (2) ze strany »",
+    source: "FAČR, Tréninková příručka pro kategorii starších přípravek (U10-U11), cvičení C4 « Útoky 2 na 1 (2) ze strany » ; FAČR, revue Fotbal a trénink 4/2025, D. Kadlec, stage au FC Bâle 1893, exercice 1 (variante)",
     diagram: [zel(0.35, 0.1, 0.95, 0.9), pel("goal", 0.95, 0.5), pel("keeper", 0.91, 0.5), pel("playerA", 0.45, 0.75), pel("playerA", 0.6, 0.35), pel("playerB", 0.42, 0.85), pel("playerB", 0.75, 0.5), pel("ball", 0.48, 0.77), ael("arrowPass", 0.48, 0.77, 0.6, 0.4), ael("arrowDribble", 0.62, 0.36, 0.85, 0.45)],
   },
   {
@@ -9300,9 +9301,9 @@ const STARTER_EXERCISES_FACR_U1213_2026 = [
     comportementAttendu: "Quand l'adversaire vous presse et que vous l'attirez vers votre surface, on cherche l'attaquant dans les pieds ; le milieu se rapproche pour l'appui et la défense repousse le jeu loin de son but ; en défense, on ferme les lignes de passe et on reste proches les uns des autres.",
     criteresRealisation: "La relance dépasse le pressing ; l'attaquant est utilisé ; à mi-temps, les rôles s'échangent.",
     pointsCles: "Comment se positionner pour presser tout en pouvant intercepter une passe vers l'attaquant et revenir sur les courses ? (près les uns des autres, un peu derrière les joueurs adverses du milieu) ; les milieux qui montent créent de l'espace pour une relance courte et une sortie des défenseurs centraux, où l'on est un de plus grâce au gardien.",
-    variantes: "Jeu libre avec relance depuis la ligne de but ; passe à un gardien en retrait avec pressing sur ordre ; pressing optionnel de l'éducateur sur l'attaquant.",
+    variantes: "Jeu libre avec relance depuis la ligne de but ; passe à un gardien en retrait avec pressing sur ordre ; pressing optionnel de l'éducateur sur l'attaquant. ; version Benfica (U14 et plus) : demi-terrain, l'équipe qui relance joue à 7 avec son gardien en 4-3-0 contre 6 joueurs en 0-3-3 ; l'action commence toujours par une relance du gardien et l'objectif est de passer l'une des trois portes de conduite placées à mi-terrain ; si l'adversaire récupère le ballon, il finit dans le grand but ; si la relance franchit une porte, l'éducateur passe le ballon à l'équipe qui pressait, qui attaque le but principal ; l'éducateur remet aussi un ballon quand il sort ; consignes : repérer où l'on a la supériorité, partir en conduite pour attirer l'adversaire quand on a le ballon et de l'espace, offrir du soutien au porteur (sous lui, devant lui, sur le côté) ; presseurs : cacher la passe par leur déplacement et se soutenir mutuellement",
     intensite: "elevee", theme: "Animation offensive",
-    source: "FAČR, Tréninková příručka pro kategorii mladších žáků (U12-U13), cvičení C2 « Zakládání akce od brankáře 7:6 (6:5) vs. vysoký presink », C3 et D1",
+    source: "FAČR, Tréninková příručka pro kategorii mladších žáků (U12-U13), cvičení C2 « Zakládání akce od brankáře 7:6 (6:5) vs. vysoký presink », C3 et D1 ; FAČR, revue Fotbal a trénink 2/2025, D. Kadlec, stage à Benfica Lisbonne, exercice 3 (variante)",
     diagram: [zel(0.05, 0.1, 0.95, 0.9), pel("goal", 0.05, 0.5), pel("keeper", 0.09, 0.5), pel("goal", 0.95, 0.5), ...pts("playerA", [[0.2, 0.3, 1], [0.2, 0.7, 2], [0.4, 0.4, 3], [0.4, 0.6, 4], [0.6, 0.5, 5]]), ...pts("playerB", [[0.32, 0.35], [0.32, 0.65], [0.5, 0.4], [0.5, 0.6], [0.7, 0.5]]), pel("ball", 0.12, 0.5), ael("arrowPass", 0.12, 0.5, 0.2, 0.33)],
   },
   {
@@ -9411,6 +9412,168 @@ const STARTER_EXERCISES_FACR_U1213_2026 = [
   },
 ];
 
+// Compléments issus de la fédération tchèque (FAČR, PDF fournis par Gregory le 26/09/2026) : manuel de rencontre
+// U6-U7, articles de la revue « Fotbal a trénink » (stages à Benfica et au FC Bâle, D. Kadlec ; jeux
+// préparatoires de P. Frýbort). Textes et schémas réécrits (dépôt public). Les articles de V. Chaloupka
+// (tir, défense et sortie de balle en U8-U9) reprennent des exercices déjà intégrés depuis les manuels : rien
+// n'est redoublé. Le 2 contre 2 sur deux buts du manuel U6-U7 est replié dans une fiche existante.
+const CZ_U67 = { ageFormat: "foot_a_4", curriculumFederation: "FACR", fffBracket: "cz_u67", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_FACR_DIVERS_2026 = [
+  // ---------------------------------------------------------------------------------------------
+  // U6-U7 : formes de rencontre du manuel « Příručka pro utkání kategorií U6-U7 »
+  // ---------------------------------------------------------------------------------------------
+  {
+    name: "1 contre 1 sur trois buts dans un terrain circulaire", category: "tactique", ...CZ_U67,
+    objectif: "Apprendre à jouer direct et à s'orienter dans l'espace : prendre le ballon à l'adversaire et s'échapper vers un but libre",
+    duree: 15, nbJoueurs: "6 joueurs (trois duels au maximum en même temps)", materiel: "Un ballon léger de taille 2 ou 3 par duel, buts d'environ 1,5 m sur 1 m (ou plots) disposés en cercle sur un terrain de 10 à 12 m de diamètre, sans lignes",
+    description: "Des buts de 1,5 m sur 1 m sont placés tout autour d'un terrain rond de 10 à 12 m de diamètre. Deux enfants de niveau proche s'affrontent en 1 contre 1 : un but marqué compte dans n'importe quel but, sauf celui dans lequel on vient de marquer. Après un but, on repart aussitôt avec le ballon qu'on a. Si le ballon sort, l'éducateur remet un nouveau ballon ou les enfants vont chercher celui qui est parti. Chaque duel dure de 30 secondes à une minute, pour 10 à 15 minutes au total ; l'éducateur fait tourner les paires sans arrêter le jeu. On peut aussi faire jouer les trois paires en même temps. Aucun arbitre n'est nécessaire, mais on recommande une surveillance à l'endroit du 1 contre 1.",
+    comportementAttendu: "Les enfants cherchent le but libre le plus simple à atteindre, évitent de se retourner dos au jeu avec le ballon, et à la perte du ballon changent aussitôt d'attitude pour le récupérer.",
+    criteresRealisation: "Les buts sont comptés sans arbitre ; le jeu continue après chaque but ; les paires tournent toutes les 30 secondes à une minute.",
+    pointsCles: "Le nombre de buts multiplie les solutions et laisse s'exprimer la créativité ; plusieurs buts poussent le défenseur à vouloir prendre le ballon plutôt qu'à reculer dans son but ; intervenir le moins possible, donner les conseils plutôt pendant les pauses.",
+    variantes: "Jeu plus long avec changement de paires dans la pause ; les trois paires en même temps ; grossir ou rétrécir le terrain selon le niveau.",
+    intensite: "moderee", theme: "Duel",
+    source: "FAČR, Příručka pro utkání kategorií U6-U7, « 1v1 na TŘI BRANKY »",
+    diagram: [zel(0.2, 0.15, 0.8, 0.85), ...pts("goal", [[0.5, 0.15], [0.22, 0.65], [0.78, 0.65], [0.3, 0.3], [0.7, 0.3], [0.5, 0.85]]), pel("playerA", 0.42, 0.5), pel("playerB", 0.56, 0.5), pel("ball", 0.45, 0.52), ael("arrowDribble", 0.45, 0.52, 0.27, 0.64)],
+  },
+  {
+    name: "3 contre 3 sur quatre buts", category: "tactique", ...CZ_U67,
+    objectif: "Passer de l'action individuelle au jeu à trois : ne pas se regrouper, courir vers un espace libre et choisir vers quel but attaquer",
+    duree: 15, nbJoueurs: "6 à 12 enfants (trios), à partir de la fin de U6 ou de U7", materiel: "Un ballon léger de taille 2 ou 3 par terrain, 4 petits buts de 1,5 m sur 1 (ou plots), terrain de 25 m sur 20 m",
+    description: "Deux équipes de trois jouent sur un terrain de 25 m sur 20 m, avec deux petits buts à attaquer et deux à défendre. Après un but, on repart de la ligne de but par une passe ou une conduite. Si le ballon sort sur le côté, on relance à la passe ou à la conduite, l'adversaire restant à au moins 3 mètres. Si le ballon franchit la ligne de but ou si un but est marqué, la relance se fait depuis le but, avec tous les adversaires en dehors d'une zone symbolique de 3 m devant la ligne : on ne peut attaquer le joueur que lorsqu'il se met en mouvement avec le ballon ou après le toucher d'un coéquipier si la passe est jouée dans cette zone. Les intervalles durent 12 à 15 minutes et un enfant peut en jouer quatre à six dans une journée, sans arbitre. Pour se rapprocher du vrai match et compliquer un peu, on ne met pas les buts tout au bord du terrain mais on les rapproche progressivement à environ 5 m.",
+    comportementAttendu: "On apprend aux joueurs à se démarquer, à ne pas se regrouper et à mesurer l'avantage d'une passe, sans les y forcer ; on va d'abord de façon directe vers le but ; les plus proches tentent de récupérer aussitôt tandis que le plus éloigné se place pour surveiller la passe tout en aidant son partenaire.",
+    criteresRealisation: "Les relances se font selon les règles ; les buts comptent dans les buts adverses ; on joue quatre à six intervalles dans la journée.",
+    pointsCles: "Ne jouer le 3 contre 3 que lorsque les enfants ont déjà assimilé, avec des erreurs, la conduite, la passe, les appels dans l'espace libre et le placement ; si les regroupements persistent, laisser d'abord mûrir les enfants en 2 contre 2.",
+    variantes: "Buts plus proches des lignes de touche au début, puis plus proches des joueurs (5 m) ; jeu simultané sur plusieurs terrains avec des formats différents (1 contre 1, 2 contre 2, 3 contre 3) selon les enfants.",
+    intensite: "moderee", theme: "Tactique générale",
+    source: "FAČR, Příručka pro utkání kategorií U6-U7, « 3v3 na ČTYŘI BRANKY »",
+    diagram: [zel(0.1, 0.2, 0.9, 0.8), ...pts("goal", [[0.1, 0.35], [0.1, 0.65], [0.9, 0.35], [0.9, 0.65]]), zel(0.1, 0.2, 0.22, 0.8), zel(0.78, 0.2, 0.9, 0.8), ...pts("playerA", [[0.35, 0.35, 1], [0.35, 0.65, 2], [0.5, 0.5, 3]]), ...pts("playerB", [[0.55, 0.4], [0.6, 0.6], [0.7, 0.5]]), pel("ball", 0.38, 0.37), ael("arrowDribble", 0.38, 0.37, 0.16, 0.34)],
+  },
+  {
+    name: "2 contre 2 avec gardiens sur un terrain de 28 m sur 20", category: "tactique", ...CZ_U67,
+    objectif: "Apprendre à finir devant un gardien : chercher l'espace libre dans le but, courir après ses tirs et enchaîner",
+    duree: 15, nbJoueurs: "6 joueurs (2 contre 2 et deux gardiens actifs)", materiel: "Un ballon léger de taille 2 ou 3, deux buts d'environ 3 m de large (jalons ou deux buts de floorball assemblés), plots, terrain de 28 m sur 20 m",
+    description: "On joue à deux contre deux sur le terrain, avec des gardiens actifs. Comme une équipe ne défend qu'un seul but, attaquer devient plus difficile qu'en formats sans gardien. Les gardiens participent à la construction du jeu dans le terrain. Ils se tiennent près de leur but quand il faut défendre, mais sans rester collés à la ligne ou dans la zone de 3 m. On change souvent de gardien, y compris ceux à qui cela réussit moins bien mais qui en ont envie. Après un but, on repart de la ligne de but ; si le ballon franchit la ligne, la relance se fait du but avec tous les adversaires en dehors d'une zone de 3 m. Les intervalles durent 12 à 15 minutes et un enfant en joue quatre à six par journée, sans arbitre.",
+    comportementAttendu: "Les joueurs regardent où est la place libre dans le but avant de tirer, courent après leurs tirs pour rejouer les rebonds et poursuivent l'action ; les gardiens soutiennent les partenaires en jeu dans le terrain.",
+    criteresRealisation: "Les tirs cherchent le vide du but ; les rebonds sont repris ; les gardiens tournent.",
+    pointsCles: "Faire alterner les gardiens en incluant ceux qui ont envie d'essayer ; le gardien attaque avec l'équipe et défend près de son but sans être collé à la ligne.",
+    variantes: "Sans gardien mais avec un plot central à toucher ; 3 contre 3 avec gardiens ; buts plus larges pour faciliter.",
+    intensite: "moderee", theme: "Tirs / finition",
+    source: "FAČR, Příručka pro utkání kategorií U6-U7, « 2v2 s BRANKÁŘI »",
+    diagram: [zel(0.06, 0.2, 0.94, 0.8), pel("goal", 0.06, 0.5), pel("goal", 0.94, 0.5), pel("keeper", 0.1, 0.5), pel("keeper", 0.9, 0.5), ...pts("playerA", [[0.4, 0.4, 1], [0.4, 0.62, 2]]), ...pts("playerB", [[0.55, 0.42], [0.58, 0.6]]), pel("ball", 0.43, 0.42), ael("arrowPass", 0.43, 0.42, 0.42, 0.6)],
+  },
+  // ---------------------------------------------------------------------------------------------
+  // Articles « Fotbal a trénink » : stages à Benfica et au FC Bâle (D. Kadlec)
+  // ---------------------------------------------------------------------------------------------
+  {
+    name: "Soutenir le porteur en 1 contre 1 face à un gardien : l'appel en tandem", category: "tactique", ageFormat: "foot_a_8", curriculumFederation: "FACR", fffBracket: "cz_u1011", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Créer une possibilité de passe au porteur pour battre l'adversaire, ou décider de dribbler ou de passer à l'approche du gardien",
+    duree: 15, nbJoueurs: "8 à 16 joueurs, deux gardiens", materiel: "Ballons, 2 petits buts avec gardien, plots, terrain de 45 m sur 30 m avec deux joueurs à chaque coin",
+    description: "Sur un terrain de 45 m sur 30 m, deux joueurs attendent à chaque coin, aux positions A et B. Après chaque action, les joueurs se replacent au poste portant la même lettre, mais du côté opposé. Le joueur A avec le ballon passe à B du même côté ; B conduit le ballon vers le gardien, dans un petit but, et A l'aide par un appel pour lui donner une passe qui bat le gardien. Après avoir battu le gardien, le joueur passe le ballon à B de l'autre côté du terrain, et l'action continue de la même façon. L'exercice se joue simultanément des deux côtés.",
+    comportementAttendu: "Le porteur dribble en avant quand il a de l'espace ; son partenaire l'aide à passer l'adversaire ; à l'approche du gardien, on décide de passer ou de garder le ballon.",
+    criteresRealisation: "Les enchaînements des deux côtés sont continus ; les joueurs se replacent au bon poste ; le gardien est battu par un appel ou un dribble.",
+    pointsCles: "Comment donner une solution de passe au porteur ? (en courant en tandem, en passant devant lui, en écartant l'espace autour du gardien).",
+    variantes: "Remplacer les gardiens par des joueurs qui essaient de prendre le ballon du pied : s'ils y arrivent et le passent au poste d'en face, le joueur qui l'a perdu devient défenseur.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "FAČR, revue Fotbal a trénink 2/2025, D. Kadlec, stage à Benfica Lisbonne, exercice 1 (U9-U11)",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("goal", 0.1, 0.5), pel("goal", 0.9, 0.5), pel("keeper", 0.14, 0.5), pel("keeper", 0.86, 0.5), ...pts("playerA", [[0.35, 0.2, 1], [0.35, 0.8, 2]]), ...pts("playerB", [[0.5, 0.2], [0.5, 0.8]]), pel("ball", 0.38, 0.22), ael("arrowPass", 0.38, 0.22, 0.48, 0.22), ael("arrowDribble", 0.5, 0.25, 0.2, 0.46)],
+  },
+  {
+    name: "Corners répétés sur deux surfaces de réparation", category: "tactique", ageFormat: "standard", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Améliorer le comportement dans la surface sur corner : chronométrer ses courses, se libérer du marquage et défendre en voyant l'adversaire et le ballon",
+    duree: 20, nbJoueurs: "12 à 18 joueurs avec gardiens", materiel: "Ballons, 2 grands buts avec gardien, chasubles, terrain d'environ deux surfaces de réparation en longueur, sur toute la largeur",
+    description: "Le jeu commence toujours par un corner sur le but principal, qui peut être tiré directement ou joué court. Si l'équipe qui défend récupère le ballon, elle finit dans le grand but opposé. On joue jusqu'à ce que le ballon sorte, puis on recommence par un corner. Côté attaque, on travaille : créer un 1 contre 1 sur l'aile après un corner joué court ; chronométrer son appel dans la surface ; se libérer du marquage en passant dans le dos du défenseur ; enchaîner les phases défensive et offensive. Côté défense : marquer l'adversaire de façon à voir à la fois l'adversaire et le ballon ; gêner ses mouvements ; dégager de façon ciblée et repousser le jeu ; reprendre les seconds ballons.",
+    comportementAttendu: "Le défenseur garde son attaquant « sur la poitrine » pour voir le ballon et l'adversaire, l'empêche d'arriver lancé et observe le placement adverse dans la surface pour savoir où dégager ; l'attaquant chronomètre sa course pour frapper de la tête en mouvement.",
+    criteresRealisation: "Un corner par séquence ; le ballon sorti relance un corner ; les rôles alternent.",
+    pointsCles: "Garder son attaquant devant soi ; regarder où les adversaires se répartissent dans la surface ; chronométrer la course pour reprendre de la tête en mouvement.",
+    variantes: "Corner court obligatoire une fois sur deux ; alterner côté droit et côté gauche ; un joueur de plus dans la surface.",
+    intensite: "moderee", theme: "Coups de pied arrêtés",
+    source: "FAČR, revue Fotbal a trénink 2/2025, D. Kadlec, stage à Benfica Lisbonne, exercice 4 (U15 et plus)",
+    diagram: [zel(0.05, 0.1, 0.95, 0.9), pel("goal", 0.05, 0.5), pel("goal", 0.95, 0.5), pel("keeper", 0.09, 0.5), pel("keeper", 0.91, 0.5), pel("cone", 0.95, 0.1), ...pts("playerA", [[0.8, 0.35, 1], [0.85, 0.5, 2], [0.78, 0.62, 3]]), ...pts("playerB", [[0.83, 0.4], [0.87, 0.55], [0.8, 0.68]]), pel("ball", 0.94, 0.12), ael("arrowPass", 0.94, 0.12, 0.85, 0.48, { curved: true, cx: 0.9, cy: 0.2 })],
+  },
+  {
+    name: "2 contre 1 puis 3 contre 2 : une paire de renfort à chaque sortie de balle", category: "tactique", ageFormat: "foot_a_8", curriculumFederation: "FACR", fffBracket: "cz_u1213", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Résoudre un 2 contre 1 avec le moins de passes possible, puis un 3 contre 2 quand une seconde paire entre",
+    duree: 15, nbJoueurs: "8 joueurs (deux paires par équipe)", materiel: "Ballons, 2 buts, chasubles rouges et bleues, demi-terrain",
+    description: "L'action commence quand la paire en rouge part en 2 contre 1. Dès que le ballon sort (touche, but…), la paire en bleu part de l'autre côté avec un ballon et rejoint les joueurs sur le terrain : un 3 contre 2 apparaît, avec supériorité pour les bleus. On enchaîne ainsi de côté à côté. Côté attaque : garder l'espace libre pour dribbler vers l'avant, soutenir le porteur pour dépasser l'adversaire, et décider à l'approche de l'adversaire si l'on continue ou si l'on passe. Côté défense : se placer pour empêcher l'avancée du porteur tout en pouvant intercepter la passe adverse, et pousser l'adversaire hors de la position de tir idéale.",
+    comportementAttendu: "Comment offrir une solution de passe au porteur ? (course en tandem, course devant lui, élargir l'espace sur le côté) ; résoudre l'action avec un minimum de passes : un 2 contre 1 peut se jouer avec une seule passe, et il faut le résoudre avant que d'autres défenseurs reviennent.",
+    criteresRealisation: "Une paire de renfort entre à chaque sortie de balle ; l'action est jouée vite ; les rôles alternent.",
+    pointsCles: "Résoudre l'action avec le moins de passes possible : un 2 contre 1 est avantageux en match mais ne dure pas ; la résoudre avant que les autres défenseurs ne rattrapent.",
+    variantes: "3 contre 2 puis 4 contre 3 ; imposer une passe avant de tirer ; changer les côtés d'entrée.",
+    intensite: "elevee", theme: "Transitions",
+    source: "FAČR, revue Fotbal a trénink 4/2025, D. Kadlec, stage au FC Bâle 1893, exercice 2",
+    diagram: [zel(0.06, 0.15, 0.94, 0.85), pel("goal", 0.06, 0.5), pel("goal", 0.94, 0.5), ...pts("playerA", [[0.35, 0.4, 1], [0.35, 0.6, 2]]), pel("playerB", 0.55, 0.5), ...pts("playerD", [[0.94, 0.2], [0.94, 0.8]]), pel("ball", 0.38, 0.42), ael("arrowPass", 0.38, 0.42, 0.4, 0.58), ael("arrowMove", 0.92, 0.22, 0.7, 0.4)],
+  },
+  {
+    name: "1 contre 1 après un appel : demander le ballon ou courir vers un ballon posé", category: "tactique", ageFormat: "foot_a_8", curriculumFederation: "FACR", fffBracket: "cz_u1213", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Se libérer d'un défenseur en contrôlant sa position, puis gagner un 1 contre 1 vers un petit but",
+    duree: 15, nbJoueurs: "6 à 10 joueurs, dont des passeurs", materiel: "Ballons, 1 petit but, 1 ballon posé à côté du petit but, chasubles vertes et rouges, terrain de taille moyenne",
+    description: "Les joueurs en vert se passent le ballon. Un joueur en rouge peut demander le ballon à l'un d'eux et marquer dans un petit but après un duel en 1 contre 1. Autre possibilité : il peut courir en premier vers un ballon posé à côté du petit but. Cette option existe pour que le défenseur garde sa position derrière l'attaquant, sans se coller à lui ni le presser de front, ce qui lui permettrait de courir dans son dos comme en match. Le défenseur qui gagne le ballon le conduit vers les joueurs en vert, et l'attaquant change de rôle et finit l'action.",
+    comportementAttendu: "L'attaquant se libère du défenseur, contrôle de la vue et de la main la position de celui-ci, prend son premier toucher et le dribble ; le défenseur oriente en position latérale, récupère et conduit le ballon.",
+    criteresRealisation: "Le duel se termine par un tir ou une récupération ; les rôles alternent ; le ballon posé est utilisé quand il faut.",
+    pointsCles: "En défense, où ne pas laisser passer l'attaquant ? (par le centre du terrain) ; en attaque, contrôler du regard et de la main le placement du défenseur.",
+    variantes: "Plus de passeurs en vert ; changer la position du ballon posé ; ajouter un second défenseur.",
+    intensite: "moderee", theme: "Duel",
+    source: "FAČR, revue Fotbal a trénink 4/2025, D. Kadlec, stage au FC Bâle 1893, exercice 3",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("goal", 0.9, 0.5), ...pts("playerC", [[0.2, 0.3], [0.2, 0.7], [0.35, 0.5]]), pel("playerA", 0.5, 0.4), pel("playerB", 0.6, 0.45), pel("ball", 0.85, 0.35), pel("ball", 0.22, 0.33), ael("arrowPass", 0.22, 0.33, 0.48, 0.4), ael("arrowDribble", 0.52, 0.42, 0.85, 0.48)],
+  },
+  {
+    name: "Tirer dans la surface sous pression : une-deux autour du mannequin", category: "technique", ageFormat: "standard", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Frapper dans la surface avec un défenseur dans le dos, après un une-deux, et défendre en poussant l'attaquant loin de sa position de tir",
+    duree: 20, nbJoueurs: "8 à 12 joueurs et un gardien", materiel: "Ballons, 1 grand but avec gardien, petits buts, mannequin ou plot, chasubles, surface de réparation",
+    description: "L'attaquant fait un une-deux (« mur ») autour d'un adversaire ou d'un mannequin à la limite du demi-cercle de la surface, puis règle la situation sous la pression d'un défenseur pour marquer. Dès que le ballon est hors jeu (but, touche, sorti de la surface), le joueur qui a fini part contourner le poteau le plus proche et devient défenseur, et au même moment l'adversaire commence l'action avec un une-deux. Si le défenseur récupère le ballon, il joue vers de petits buts par une passe depuis l'intérieur de la surface.",
+    comportementAttendu: "L'attaquant part sur le une-deux derrière le défenseur et se retourne en contrôlant à la fois son ballon et son adversaire ; il frappe sous la pression ; le défenseur oriente l'attaquant hors de sa position de tir, bloque la frappe ou prend le ballon.",
+    criteresRealisation: "Un une-deux à chaque action ; une frappe sous pression ; les rôles alternent après chaque action.",
+    pointsCles: "Quelles sont tes missions de défenseur ? Empêcher le but : comment ? En orientant l'attaquant hors de sa position de tir, en bloquant sa frappe et, si possible, en récupérant le ballon pour relancer par une passe.",
+    variantes: "Remplacer le mannequin par un vrai défenseur passif ; limiter le nombre de touches ; ajouter un second attaquant.",
+    intensite: "elevee", theme: "Tirs / finition",
+    source: "FAČR, revue Fotbal a trénink 4/2025, D. Kadlec, stage au FC Bâle 1893, exercice 4 (U14 et plus)",
+    diagram: [zel(0.5, 0.15, 0.95, 0.85), pel("goal", 0.95, 0.5), pel("keeper", 0.91, 0.5), pel("goal", 0.5, 0.3), pel("goal", 0.5, 0.7), pel("cone", 0.62, 0.5), pel("playerA", 0.55, 0.65), pel("playerB", 0.68, 0.6), pel("ball", 0.57, 0.66), ael("arrowPass", 0.57, 0.66, 0.62, 0.52), ael("arrowDribble", 0.64, 0.5, 0.88, 0.48)],
+  },
+  // ---------------------------------------------------------------------------------------------
+  // Article de P. Frýbort : jeux préparatoires (« modifikované formy fotbalu »)
+  // ---------------------------------------------------------------------------------------------
+  {
+    name: "Contre-pressing à 6 contre 4 en deux zones", category: "tactique", ageFormat: "foot_a_8", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Prendre l'habitude de récupérer le ballon le plus vite possible après une perte, en créant une pression de temps et d'espace sur le porteur",
+    duree: 25, nbJoueurs: "12 joueurs (deux équipes de 6)", materiel: "Ballons, plots, chasubles rouges et bleues, terrain de 60 m sur 20 m coupé en deux zones A et B de 30 m sur 20 m",
+    description: "Les bleus commencent à combiner dans la zone A contre quatre rouges, deux autres rouges restent dans la zone B : la situation est un 6 contre 4 dans la zone A. Si les rouges récupèrent le ballon de façon constructive, ils le passent dans la zone B, où seuls quatre joueurs bleus viennent presser (deux restent en A) tandis que six rouges combinent : un 6 contre 4 dans la zone B. Les actions se déroulent ainsi en alternance dans les deux zones, en fonction des capacités motrices et du niveau de jeu. Consigne : après la perte du ballon, les quatre plus proches exercent aussitôt une forte pression pour le reprendre proprement ; le plus proche du porteur sprinte pour le récupérer ou le forcer à passer, les trois autres marquent les adversaires et les prennent en charge si besoin. Séries de 2 à 3 minutes, 1 à 2 minutes de repos, 8 répétitions.",
+    comportementAttendu: "Le porteur cherche une solution de passe en tenant compte de l'espace ; le défenseur le plus proche presse à fond, les autres couvrent ; les joueurs verbalisent d'où presser.",
+    criteresRealisation: "Huit séries de deux à trois minutes ; le ballon change de zone à la récupération ; la pression est immédiate.",
+    pointsCles: "Demander : où t'appeler si un adversaire presse ton partenaire de ce côté ? de quel côté presser un porteur dans cet espace ? Connais-tu le placement de tes partenaires quand tu presses ?",
+    variantes: "Changer le nombre de pressants ; augmenter ou réduire la taille des zones ; jouer à 5 contre 3.",
+    intensite: "elevee", theme: "Pressing",
+    source: "FAČR, article de P. Frýbort « Modifikované formy fotbalu », jeu préparatoire n° 1",
+    diagram: [zel(0.05, 0.25, 0.5, 0.75), zel(0.5, 0.25, 0.95, 0.75), ...pts("playerD", [[0.15, 0.4, 1], [0.15, 0.6, 2], [0.3, 0.35, 3], [0.3, 0.65, 4], [0.4, 0.5, 5], [0.25, 0.5, 6]]), ...pts("playerB", [[0.22, 0.45], [0.35, 0.55], [0.32, 0.42], [0.2, 0.62]]), ...pts("playerB", [[0.75, 0.4], [0.75, 0.6]]), pel("ball", 0.17, 0.42), ael("arrowPass", 0.17, 0.42, 0.3, 0.37)],
+  },
+  {
+    name: "Conservation à 10 contre 5 avec relayeurs dans les coins", category: "tactique", ageFormat: "foot_a_8", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Garder le ballon en surnombre et changer le centre de jeu par une passe longue vers les relayeurs des coins après deux à quatre passes",
+    duree: 30, nbJoueurs: "16 joueurs (trois équipes de 5 et un joueur neutre)", materiel: "Ballons, plots, chasubles blanches, rouges et bleues, terrain de 40 m sur 30 m avec quatre carrés de 3 m sur 3 m dans les coins",
+    description: "Trois équipes de cinq (blanche, rouge, bleue) plus un joueur neutre. Le jeu de préparation commence avec l'équipe blanche contre les rouges ; les joueurs de l'équipe bleue sont des passeurs postés dans les coins du terrain, dans des carrés de 3 m sur 3 m où l'on n'entre pas. Les bleus combinent avec l'équipe qui a le ballon : la situation est un 10 contre 5. Consigne : après quatre passes, utilisez les joueurs des coins ; gardez le ballon en combinaison le plus longtemps possible, et après dix passes vous marquez un point. Les défenseurs essaient de reprendre le ballon le plus vite possible puis de le conserver à leur tour. Séries de 4 à 6 minutes, 1 à 2 minutes de repos, 8 répétitions.",
+    comportementAttendu: "À la réception, avec un adversaire tout près, on choisit de le dépasser d'un premier toucher ou de stopper le ballon ; après quelques passes, on change le centre du jeu par une passe longue sur un relayeur.",
+    criteresRealisation: "Dix passes = un point ; le relayeur d'un coin est utilisé après quatre passes ; le ballon ne peut pas être pris dans les carrés.",
+    pointsCles: "Quand tu reçois avec un adversaire tout près, vaut-il mieux le passer d'un premier toucher ou stopper le ballon ? Le joueur d'un coin peut-il se faire prendre le ballon ? (non : que fait-on alors ?) ; quand la passe est interceptée, qui était libre ?",
+    variantes: "Nombre de passes avant le relayeur variable ; passe obligatoire à un relayeur avant le point ; taille des carrés et du terrain. ; version « relayeurs sur les côtés » (8 contre 4) : deux équipes de huit, quatre joueurs de chacune dans un terrain de 40 m sur 30 m et quatre relayeurs par équipe placés sur les côtés ; après chaque passe vers un relayeur, on échange les postes (le joueur du terrain devient relayeur et inversement) ; les relayeurs contrôlent le ballon du premier toucher vers l'intérieur pour dépasser souvent un adversaire et accélérer le jeu ; dix passes = un point ; séries de 3 à 4 minutes, 1 à 2 minutes de repos, 8 répétitions ; demander avant de prendre le ballon du premier toucher vers l'intérieur ce que l'on doit faire (regarder l'espace)",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "FAČR, article de P. Frýbort « Modifikované formy fotbalu », jeu préparatoire n° 2 et n° 3 (variante)",
+    diagram: [zel(0.05, 0.1, 0.95, 0.9), zel(0.05, 0.1, 0.15, 0.25, "#5B8FD6"), zel(0.85, 0.1, 0.95, 0.25, "#5B8FD6"), zel(0.05, 0.75, 0.15, 0.9, "#5B8FD6"), zel(0.85, 0.75, 0.95, 0.9, "#5B8FD6"), ...pts("playerD", [[0.1, 0.17], [0.9, 0.17], [0.1, 0.83], [0.9, 0.83]]), ...pts("playerC", [[0.35, 0.35], [0.5, 0.5], [0.6, 0.35], [0.4, 0.65]]), ...pts("playerB", [[0.45, 0.42], [0.55, 0.6]]), pel("ball", 0.37, 0.37), ael("arrowPass", 0.37, 0.37, 0.12, 0.2, { curved: true, cx: 0.2, cy: 0.35 })],
+  },
+  {
+    name: "Changer le centre du jeu à travers quatre zones", category: "tactique", ageFormat: "foot_a_8", newBatch: NEW_BATCH_TAG_SOURCES,
+    objectif: "Déplacer le jeu d'une zone à l'autre après trois passes, avec des appels chronométrés à deux joueurs au moins",
+    duree: 20, nbJoueurs: "8 joueurs (deux équipes de 4)", materiel: "Ballons, plots, chasubles de deux couleurs, terrain de 40 m sur 40 m coupé en quatre zones A, B, C et D de 20 m sur 20 m",
+    description: "Deux équipes de quatre. La mission de l'équipe qui a le ballon est de déplacer, après trois passes, le centre du jeu de la zone A vers B, C, D puis à nouveau A. Quand elle perd le ballon, l'équipe qui défend compte combien de fois elle l'a gagné pendant l'intervalle fixé. Consigne : après quatre passes, cherchez une passe qui traverse la défense ; entrez dans la zone à deux joueurs au minimum ; sprintez d'une zone à l'autre.",
+    comportementAttendu: "Les joueurs se déplacent à deux au moins vers la nouvelle zone, chronomètrent leur course pour la passe du partenaire et évitent de combiner sans cesse dans une même zone.",
+    criteresRealisation: "Trois passes avant de changer de zone ; le cycle A, B, C, D, A est respecté ; les gains de balle sont comptés par l'équipe qui défend.",
+    pointsCles: "Ton équipe a fait six passes : as-tu vu un partenaire courir vers une zone libre ? Est-il plus dangereux pour l'adversaire de combiner sans cesse dans une même zone, ou de courir vers un espace libre d'une autre zone ? Pourquoi ?",
+    variantes: "Deux passes au lieu de trois ; sens du cycle inversé ; passer à 5 contre 4.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "FAČR, article de P. Frýbort « Modifikované formy fotbalu », jeu préparatoire n° 4",
+    diagram: [zel(0.1, 0.1, 0.5, 0.5, "#E3B23C"), zel(0.5, 0.1, 0.9, 0.5, "#5B8FD6"), zel(0.5, 0.5, 0.9, 0.9, "#4CAF7D"), zel(0.1, 0.5, 0.5, 0.9, "#D6483F"), ...pts("playerA", [[0.2, 0.25, 1], [0.35, 0.35, 2], [0.7, 0.3, 3], [0.65, 0.7, 4]]), ...pts("playerB", [[0.3, 0.2], [0.75, 0.45], [0.6, 0.8], [0.25, 0.7]]), pel("ball", 0.22, 0.27), ael("arrowPass", 0.22, 0.27, 0.68, 0.3)],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -9478,6 +9641,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_FACR_U89_2026,
   ...STARTER_EXERCISES_FACR_U1011_2026,
   ...STARTER_EXERCISES_FACR_U1213_2026,
+  ...STARTER_EXERCISES_FACR_DIVERS_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
