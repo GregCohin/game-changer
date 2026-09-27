@@ -11526,6 +11526,110 @@ const STARTER_EXERCISES_JFA_2026 = [
   },
 ];
 
+// Banque issue des manuels « Evolución » de la CONMEBOL (confédération sud-américaine, Brésil, Argentine, Uruguay,
+// Colombie et sept autres pays) : le Manuel Orientador (espagnol, principes généraux) et le Manuel pour les
+// catégories de jeunes (portugais, Manual para o Treinamento Integral: Categorias de Base), tous deux publics
+// (cdn.conmebol.com), 2020. Ce ne sont pas des manuels propres à un pays (les sites de la CBF brésilienne, de l'AUF
+// uruguayenne et de la FCF colombienne n'ont donné aucun exercice lisible — voir CLAUDE.md), mais des manuels
+// continentaux dont plusieurs fédérations sud-américaines s'inspirent, qui contiennent de vraies propositions
+// pratiques dans leurs encadrés « ¡En la práctica! » / « NA PRÁTICA! ». Textes et schémas réécrits en français
+// (dépôt public), diagrammes reconstruits d'après le texte (les figures du PDF sont des schémas non exploitables).
+const CONMEBOL_STD = { ageFormat: "standard", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_CONMEBOL_2026 = [
+  {
+    name: "Le petit fou : rondo avec passe obligatoire entre les jambes d'un défenseur", category: "tactique", ...CONMEBOL_STD,
+    objectif: "Conserver le ballon en rondo en cherchant, quand l'occasion se présente, à faire passer le ballon entre les jambes d'un défenseur pour le garder sous pression",
+    duree: 10, nbJoueurs: "8 à 12 joueurs (cercle extérieur) plus 2 à 3 défenseurs au centre", materiel: "1 ballon, plots pour un cercle",
+    description: "Les joueurs placés en cercle se font des passes pour conserver le ballon. Les défenseurs placés à l'intérieur du cercle essaient de le récupérer. On peut limiter le nombre de touches des joueurs extérieurs ou le nombre de passes échangées. Si le ballon passe entre les jambes d'un défenseur, celui-ci reste défenseur même s'il touche ensuite le ballon : cela conditionne le jeu et pousse les joueurs extérieurs à chercher cette solution en plus de la simple conservation.",
+    comportementAttendu: "Les joueurs du cercle cherchent activement l'occasion de faire passer le ballon entre les jambes d'un défenseur, tout en gardant la possession si l'occasion n'est pas là.",
+    criteresRealisation: "Le ballon passé entre les jambes d'un défenseur ne lui redonne pas le droit de sortir de son rôle ; le nombre de touches ou de passes peut être limité selon le niveau.",
+    pointsCles: "Conserver le ballon ; chercher l'occasion de passer entre les jambes ; adapter la contrainte de touches au niveau.",
+    variantes: "Limiter à une ou deux touches ; fixer un nombre de passes à atteindre avant de pouvoir tenter le passage entre les jambes ; jouer avec deux ou trois défenseurs selon le niveau.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "CONMEBOL, Manual Orientador Evolución (2020) : jeu conceptuel « Tontito »",
+    diagram: [...pts("playerC", [[0.2, 0.2], [0.5, 0.1], [0.8, 0.2], [0.9, 0.5], [0.8, 0.8], [0.5, 0.9], [0.2, 0.8], [0.1, 0.5]]), ...pts("playerB", [[0.4, 0.4], [0.6, 0.5], [0.45, 0.65]]), pel("ball", 0.22, 0.22), ael("arrowPass", 0.22, 0.22, 0.42, 0.42)],
+  },
+  {
+    name: "Cinq contre quatre avec des latéraux en soutien extérieur", category: "tactique", ...CONMEBOL_STD,
+    objectif: "Attaquer avec l'aide de deux joueurs de soutien restant hors du terrain de jeu, et défendre à quatre puis contre-attaquer vite en cas de récupération",
+    duree: 15, nbJoueurs: "12 joueurs (2 gardiens, 5 attaquants dont 2 latéraux extérieurs, 4 défenseurs)", materiel: "2 buts, ballons, chasubles, plots pour délimiter l'espace de jeu et les couloirs extérieurs des latéraux",
+    description: "Deux équipes s'affrontent : l'une avec un gardien, trois attaquants et deux latéraux qui n'agissent que depuis l'extérieur de l'espace délimité ; l'autre avec un gardien et quatre défenseurs. L'équipe de cinq attaque en s'aidant des deux latéraux extérieurs. Si l'équipe défensive récupère le ballon, elle doit aussitôt attaquer le but adverse.",
+    comportementAttendu: "Les attaquants utilisent la largeur donnée par les latéraux pour créer des angles de passe ; les défenseurs, une fois le ballon récupéré, relancent vite vers l'avant.",
+    criteresRealisation: "Les latéraux restent hors de l'espace délimité ; la transition défense-attaque est immédiate après récupération.",
+    pointsCles: "Utiliser la largeur extérieure ; transition rapide après récupération.",
+    variantes: "Changer le nombre de latéraux extérieurs ; limiter leurs touches à une seule ; réduire l'espace pour augmenter la difficulté.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "CONMEBOL, Manual Orientador Evolución (2020) : jeu conceptuel en milieu spécifique « A + 5 contre 4 + A »",
+    diagram: [zel(0.2, 0.1, 0.8, 0.9), pel("goal", 0.5, 0.06), pel("goal", 0.5, 0.94), pel("keeper", 0.5, 0.12), pel("keeper", 0.5, 0.88), pel("playerA", 0.06, 0.5, { number: 1 }), pel("playerA", 0.94, 0.5, { number: 2 }), ...pts("playerA", [[0.4, 0.65, 3], [0.5, 0.7, 4], [0.6, 0.65, 5]]), ...pts("playerB", [[0.4, 0.4], [0.5, 0.35], [0.6, 0.4], [0.5, 0.5]]), pel("ball", 0.43, 0.67), ael("arrowPass", 0.43, 0.65, 0.15, 0.52)],
+  },
+  {
+    name: "Défendre le corridor le plus fragile : 4 contre 5 dans le tiers offensif", category: "tactique", ...CONMEBOL_STD,
+    objectif: "Récupérer le ballon dans le couloir jugé le plus faible de l'attaque adverse, en repérant et exploitant les limites défensives des adversaires",
+    duree: 15, nbJoueurs: "10 joueurs (1 gardien et 4 défenseurs contre 5 attaquants)", materiel: "1 but, ballons, plots ou coupelles pour trois couloirs et un ou deux petits portails de relance, chasubles",
+    description: "Dans le tiers offensif du terrain, divisé en trois couloirs, une équipe défensive (un gardien et quatre défenseurs) affronte cinq attaquants qui simulent les actions du prochain adversaire. L'action démarre avec l'équipe attaquante qui cherche à finir au but. Si l'équipe défensive récupère le ballon dans le couloir jugé le plus fragile de l'attaque adverse, elle marque cinq points. Après la récupération, elle doit repasser le ballon, sous contrôle, à travers l'un des petits portails pour valider son action. Le jeu dure un temps fixé ou jusqu'à la sortie du ballon.",
+    comportementAttendu: "Les défenseurs orientent leur pressing pour favoriser la récupération dans le couloir choisi, en lisant les habitudes de l'attaque adverse.",
+    criteresRealisation: "Les cinq points ne sont accordés que pour une récupération dans le couloir désigné ; l'action se termine par un passage validé à travers le portail.",
+    pointsCles: "Lire et exploiter la faiblesse défensive repérée chez l'adversaire ; orienter le pressing vers le couloir choisi.",
+    variantes: "Changer le couloir ciblé d'une série à l'autre ; ajuster le nombre de défenseurs selon le niveau.",
+    intensite: "moderee", theme: "Organisation défensive",
+    source: "CONMEBOL, Manual para o Treinamento Integral (catégories de base, 2020) : activité Sub-17, « explorer l'espace offensif le plus fragile de l'adversaire »",
+    diagram: [zel(0.05, 0.1, 0.35, 0.9), zel(0.35, 0.1, 0.65, 0.9, "#E3B23C"), zel(0.65, 0.1, 0.95, 0.9), pel("goal", 0.5, 0.06), pel("keeper", 0.5, 0.14), ...pts("playerB", [[0.35, 0.4, 1], [0.5, 0.35, 2], [0.65, 0.4, 3], [0.5, 0.55, 4], [0.5, 0.7, 5]]), ...pts("playerA", [[0.3, 0.55], [0.5, 0.5], [0.7, 0.55], [0.5, 0.8]]), pel("cone", 0.3, 0.9), pel("cone", 0.5, 0.9)],
+  },
+  {
+    name: "Un contre un avec plan annoncé au coach", category: "technique", ...CONMEBOL_STD,
+    objectif: "Choisir consciemment une solution pour battre un défenseur, l'annoncer au coach avant l'action, puis l'exécuter réellement",
+    duree: 10, nbJoueurs: "3 joueurs par groupe (attaquant, défenseur, gardien), plusieurs groupes en parallèle", materiel: "1 but, ballons, un petit portail de relance, plots, terrain de 25 m sur 18 m",
+    description: "Dans un espace de 25 m sur 18 m avec un but, un attaquant affronte un défenseur et un gardien avec l'intention de marquer. Avant chaque tentative, l'attaquant doit annoncer au coach le plan qu'il a choisi pour battre son adversaire (par exemple une feinte précise, un changement de rythme, une combinaison). S'il réussit à marquer en suivant ce plan, il marque cinq points. Si le défenseur récupère le ballon, il doit lui aussi le repasser à travers un petit portail pour marquer un point. À chaque manche, on change la composition des duels. Le joueur qui cumule le plus de points gagne.",
+    comportementAttendu: "L'attaquant choisit consciemment une solution avant l'action et s'y tient, plutôt que d'improviser ; le défenseur cherche à anticiper le plan annoncé.",
+    criteresRealisation: "Le plan est annoncé avant chaque tentative et l'action doit correspondre à ce plan pour valider les points ; le défenseur passe le portail après récupération.",
+    pointsCles: "Verbaliser son intention avant d'agir ; exécuter réellement le plan annoncé, pas un autre.",
+    variantes: "Imposer une liste de plans possibles pour les plus jeunes ; laisser le choix libre pour les plus avancés ; changer les duels à chaque manche.",
+    intensite: "moderee", theme: "Duel",
+    source: "CONMEBOL, Manual para o Treinamento Integral (catégories de base, 2020) : activité pratique, « reconnaître et exploiter les limites défensives de l'adversaire » (1 contre 1 avec plan annoncé)",
+    diagram: [zel(0.15, 0.2, 0.85, 0.8), pel("goal", 0.5, 0.08), pel("keeper", 0.5, 0.16), pel("playerA", 0.4, 0.6, { number: 1 }), pel("playerB", 0.45, 0.4), pel("cone", 0.5, 0.9), pel("ball", 0.43, 0.62), ael("arrowDribble", 0.43, 0.6, 0.48, 0.2)],
+  },
+  {
+    name: "Match avec tir libre en récompense : deux formats d'endurance", category: "athletique", ...CONMEBOL_STD,
+    objectif: "Enchaîner les attaques sur un match réduit, chaque frappe ou but réussi rapportant des points qui maintiennent l'intensité tout au long de la série",
+    duree: 20, nbJoueurs: "18 joueurs (format 1 : gardien + 8 contre gardien + 8) ou 8 joueurs (format 2 : gardien + 3 contre gardien + 3)", materiel: "2 buts, ballons de rechange, chasubles, plots pour un terrain de 52 m sur 40 m (format 1) ou 52 m sur 30 m (format 2)",
+    description: "Format 1 (endurance aérobie) : deux équipes de gardien plus huit s'affrontent sur un terrain de 52 m sur 40 m avec pour but d'attaquer le but adverse. Chaque frappe réussie donne droit à un coup franc direct en faveur de l'équipe qui a tiré. Une frappe vaut 1 point, un but marqué 2 points, et un but marqué sur ce coup franc 3 points. L'équipe qui cumule le plus de points gagne. Deux séries de 10 minutes. Format 2 (endurance aérobie-anaérobie) : gardien plus trois contre gardien plus trois sur 52 m sur 30 m. Une frappe vaut 1 point et un but 2 points, mais pour qu'une frappe soit valable, tous les joueurs de l'équipe doivent être devant la ligne médiane. Le ballon est remis en jeu immédiatement à sa sortie. Deux séries de trois répétitions de 3 minutes, avec 6 minutes de pause entre les répétitions et entre les séries (pause semi-active).",
+    comportementAttendu: "Les joueurs maintiennent leur intensité sur toute la durée de la série et cherchent à répéter les occasions de tir pour capitaliser des points.",
+    criteresRealisation: "Dans le format 2, la frappe n'est valable que si tous les joueurs de l'équipe ont dépassé la ligne médiane ; les temps de série et de récupération sont respectés selon le format choisi.",
+    pointsCles: "Maintenir l'intensité sur toute la série ; respecter les temps de répétition et de pause propres à chaque format.",
+    variantes: "Adapter le nombre de joueurs et la taille du terrain à l'effectif disponible ; passer du format aérobie au format aérobie-anaérobie selon l'objectif physique visé.",
+    intensite: "elevee", theme: "Endurance",
+    source: "CONMEBOL, Manual para o Treinamento Integral (catégories de base, 2020) : activités pratiques, entraînement de la résistance aérobie et aérobie-anaérobie",
+    diagram: [zel(0.05, 0.15, 0.95, 0.85), pel("goal", 0.06, 0.5), pel("goal", 0.94, 0.5), pel("keeper", 0.1, 0.5), pel("keeper", 0.9, 0.5), ...pts("playerA", [[0.25, 0.3, 1], [0.25, 0.5, 2], [0.25, 0.7, 3], [0.4, 0.4, 4]]), ...pts("playerB", [[0.75, 0.3], [0.75, 0.5], [0.75, 0.7], [0.6, 0.4]]), pel("ball", 0.28, 0.32), ael("arrowPass", 0.28, 0.32, 0.58, 0.42)],
+  },
+  {
+    name: "Les jeux olympiques du foot : une compétition d'équipe autour des tests physiques", category: "athletique", ...CONMEBOL_STD,
+    objectif: "Faire vivre les tests physiques habituels (vitesse, détente, agilité, résistance) comme une compétition d'équipe motivante, où chacun compte pour le groupe",
+    duree: 45, nbJoueurs: "toute l'équipe, répartie en petits groupes", materiel: "chronomètres, plots pour un test en zigzag, tapis ou zone de saut, ballons, eau et collations",
+    description: "Les joueurs sont répartis en petits groupes et passent une série de tests physiques habituels : vitesse de déplacement (10 m, 20 m et 30 m), détente des membres inférieurs (saut avec ou sans contre-mouvement), agilité (test en zigzag), résistance de vitesse (course en navette répétée) et résistance aérobie-anaérobie (test intermittent par paliers). Les tests restent individuels, mais les résultats sont additionnés par groupe : par exemple, pour le saut, on additionne le meilleur saut de chaque joueur du groupe, et le groupe qui obtient la plus grande distance totale gagne cette épreuve. Les joueurs participent aussi à l'organisation : montage et démontage des zones de test, notation et vérification des résultats, aide aux coéquipiers pendant les tests (hydratation, encouragements). Le groupe vainqueur de l'ensemble des jeux peut gagner une récompense simple, par exemple plus de temps de jeu au prochain match amical.",
+    comportementAttendu: "Chaque joueur se donne à fond en sachant que son résultat compte pour son groupe, aide ses coéquipiers pendant qu'ils passent leurs tests et participe à l'organisation.",
+    criteresRealisation: "Les résultats individuels sont additionnés par groupe pour chaque épreuve ; les joueurs participent à la préparation et au relevé des résultats ; un vainqueur est désigné à la fin.",
+    pointsCles: "Transformer une séance de tests en compétition d'équipe motivante ; faire participer les joueurs à l'organisation ; répéter la journée au fil de la saison pour suivre les progrès.",
+    variantes: "Adapter le nombre et le type d'épreuves au matériel disponible ; remplacer la récompense finale par une autre valorisation du groupe gagnant.",
+    intensite: "elevee", theme: "Athlétique général",
+    source: "CONMEBOL, Manual para o Treinamento Integral (catégories de base, 2020) : activité pratique Sub-15, « Jeux Olympiques du football »",
+    diagram: [zel(0.08, 0.15, 0.4, 0.4), zel(0.6, 0.15, 0.92, 0.4, "#5B8FD6"), zel(0.08, 0.6, 0.4, 0.85, "#E3B23C"), zel(0.6, 0.6, 0.92, 0.85), ...pts("playerA", [[0.2, 0.25, 1], [0.28, 0.3, 2]]), ...pts("playerB", [[0.7, 0.25], [0.78, 0.3]]), ...pts("playerC", [[0.2, 0.7], [0.28, 0.75]]), pel("cone", 0.75, 0.7), pel("cone", 0.82, 0.75)],
+  },
+  {
+    name: "Le jeu de l'espion : préparer un match en étudiant l'adversaire en petits groupes", category: "mental", ...CONMEBOL_STD,
+    objectif: "Développer l'esprit d'analyse et l'autonomie en observant et en présentant les forces et faiblesses d'une future équipe adverse",
+    duree: 60, nbJoueurs: "toute l'équipe, répartie en groupes selon le nombre d'adversaires à étudier", materiel: "vidéos ou observations des matchs adverses, supports pour la présentation (feuilles, tableau tactique, vidéo)",
+    description: "Avant une compétition, les joueurs sont répartis en groupes « d'espions », chacun responsable d'observer une équipe adverse précise (par exemple, dans un tournoi à quatre équipes par groupe, on forme trois groupes d'espions). Chaque groupe, dirigé par un chef d'espionnage, étudie l'équipe qui lui est confiée à différentes phases et moments du jeu, en note les qualités et les limites, et prépare des suggestions pour l'équipe. Après cette période d'étude, chaque groupe présente son travail aux autres joueurs et au staff, avec le support de son choix (documents imprimés, vidéos, tableau tactique, démonstrations sur le terrain). À partir de ces observations, le staff et les joueurs définissent ensemble la stratégie à appliquer face à l'équipe étudiée. L'activité peut démarrer par une séance vidéo introduisant le thème de la stratégie.",
+    comportementAttendu: "Les joueurs observent avec méthode, argumentent leurs conclusions à partir de faits observés plutôt que d'impressions, et s'investissent dans la présentation à leurs coéquipiers.",
+    criteresRealisation: "Chaque groupe présente une analyse construite (forces, faiblesses, suggestions) de l'équipe qui lui était confiée ; la stratégie retenue s'appuie sur ces observations.",
+    pointsCles: "Encourager la participation des joueurs aux décisions collectives ; s'appuyer sur des observations concrètes plutôt que des impressions ; varier les groupes et les rôles d'une fois à l'autre.",
+    variantes: "Faire tourner les joueurs entre les groupes et les rôles (dont celui de chef d'espionnage) d'une compétition à l'autre ; introduire le thème par un film sur la stratégie.",
+    intensite: "faible", theme: "Confiance / motivation",
+    source: "CONMEBOL, Manual para o Treinamento Integral (catégories de base, 2020) : activité pratique Sub-20, « le jeu de l'espionnage »",
+    diagram: [pel("playerA", 0.25, 0.3, { number: 1 }), pel("playerA", 0.35, 0.3, { number: 2 }), pel("playerA", 0.5, 0.25, { number: 3 }), pel("playerA", 0.65, 0.3, { number: 4 }), pel("texte", 0.5, 0.6, { text: "analyse" })],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -11602,6 +11706,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_DBU_2026,
   ...STARTER_EXERCISES_RFEF_2026,
   ...STARTER_EXERCISES_JFA_2026,
+  ...STARTER_EXERCISES_CONMEBOL_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
