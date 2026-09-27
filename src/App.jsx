@@ -30816,6 +30816,7 @@ const CURRICULUM_FEDERATIONS = [
   { key: "KSI", label: "Islande (KSÍ)" },
   { key: "USSF", label: "États-Unis (US Soccer)" },
   { key: "FRMF", label: "Maroc (FRMF)" },
+  { key: "FSS", label: "Serbie (FSS)" },
 ];
 const EXERCISE_AGE_FORMATS = [
   { key: "standard", label: "Foot à 11 (U14 à Vétérans)" },
@@ -30920,6 +30921,8 @@ const CURRICULUM_BRACKETS = [
   { key: "cz_u89", federation: "FACR", label: "U8-U9 (mladší přípravka)", ageFormat: "foot_a_5" },
   { key: "cz_u1011", federation: "FACR", label: "U10-U11 (starší přípravka)", ageFormat: "foot_a_8" },
   { key: "cz_u1213", federation: "FACR", label: "U12-U13 (mladší žáci)", ageFormat: "foot_a_8" },
+
+  { key: "rs_bazicni", federation: "FSS", label: "Tranche de base (U12-U14)", ageFormat: "foot_a_8" },
 
   { key: "at_u78", federation: "OEFB", label: "U7-U8 (Kleinfeld)", ageFormat: "foot_a_5" },
   { key: "at_u910", federation: "OEFB", label: "U9-U10", ageFormat: "foot_a_5" },

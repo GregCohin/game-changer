@@ -391,7 +391,8 @@ const STARTER_EXERCISES = [
     comportementAttendu: "L'attaquant garde la tête relevée pour évaluer la position du gardien avant de choisir son geste final.",
     criteresRealisation: "Le tir est cadré dans la majorité des tentatives, que le but soit marqué ou non.",
     pointsCles: "Varier les départs (face, côté, en course) pour ne pas rendre l'exercice prévisible.",
-    variantes: "Ajouter un temps de retard variable au défenseur pour ajuster la difficulté ; limiter le nombre de touches de l'attaquant pour les plus avancés.",
+    variantes: "Ajouter un temps de retard variable au défenseur pour ajuster la difficulté ; limiter le nombre de touches de l'attaquant pour les plus avancés ; version KNVB (Pays-Bas), E-Pupillen U8-U9 : trois situations sur 32 m avec grand but et gardien (qui tourne toutes les cinq tentatives) : défenseur de face, de côté ou de derrière l'attaquant ; le ballon peut être servi directement au lieu d'être conduit depuis le départ ; faire démarrer le défenseur plus près ou plus loin des plots pour ajuster la difficulté",
+    source: "KNVB (Pays-Bas), oefenstof E-Pupillen, groupes 3 et 4, « 1 contre 1 (+gardien), adversaire de face / de côté / de dos »",
     diagram: genVs(1, 1, { hasKeeper: true, hasGoal: true, xA: 0.58, xB: 0.72 }),
   },
   {
@@ -11630,6 +11631,244 @@ const STARTER_EXERCISES_CONMEBOL_2026 = [
   },
 ];
 
+// Banque issue des « oefenstof » officiels E-Pupillen (U8-U9) de la fédération néerlandaise (KNVB), groupes 1 à 4
+// (8 PDF officiels de 12 à 22 pages chacun, texte néerlandais). Le lien d'origine (Leerplan E-Pupillen) renvoyait à
+// une annexe jamais jointe ; ces PDF, retrouvés hébergés par un club amateur (vvmenos.nl) qui les avait mis en
+// ligne pour ses propres entraîneurs, en sont le contenu réel. Les versions « aanvallen » (attaque) et « verdedigen »
+// (défense) de chaque groupe contiennent les mêmes exercices : seule la version complète (aanvallen) a été utilisée.
+// La progression des groupes 1 à 4 fait grandir le terrain et le nombre de joueurs (initiation à l'entraînement en
+// grands espaces). Beaucoup d'exercices d'un même groupe ne sont que des variations de taille/effectif d'une même
+// idée : ils sont fusionnés en une fiche avec leurs formats en variantes plutôt que dupliqués un par un. Textes et
+// schémas réécrits en français (dépôt public), diagrammes reconstruits à partir des chiffres et règles du texte
+// (les schémas du PDF sont de petites figures non exploitables).
+const KNVB_U9 = { ageFormat: "foot_a_5", curriculumFederation: "KNVB", fffBracket: "nl_epupillen", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_KNVB_2026 = [
+  {
+    name: "Conservation en supériorité croissante, du 3 contre 1 au 5 contre 3", category: "tactique", ...KNVB_U9,
+    objectif: "Garder le ballon en équipe face à un ou plusieurs défenseurs neutres, en jouant à la bonne vitesse et en se rendant disponible au bon moment",
+    duree: 15, nbJoueurs: "5 à 10 joueurs selon le format (3c1, 4c2, 5c2, 5c3)", materiel: "8 ballons, 4 plots, chasubles pour les défenseurs, hoedjes (repères), terrain rectangulaire dont la taille varie avec le format",
+    description: "Dans un rectangle, une équipe cherche à garder le ballon face à un ou plusieurs défenseurs neutres (à chasuble). Un point est marqué quand l'équipe a fait dix passes d'affilée sans perte. Les défenseurs marquent un point s'ils récupèrent le ballon et le contrôlent sous le pied (ou si l'équipe qui possède le ballon le sort du terrain) ; après trois points, on change les défenseurs. Quatre formats, du plus simple au plus dense : 3 contre 1 (10-12 m sur 7-10 m, 4-5 joueurs) ; 5 contre 2 (25-30 m sur 12-15 m, 7-10 joueurs) ; 4 contre 2 (18-22 m sur 12-15 m, 6-8 joueurs) ; 5 contre 3 (25-30 m sur 12-18 m, 8-10 joueurs).",
+    comportementAttendu: "Les joueurs jouent au bon rythme de balle, en une touche ou en contrôle-passe, occupent bien le terrain et reconnaissent le bon moment pour se rendre disponibles ; les défenseurs restent groupés, exercent une pression active et cherchent le bon moment pour presser.",
+    criteresRealisation: "Dix passes consécutives sont comptées comme un point ; la récupération sous contrôle ou la sortie du ballon donne un point aux défenseurs ; le changement de défenseurs suit la règle des trois points.",
+    pointsCles: "Bonne vitesse de balle ; jeu direct ou contrôle-passe ; bonne occupation du terrain ; reconnaître le bon moment pour se rendre disponible ; côté défense, se serrer et presser activement.",
+    variantes: "Réduire le terrain pour durcir la conservation, l'agrandir pour la faciliter (passer au format voisin, ex. du 4 contre 2 au 5 contre 2) ; les quatre formats se combinent dans une même séance en progressant du plus simple au plus dense.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 1, échauffement 1.2 et formes d'exercice 1.4 à 1.7",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), ...pts("playerA", [[0.2, 0.3, 1], [0.5, 0.2, 2], [0.8, 0.3, 3], [0.5, 0.75, 4]]), pel("playerB", 0.5, 0.5), pel("ball", 0.23, 0.32), ael("arrowPass", 0.23, 0.32, 0.47, 0.22)],
+  },
+  {
+    name: "Marquer sur deux petits buts par des changements de zone rapides", category: "tactique", ...KNVB_U9,
+    objectif: "Créer des occasions en changeant vite de côté du terrain, avec un surnombre progressif (2c1, 3c2, 4c3)",
+    duree: 15, nbJoueurs: "7 à 12 joueurs selon le format", materiel: "8 ballons, 4 plots, 4 petits buts (3 m sur 1 m), chasubles, hoedjes",
+    description: "Les deux équipes peuvent marquer sur deux petits buts chacune. Si le ballon sort, on relance en dribble ou en passe ; sur une sortie de but ou un corner, on relance au centre entre les deux buts. Les rôles s'échangent après un temps donné. Trois formats en progression : 2 contre 1 avec un but et une ligne à franchir en dribble pour le défenseur (20 m sur 10 m) ; 3 contre 2 avec quatre petits buts (20 m sur 30 m, 5 à 9 joueurs) ; 4 contre 3 avec quatre petits buts (20 m sur 40 m, 7 à 10 joueurs).",
+    comportementAttendu: "Les attaquants profitent des changements rapides de côté du terrain pour créer des occasions ; les défenseurs se placent bien pour forcer le jeu en largeur et récupérer le ballon.",
+    criteresRealisation: "Chaque équipe peut marquer sur deux petits buts ; les relances suivent la règle (dribble, passe, ou départ au centre) ; les rôles s'échangent après le temps prévu.",
+    pointsCles: "Bonne vitesse de balle ; jeu direct ou contrôle-passe ; bonne occupation du terrain ; côté défense, bien s'organiser et forcer l'adversaire au jeu en largeur.",
+    variantes: "Rapprocher les petits buts d'une même équipe pour durcir l'attaque (et faciliter la défense) ; les écarter pour l'effet inverse ; allonger ou élargir le terrain.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 1, échauffement 1.1 et formes d'exercice 1.1 à 1.3",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), pel("goal", 0.06, 0.35), pel("goal", 0.06, 0.65), pel("goal", 0.94, 0.35), pel("goal", 0.94, 0.65), ...pts("playerA", [[0.3, 0.4, 1], [0.3, 0.6, 2]]), ...pts("playerB", [[0.6, 0.4], [0.6, 0.6], [0.45, 0.5]]), pel("ball", 0.33, 0.42), ael("arrowPass", 0.33, 0.4, 0.55, 0.42)],
+  },
+  {
+    name: "Attirer puis jouer en profondeur : terrain long et étroit, petits buts", category: "tactique", ...KNVB_U9,
+    objectif: "Attirer l'adversaire vers l'avant pour créer de l'espace en profondeur, puis jouer la passe en profondeur dès la récupération",
+    duree: 15, nbJoueurs: "7 à 10 joueurs selon le format", materiel: "8 ballons, 4 plots, 2 petits buts (3 m sur 1 m), chasubles, 14 hoedjes, terrain long et étroit",
+    description: "Sur un terrain long et étroit avec un petit but de chaque côté, les deux équipes cherchent à attirer l'adversaire en construisant le jeu, pour créer de l'espace en profondeur, puis à jouer la passe en profondeur dès que le ballon est récupéré. Une récupération suivie d'un but marqué depuis la moitié de terrain adverse compte double. Deux formats : 4 contre 3 (40 m sur 15-18 m, 7 à 10 joueurs) et 3 contre 2 (25-30 m sur 10-12 m, 5 à 9 joueurs) ; le match complet se joue à 4 contre 4 sur le grand format (40 m sur 15-18 m).",
+    comportementAttendu: "Les attaquants pensent « profondeur », se rendent disponibles et se coordonnent entre les joueurs de construction et le joueur le plus avancé ; les défenseurs pressent la construction adverse et ferment la ligne de passe vers le joueur profond.",
+    criteresRealisation: "La récupération suivie d'un but rapide depuis la moitié adverse compte double ; les relances suivent la règle du terrain (dribble ou passe selon le camp) ; les rôles s'échangent après un temps donné.",
+    pointsCles: "Penser profondeur ; se rendre disponible ; combinaisons courtes et prises de balle propres ; bon accord entre les joueurs de construction et le joueur profond ; en défense, défendre vers le ballon et fermer la ligne vers le joueur profond.",
+    variantes: "Rétrécir le terrain pour durcir l'attaque, l'élargir pour la faciliter ; passer du format 3 contre 2 au format 4 contre 3 ou inversement.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 2, formes d'exercice 2.4, 2.5 et forme de match 2B",
+    diagram: [zel(0.05, 0.3, 0.95, 0.7), pel("goal", 0.03, 0.5), pel("goal", 0.97, 0.5), ...pts("playerA", [[0.2, 0.45, 1], [0.35, 0.55, 2], [0.5, 0.45, 3]]), ...pts("playerB", [[0.3, 0.5], [0.45, 0.5], [0.6, 0.5]]), pel("ball", 0.23, 0.47), ael("arrowPass", 0.23, 0.47, 0.45, 0.42), ael("arrowPass", 0.47, 0.42, 0.75, 0.5)],
+  },
+  {
+    name: "Attirer puis jouer en profondeur : grand but et gardien", category: "tactique", ...KNVB_U9,
+    objectif: "Même principe qu'avec de petits buts, mais avec un grand but et un gardien : attirer l'adversaire puis servir le joueur profond pour finir face au gardien",
+    duree: 15, nbJoueurs: "7 à 12 joueurs selon le format", materiel: "8 ballons, 4 plots, 2 grands buts (5 m sur 2 m), chasubles, 14 à 16 hoedjes",
+    description: "Même principe que pour la version à petits buts, mais chaque équipe défend un grand but avec un gardien. Une récupération suivie d'un but marqué depuis la moitié de terrain adverse compte double. Trois formats en progression, du terrain long et étroit vers le terrain plus large : 3 contre 2 (45-50 m sur 10-12 m, 7 à 10 joueurs) ; 4 contre 3 (45-50 m sur 15-18 m, 9 à 12 joueurs) ; match complet 4 contre 4 (45-50 m sur 10-12 m, 10 à 12 joueurs). Le gardien de l'équipe en infériorité peut jouer les premiers ballons puis sortir du jeu de champ.",
+    comportementAttendu: "Les attaquants pensent profondeur, se rendent disponibles, combinent court avant la passe en profondeur ; les défenseurs pressent la construction adverse et ferment la ligne vers le joueur profond.",
+    criteresRealisation: "La récupération suivie d'un but rapide compte double ; le gardien en infériorité peut jouer les tout premiers ballons puis se retire du jeu de champ ; les rôles s'échangent après un temps donné.",
+    pointsCles: "Penser profondeur ; se rendre disponible ; combinaisons courtes et prises de balle propres ; bon accord entre construction et joueur profond ; en défense, défendre vers le ballon et fermer la ligne vers le joueur profond.",
+    variantes: "Rétrécir le terrain pour durcir l'attaque, l'élargir pour la faciliter ; passer d'un format à l'autre selon le niveau du groupe.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 2, formes d'exercice 2.1, 2.2 et forme de match 2A",
+    diagram: [zel(0.05, 0.25, 0.95, 0.75), pel("goal", 0.03, 0.5), pel("goal", 0.97, 0.5), pel("keeper", 0.08, 0.5), pel("keeper", 0.92, 0.5), ...pts("playerA", [[0.25, 0.45, 1], [0.4, 0.55, 2], [0.55, 0.45, 3]]), ...pts("playerB", [[0.35, 0.5], [0.5, 0.5], [0.65, 0.5]]), pel("ball", 0.28, 0.47), ael("arrowPass", 0.28, 0.47, 0.5, 0.42), ael("arrowPass", 0.52, 0.42, 0.8, 0.5)],
+  },
+  {
+    name: "Duel à deux contre deux vers un grand but, dans un terrain large ou étroit", category: "tactique", ...KNVB_U9,
+    objectif: "Se démarquer avec et sans ballon pour se créer une position de tir, amener le ballon en position de but et tirer dès qu'on est libre",
+    duree: 15, nbJoueurs: "6 à 10 joueurs", materiel: "8 ballons, 4 plots, 2 grands buts (5 m sur 2 m), chasubles, 12 hoedjes",
+    description: "Les deux équipes, chacune avec un gardien, jouent 2 contre 2 sur deux grands buts placés face à face. Deux versions du terrain : large (30-35 m sur 15-18 m) ou long et étroit (30-35 m sur 10-12 m), pour faire jouer attaquants et défenseurs côte à côte plutôt que l'un derrière l'autre. Si le ballon sort, on relance en dribble ou en passe ; sur une sortie de but ou un corner, on relance depuis son propre gardien.",
+    comportementAttendu: "Les attaquants se démarquent avec et sans ballon, amènent leurs partenaires en position de tir, préparent bien le ballon pour eux et tirent dès qu'ils sont libres et à portée ; le gardien relance avec précision. Les défenseurs marquent serré le porteur, bloquent les tirs, ne reculent pas vers leur but et gardent le porteur toujours dans leur champ de vision.",
+    criteresRealisation: "Chaque équipe défend un grand but avec gardien ; les relances suivent la règle du terrain ; les deux versions (large ou étroite) changent la proximité entre attaquants et défenseurs.",
+    pointsCles: "Orienté vers le but ; jeu de position soigné ; tirer dès que libre et à portée ; feintes pour se libérer ; relance précise et bien dosée du gardien ; en défense, marquage serré, blocage de tir, ne pas reculer vers son but.",
+    variantes: "Rétrécir le terrain pour durcir l'attaque, l'élargir pour la faciliter ; jouer attaquants et défenseurs côte à côte (terrain large) plutôt que les uns derrière les autres (terrain étroit).",
+    intensite: "moderee", theme: "Tirs / finition",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupes 2 et 3, forme d'exercice « 2 (+gardien) contre 2 (+gardien), grand ou petit but »",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("goal", 0.5, 0.06), pel("goal", 0.5, 0.94), pel("keeper", 0.5, 0.13), pel("keeper", 0.5, 0.87), pel("playerA", 0.35, 0.35, { number: 1 }), pel("playerA", 0.65, 0.35, { number: 2 }), pel("playerB", 0.4, 0.5), pel("playerB", 0.6, 0.5), pel("ball", 0.38, 0.37), ael("arrowDribble", 0.38, 0.37, 0.45, 0.55), ael("arrowMove", 0.45, 0.55, 0.5, 0.75)],
+  },
+  {
+    name: "Foot-ligne : marquer en franchissant la ligne adverse, ballon sous le pied", category: "tactique", ...KNVB_U9,
+    objectif: "Traverser le terrain en équipe pour franchir la ligne de fond adverse et contrôler le ballon dessous le pied avant l'adversaire",
+    duree: 15, nbJoueurs: "4 à 10 joueurs selon le format", materiel: "8 ballons, 4 à 8 plots, chasubles, 10 à 20 hoedjes, terrain rectangulaire",
+    description: "Chaque équipe marque en franchissant en dribble la ligne de fond adverse et en contrôlant le ballon sous le pied dans une zone de but. Si le ballon sort, on relance en dribble ou en passe ; sur une sortie de but ou un corner, on relance au centre de sa propre ligne de fond. Formats en progression : 1 contre 1 (20 m sur 10 m, zone de but de 3-5 m, 2-4 joueurs) ; 2 contre 2 (20 m sur 15 m, 4-8 joueurs) ; 4 contre 3 (20 m sur 30-40 m, zone de but 3-5 m, 7-10 joueurs, avec double score si l'équipe en infériorité récupère dans la moitié adverse et marque).",
+    comportementAttendu: "Les joueurs démarrent vite en dribble, gardent le ballon sous contrôle dans le jeu de position, lisent le bon moment et la bonne direction pour dribbler, coupent la passe adverse et protègent leur ballon ; en défense, ils gardent le ballon en vue et forcent l'adversaire à se tromper sans faute.",
+    criteresRealisation: "Le but n'est valable que si le ballon est contrôlé sous le pied dans la zone de but après l'avoir franchie en dribble ; les relances suivent la règle du format.",
+    pointsCles: "Démarrer vite en dribble ; garder le contrôle du ballon dans le jeu de position ; en défense, garder le ballon en vue, ne pas se faire éliminer, couverture mutuelle pour retenir l'adversaire.",
+    variantes: "Réduire la portion de ligne franchissable pour durcir l'attaque (avec des plots supplémentaires) ; allonger le terrain pour la faciliter ; passer du format 1 contre 1 au format 4 contre 3.",
+    intensite: "moderee", theme: "Dribbles / conduite de balle",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 3, échauffement 3.1 et formes d'exercice 3.1, 3.4, 3.5",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("cone", 0.1, 0.5), pel("cone", 0.9, 0.5), pel("playerA", 0.3, 0.4, { number: 1 }), pel("playerB", 0.45, 0.55), pel("ball", 0.33, 0.42), ael("arrowDribble", 0.33, 0.42, 0.85, 0.48)],
+  },
+  {
+    name: "Le chat qui dribble : toucher les autres joueurs en 45 secondes, tous en conduite", category: "athletique", ...KNVB_U9,
+    objectif: "Dribbler en évitant les chats, ou attraper le plus de joueurs possible en dribblant soi-même dans le temps imparti",
+    duree: 10, nbJoueurs: "8 à 10 joueurs (2 chats, les autres avec un ballon)", materiel: "8 ballons, 4 plots, 2 chasubles pour les chats, 17 hoedjes, espace de 20 m sur 15-20 m",
+    description: "Tous les joueurs ont un ballon. Deux joueurs, désignés « chats », essaient, en dribblant eux aussi, de toucher le plus de joueurs possible en 45 secondes. Quand le ballon d'un joueur sort de l'espace de jeu, les chats reprennent leur compte à zéro ; quand un des autres joueurs sort volontairement son ballon de l'espace pour échapper aux chats, c'est un point pour les chats.",
+    comportementAttendu: "Les joueurs gardent le contact avec leur ballon en fuyant, changent de direction pour éviter les chats ; les chats dribblent activement pour se rapprocher des autres joueurs tout en gardant leur ballon sous contrôle.",
+    criteresRealisation: "Les touches sont comptées sur 45 secondes ; une sortie de ballon remet le compteur des chats à zéro ; une sortie volontaire pour fuir donne un point aux chats.",
+    pointsCles: "Garder le ballon sous contrôle en fuyant comme en poursuivant ; changer vite de direction ; utiliser tout l'espace disponible.",
+    variantes: "Changer les chats après chaque manche de 45 secondes ; réduire l'espace pour augmenter la difficulté ; augmenter le nombre de chats selon le niveau.",
+    intensite: "elevee", theme: "Agilité / coordination",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 3, échauffement 3.4 « dribbeltikspel »",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), ...pts("playerA", [[0.25, 0.3, 1], [0.55, 0.25, 2], [0.75, 0.6, 3], [0.35, 0.75, 4]]), ...pts("ball", [[0.28, 0.32], [0.58, 0.27], [0.78, 0.62], [0.38, 0.77]]), pel("playerC", 0.5, 0.5), pel("ball", 0.53, 0.52), ael("arrowDribble", 0.53, 0.52, 0.3, 0.32)],
+  },
+  {
+    name: "Un contre un vers deux mini-buts au choix, dans un couloir", category: "technique", ...KNVB_U9,
+    objectif: "Choisir le bon moment et la bonne direction pour dribbler un adversaire seul, vers l'un des deux petits buts au choix",
+    duree: 10, nbJoueurs: "2 à 7 joueurs par couloir", materiel: "8 ballons, 8 plots, 4 petits buts (3 m sur 1 m), chasubles, 8 hoedjes, terrain de 20 m sur 15 m",
+    description: "Chaque équipe peut marquer sur deux petits buts. Si le ballon sort, on relance en dribble. Sur une sortie de but ou un corner, on redémarre au centre de sa propre ligne de fond, ou un partenaire (ou le coach) sert le premier ballon au joueur qui doit démarrer. Le défenseur peut commencer plus près ou plus loin de l'action selon la difficulté recherchée.",
+    comportementAttendu: "L'attaquant garde une vue d'ensemble de la situation, choisit le bon moment et la bonne direction pour son crochet ou sa feinte, coupe la ligne de passe du défenseur et protège son ballon ; le défenseur garde le ballon en vue, empêche le but sans faute et reconnaît le bon moment pour presser.",
+    criteresRealisation: "Chaque but ne compte que sur l'un des deux petits buts au choix ; les relances suivent la règle du couloir ; le duel se rejoue après chaque sortie ou but.",
+    pointsCles: "Vue d'ensemble avant de décider ; bon moment et bonne direction pour la feinte ; en défense, garder le ballon en vue et reconnaître le bon moment pour intervenir.",
+    variantes: "Rapprocher les buts d'une même équipe (plus dur pour l'attaque, plus facile pour la défense) ou les écarter (l'inverse) ; faire démarrer le défenseur plus près ou plus loin de la situation ; faire toujours démarrer l'action par la passe d'un partenaire ou du coach.",
+    intensite: "moderee", theme: "Duel",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupe 3, forme d'exercice 3.6, « 1 contre 1 avec quatre petits buts »",
+    diagram: [zel(0.15, 0.2, 0.85, 0.8), pel("goal", 0.1, 0.35), pel("goal", 0.1, 0.65), pel("goal", 0.9, 0.35), pel("goal", 0.9, 0.65), pel("playerA", 0.3, 0.5, { number: 1 }), pel("playerB", 0.45, 0.5), pel("ball", 0.33, 0.52), ael("arrowDribble", 0.33, 0.52, 0.85, 0.4)],
+  },
+  {
+    name: "Deux contre un avec but et gardien, sortie de balle en infériorité pour le défenseur", category: "tactique", ...KNVB_U9,
+    objectif: "Résoudre un surnombre à deux contre un devant un grand but, et pour le défenseur en infériorité, sortir le ballon en dribble derrière une ligne pour marquer à son tour",
+    duree: 15, nbJoueurs: "6 à 9 joueurs", materiel: "8 ballons, 4 plots, 1 ou 2 grands buts (5 m sur 2 m), chasubles, terrain de 15-30 m sur 10-12 m",
+    description: "Le joueur 1 démarre avec le ballon et doit jouer la première passe à son partenaire (joueur 2), puis les deux résolvent le 2 contre 1 face au défenseur. Le duo peut marquer sur le grand but avec gardien ; le défenseur (aidé du gardien dans une version) peut marquer en dribblant le ballon au-delà d'une ligne, ou sur un but. Après un but, une sortie ou une remise en jeu, on recommence en organisant deux fois le dispositif et en changeant de rôle après trois ou quatre minutes.",
+    comportementAttendu: "Les deux attaquants exploitent le surnombre en écartant le défenseur d'un côté ; le défenseur ralentit et retarde le jeu en attendant le renfort ou en cherchant lui-même la sortie de balle vers sa cible.",
+    criteresRealisation: "La première passe part toujours du joueur 1 vers le joueur 2 ; le défenseur marque en franchissant la ligne ou le but qui lui est propre ; les rôles changent après trois à quatre minutes.",
+    pointsCles: "Exploiter le surnombre en écartant le défenseur ; défenseur : retarder et chercher sa propre sortie de balle.",
+    variantes: "Terrain plus large pour faciliter la défense ; terrain plus étroit pour la durcir ; version avec but et gardien pour les deux camps (« 2 contre 1 avec grand but ») ou version avec une ligne à franchir en dribble pour le défenseur.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "KNVB (Pays-Bas), oefenstof officiel E-Pupillen (U8-U9), groupes 1 et 4, échauffements « 2 contre 1 (+gardien) » et forme d'exercice 4.4",
+    diagram: [zel(0.1, 0.2, 0.9, 0.8), pel("goal", 0.5, 0.06), pel("keeper", 0.5, 0.14), pel("playerA", 0.35, 0.6, { number: 1 }), pel("playerA", 0.6, 0.65, { number: 2 }), pel("playerB", 0.45, 0.4), pel("ball", 0.38, 0.62), ael("arrowPass", 0.38, 0.6, 0.58, 0.63), ael("arrowMove", 0.6, 0.63, 0.6, 0.45)],
+  },
+];
+
+// Banque issue du programme officiel « Škola fudbala FSS » (tranche d'âge de base, U12-U14 selon la page
+// officielle de la fédération serbe) de la Fudbalski savez Srbije (FSS). Le programme lui-même est décrit sur le
+// site de la fédération (fss.rs) mais sans PDF téléchargeable ; son contenu réel — quatre thèmes progressifs
+// (1 contre 1, 2 contre 2, 3 contre 3, 4 contre 4), chacun décliné en plusieurs séances détaillées — a été retrouvé
+// intégralement sur un site de partage de documents (slidetodoc.com), visiblement mis en ligne par un formateur ;
+// texte serbe (cyrillique latinisé). Beaucoup de séances reprennent la même structure (bloc technique + bloc
+// défensif + bloc offensif + jeu à 11 contre 11 avec exigences + jeu-méthode en espace défini) à chaque thème :
+// les éléments récurrents (couverture de zone en triangle, jeu à 11 avec règle de couloir) sont fusionnés en une
+// fiche par idée avec les quatre thèmes en variantes, plutôt que dupliqués quatre fois. Textes et schémas réécrits
+// en français (dépôt public), diagrammes reconstruits d'après le texte (pas de schéma exploitable dans la source).
+const FSS_BASE = { ageFormat: "foot_a_8", curriculumFederation: "FSS", fffBracket: "rs_bazicni", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_FSS_2026 = [
+  {
+    name: "Le duel à trois visages : face, de côté, dos au but", category: "tactique", ...FSS_BASE,
+    objectif: "Résoudre un un-contre-un dans trois orientations différentes par rapport au but adverse, en choisissant la solution technique adaptée à chacune",
+    duree: 25, nbJoueurs: "22 joueurs et 3 gardiens (par ateliers de 20 m sur 20 m)", materiel: "Chasubles, plots, ballons, petits buts",
+    description: "Un attaquant reçoit le ballon d'un serveur et doit résoudre une situation de un-contre-un pour finir par un tir au but ; le défenseur, s'il récupère le ballon, finit lui aussi sur l'un des deux petits buts placés de son côté. Trois situations de départ, chacune travaillée 7 à 10 minutes : A, face au but (l'attaquant reçoit de face, doit orienter sa course en écartant le défenseur d'un côté avant de dribbler, regarder le gardien avant de tirer, réagir au ballon repoussé) ; B, de côté par rapport au but (même principe, mais l'attaquant reçoit en essayant de gagner l'espace et de passer le défenseur latéralement) ; C, dos au but (l'attaquant a le choix entre un crochet dos au jeu, un dribble de face, ou une combinaison avec le serveur ; il se démarque et se retourne face au défenseur, dribble dos au jeu si le défenseur est proche, ou combine avec le serveur par une remise).",
+    comportementAttendu: "L'attaquant écarte le défenseur d'un côté à la réception, choisit le bon moment et la bonne technique de dribble selon l'orientation de départ, regarde le gardien avant de tirer et réagit vite à un ballon repoussé ; le défenseur sort en sprint presser le porteur, garde une position de recul (pas frontale, poids sur l'avant du pied) sans se laisser passer, reste concentré sur le ballon plutôt que sur l'attaquant et cherche à récupérer plutôt qu'à seulement dégager.",
+    criteresRealisation: "Les trois orientations (face, côté, dos) sont travaillées séparément ; l'attaquant conclut sur le grand but, le défenseur sur l'un des deux petits buts en cas de récupération ; le duel se rejoue en boucle avec de nouveaux joueurs.",
+    pointsCles: "Écarter le défenseur à la réception ; bon moment et bonne technique de dribble selon l'orientation ; regarder le gardien avant de tirer ; en défense, sprint de pression, position de recul, concentration sur le ballon, chercher la récupération plutôt que le simple dégagement.",
+    variantes: "Faire démarrer le défenseur plus près (pression plus rapide) ou plus loin (plus de temps pour l'attaquant) en jouant sur l'écart entre les plots ; passer directement de la situation A à B puis C dans une même séance.",
+    intensite: "elevee", theme: "Duel",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème I, séances I et II, « Ofanzivni i defanzivni aspekt igre u odnosu 1:1 »",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), pel("goal", 0.5, 0.06), pel("keeper", 0.5, 0.14), pel("goal", 0.15, 0.9), pel("goal", 0.85, 0.9), pel("playerC", 0.5, 0.75), pel("playerA", 0.45, 0.6, { number: 1 }), pel("playerB", 0.5, 0.45), pel("ball", 0.48, 0.77), ael("arrowPass", 0.5, 0.75, 0.46, 0.62), ael("arrowDribble", 0.44, 0.58, 0.5, 0.2)],
+  },
+  {
+    name: "Le triangle qui bascule : garder le ballon puis chercher le troisième joueur", category: "technique", ...FSS_BASE,
+    objectif: "Se rendre disponible au bon moment dans une passe à trois, en synchronisant son appel avec la passe du partenaire",
+    duree: 10, nbJoueurs: "3 joueurs par groupe, plusieurs groupes en parallèle", materiel: "1 ballon par groupe, plots pour un carré de 7 m sur 7 m",
+    description: "Trois joueurs se placent aux coins d'un carré. Le ballon part du joueur au milieu, qui passe à un joueur de côté : c'est le signal pour le troisième joueur de se démarquer vers le coin libre du carré. Le ballon continue ainsi de circuler en même temps que les joueurs changent de coin. On limite les touches à deux ou trois.",
+    comportementAttendu: "Le joueur qui se démarque synchronise son départ avec le moment où la passe part vers le partenaire ; les passes sont jouées avec l'intérieur du pied, appuyées et précises.",
+    criteresRealisation: "Le troisième joueur part au moment exact de la passe, pas avant ni après ; le ballon et les joueurs restent en mouvement continu.",
+    pointsCles: "Synchroniser le démarrage avec la passe ; limiter les touches (deux ou trois) ; passes précises à l'intérieur du pied.",
+    variantes: "Passer de trois à deux touches maximum pour augmenter la difficulté ; changer le sens de rotation du carré.",
+    intensite: "faible", theme: "Passes",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème III, séance V, « Igra u trouglu (3:0) »",
+    diagram: [zel(0.25, 0.25, 0.75, 0.75), pel("playerA", 0.3, 0.3, { number: 1 }), pel("playerA", 0.7, 0.3, { number: 2 }), pel("playerA", 0.5, 0.7, { number: 3 }), pel("ball", 0.33, 0.32), ael("arrowPass", 0.33, 0.32, 0.66, 0.32), ael("arrowMove", 0.5, 0.7, 0.72, 0.34)],
+  },
+  {
+    name: "Couvrir en triangle ou en diagonale : défendre à plusieurs contre les mêmes joueurs", category: "tactique", ...FSS_BASE,
+    objectif: "Défendre en groupe en formant une diagonale ou un triangle de couverture selon la position du ballon, avec une sortie rapide sur le porteur",
+    duree: 10, nbJoueurs: "12 à 24 joueurs selon la taille du groupe défendu (2c2, 3c3 ou 4c4)", materiel: "Ballons, plots, chasubles",
+    description: "Un groupe de joueurs (deux, trois ou quatre selon la taille travaillée) se fait des passes entre eux pendant qu'un groupe égal en face défend selon les principes du bloc de zone, en formant soit une diagonale, soit un triangle (ou un losange pour le groupe de quatre) selon la position du ballon. Quand les défenseurs interceptent, les rôles s'échangent. Espace de 5 m sur 5 m par paire pour le format à deux, 15 m sur 15 m pour trois ou quatre.",
+    comportementAttendu: "Le défenseur le plus proche du ballon sort en sprint presser le porteur avec une bonne position de recul ; les autres défenseurs se placent en triangle ou en diagonale par rapport à lui pour fermer les passes proches, le joueur le plus éloigné corrigeant le placement de ses partenaires et fermant la passe en profondeur ; les joueurs communiquent en permanence.",
+    criteresRealisation: "La forme (diagonale, triangle, losange) suit la position du ballon ; la sortie sur le porteur est rapide ; les rôles s'échangent à l'interception.",
+    pointsCles: "Vitesse maximale de sortie sur le porteur ; bonne position de recul ; pas de croisement technique correct ; angle de correction du partenaire éloigné ; regard qui embrasse le ballon et l'espace devant soi ; communication constante.",
+    variantes: "Format à 2 contre 2 (couverture en diagonale) ; à 3 contre 3 (diagonale ou triangle) ; à 4 contre 4 en losange, avec les joueurs extérieurs qui échangent des passes en largeur et en profondeur en deux touches pendant que les défenseurs s'entraînent au placement en losange.",
+    intensite: "moderee", theme: "Organisation défensive",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thèmes II à IV, séances III, VI et VII, « Defanzivni aspekt igre : zonsko pokrivanje »",
+    diagram: [zel(0.1, 0.2, 0.9, 0.8), pel("ball", 0.3, 0.5), pel("playerB", 0.4, 0.5), pel("playerB", 0.55, 0.35), pel("playerB", 0.55, 0.65), ...pts("playerA", [[0.3, 0.5], [0.5, 0.3], [0.5, 0.7]]), ael("arrowMove", 0.45, 0.5, 0.4, 0.5)],
+  },
+  {
+    name: "Deux contre un en double passe : vers l'extérieur, en profondeur, ou avec un appel derrière la défense", category: "tactique", ...FSS_BASE,
+    objectif: "Résoudre un surnombre à deux contre un par une combinaison de double passe, en variant la direction de la remise",
+    duree: 10, nbJoueurs: "11 joueurs par atelier (deux espaces)", materiel: "Ballons, plots",
+    description: "Quatre variantes du même principe, chacune travaillée 10 minutes dans deux espaces parallèles. Double passe vers l'extérieur : le joueur A passe à B et attaque en prenant une position de recul ; B et le joueur C combinent une double passe vers l'extérieur ; B passe alors à D qui reprend l'exercice dans l'autre sens. Double passe en profondeur : A passe à B et l'attaque en position de recul ; B conduit le ballon d'un côté, le défenseur A le marque en l'empêchant de passer en profondeur ; B s'arrête net et repart de l'autre côté, ce qui est le signal pour C de se démarquer à l'angle de passe ; B joue une passe tendue à A qui continue son mouvement et reçoit la remise de C. Double passe extérieure avec appel derrière la défense : A conduit le ballon vers B qui se démarque, ils jouent une double passe vers l'extérieur ; A conduit le ballon du côté opposé au mouvement de B et lui passe au moment où B traverse discrètement derrière son dos ; B passe à C qui se démarque et continue dans ce groupe, pendant que A, après sa passe, rentre au centre vers un plot et se démarque en soutien de C. Double passe intérieure : variante où la remise se fait vers l'intérieur plutôt que vers l'extérieur.",
+    comportementAttendu: "Les joueurs synchronisent leur démarquage avec le moment de la passe, jouent des passes tendues et précises, et changent de rythme après avoir reçu la remise.",
+    criteresRealisation: "Chaque variante suit sa propre trajectoire de passes et de courses ; les joueurs alternent les groupes après chaque passage ; les quatre variantes peuvent s'enchaîner dans la même séance.",
+    pointsCles: "Synchroniser les démarquages avec la passe ; passe tendue et précise ; changer de rythme après la remise ; attention au hors-jeu sur l'appel derrière la défense.",
+    variantes: "Les quatre formes (extérieure, en profondeur, extérieure avec appel derrière, intérieure) se travaillent séparément puis s'enchaînent ; changer le sens de rotation du groupe.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème II, séance III, « Rešavanje situacije 2:1 kroz dupli pas »",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.35, { number: 2 }), pel("playerA", 0.5, 0.65, { number: 3 }), pel("playerB", 0.65, 0.5), pel("ball", 0.23, 0.52), ael("arrowPass", 0.23, 0.5, 0.47, 0.37), ael("arrowPass", 0.5, 0.4, 0.5, 0.6), ael("arrowMove", 0.2, 0.5, 0.4, 0.6)],
+  },
+  {
+    name: "Passer et suivre en profondeur : troisième joueur, rotation, appel dans le dos", category: "technique", ...FSS_BASE,
+    objectif: "Enchaîner passe et course de soutien pour créer une combinaison à trois, avec une rotation des joueurs sur le terrain",
+    duree: 10, nbJoueurs: "11 joueurs par atelier", materiel: "Ballons, plots",
+    description: "Passe au troisième homme avec appel dans le dos : le joueur A passe à B et court aussitôt se placer juste derrière lui ; B passe à C et démarre vers lui en ouvrant l'espace pour A, qui reçoit le ballon de C et passe à D ; l'exercice continue dans le sens inverse. Passe au troisième homme avec rotation : A passe à B qui lui remet aussitôt le ballon en revenant vers C ; au moment où B franchit, dans son déplacement, la ligne de la passe entre A et C, C s'avance vers A pour recevoir en gagnant de l'espace vers l'avant, et passe à B.",
+    comportementAttendu: "Les joueurs synchronisent leurs démarquages et leurs courses de soutien, jouent des passes fermes et précises à l'intérieur du pied, et changent de rythme après avoir reçu.",
+    criteresRealisation: "L'appel dans le dos se fait au bon moment (ni trop tôt ni trop tard) ; la rotation entre les trois joueurs reste fluide ; l'exercice se joue dans les deux sens.",
+    pointsCles: "Passe ferme et précise ; démarquage synchronisé ; attention au hors-jeu sur l'appel dans le dos ; changer de rythme après la remise.",
+    variantes: "Travailler la version « appel dans le dos » puis la version « rotation » séparément, cinq minutes chaque sens ; les enchaîner dans la même séance.",
+    intensite: "moderee", theme: "Passes",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème III, séance VI, « Pas na trećeg igrača »",
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.5, { number: 2 }), pel("playerA", 0.8, 0.5, { number: 3 }), pel("ball", 0.23, 0.52), ael("arrowPass", 0.23, 0.5, 0.47, 0.5), ael("arrowMove", 0.23, 0.5, 0.4, 0.52), ael("arrowPass", 0.53, 0.5, 0.77, 0.5)],
+  },
+  {
+    name: "Jeu en espace défini avec appuis extérieurs : conserver puis servir en profondeur ou en largeur", category: "tactique", ...FSS_BASE,
+    objectif: "Résoudre une situation à effectif égal dans un espace défini avec l'aide d'appuis extérieurs, en conservant le ballon collectivement",
+    duree: 20, nbJoueurs: "10 à 12 joueurs de champ et 2 gardiens", materiel: "Ballons, plots, chasubles, espace de 20 à 25 m de côté",
+    description: "Dans un espace défini, on joue à effectif égal (deux contre deux, trois contre trois ou quatre contre quatre selon le thème du jour) avec des joueurs d'appui placés en profondeur, en largeur, ou des deux côtés selon la version. Les attaquants doivent résoudre la situation entre eux ou avec l'aide des appuis, pendant que les défenseurs cherchent à les en empêcher. Les appuis jouent en une ou deux touches. Pour la version à quatre contre quatre avec appuis des deux côtés, l'équipe en possession doit faire au moins trois passes avant de chercher les appuis, dans les deux directions.",
+    comportementAttendu: "L'équipe qui attaque organise son jeu en lien avec le gardien, se démarque en permanence sans le ballon et réagit vite à la perte ; l'équipe qui défend applique les principes de couverture de zone et réagit vite à la récupération.",
+    criteresRealisation: "Le jeu est libre, les appuis n'ont qu'une ou deux touches ; les trois passes minimum sont respectées dans la version à quatre contre quatre ; les transitions sont observées dans les deux sens.",
+    pointsCles: "Organisation du jeu avec le gardien ; démarquage permanent sans ballon ; transition rapide à la perte comme à la récupération ; principes de couverture de zone en défense.",
+    variantes: "Deux contre deux avec appuis en profondeur (espace 25 m sur 25 m) ; trois contre trois avec appuis en profondeur ; quatre contre quatre avec appuis en profondeur et en largeur des deux côtés (espace 20 m sur 20 m).",
+    intensite: "elevee", theme: "Jeu de position / possession",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thèmes I, III et IV, séances II, VI et XIII, « Igra sa pomoćnim igračima »",
+    diagram: [zel(0.15, 0.15, 0.85, 0.85), pel("playerC", 0.15, 0.5), pel("playerC", 0.85, 0.5), pel("playerC", 0.5, 0.1), pel("playerC", 0.5, 0.9), ...pts("playerA", [[0.35, 0.4, 1], [0.65, 0.4, 2], [0.5, 0.65, 3]]), ...pts("playerB", [[0.45, 0.45], [0.55, 0.6]]), pel("ball", 0.38, 0.42), ael("arrowPass", 0.38, 0.42, 0.18, 0.5)],
+  },
+  {
+    name: "Coordination en carré : quatre joueurs synchronisés sans ballon puis avec la passe", category: "athletique", ...FSS_BASE,
+    objectif: "Synchroniser des déplacements offensifs et défensifs en petit groupe, avec des appuis de course adaptés au football, avant d'y ajouter la passe",
+    duree: 10, nbJoueurs: "groupes de quatre, plusieurs groupes en parallèle (jusqu'à 25 joueurs)", materiel: "Ballons, plots",
+    description: "Les joueurs se placent en carrés de quatre et répètent en même temps des tâches motrices précises (accélérations courtes, changements de direction, appuis) associées à des déplacements offensifs et défensifs typiques du jeu, avant d'y intégrer une passe en une touche.",
+    comportementAttendu: "Les quatre joueurs exécutent leurs déplacements en même temps et de façon synchronisée, gardent la bonne distance entre eux dans la ligne, et jouent la passe ferme et précise avec un démarquage marqué par un changement de rythme.",
+    criteresRealisation: "Les quatre joueurs restent synchronisés ; la distance entre eux dans la ligne est respectée ; la passe en une touche est ferme et précise.",
+    pointsCles: "Exécution correcte et synchronisée ; bonne distance entre les joueurs de la ligne ; passe ferme et précise avec démarquage marqué par un changement de rythme.",
+    variantes: "Commencer sans ballon pour la pure coordination, puis ajouter la passe en une touche une fois les appuis acquis.",
+    intensite: "moderee", theme: "Agilité / coordination",
+    source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème IV, séance VII, « Poligon koordinacije i tehnike kretanja bez lopte u četvorkama »",
+    diagram: [zel(0.2, 0.2, 0.8, 0.8), ...pts("playerA", [[0.3, 0.3, 1], [0.7, 0.3, 2], [0.3, 0.7, 3], [0.7, 0.7, 4]]), ael("arrowMove", 0.3, 0.3, 0.5, 0.3), ael("arrowMove", 0.7, 0.3, 0.7, 0.5), ael("arrowMove", 0.3, 0.7, 0.3, 0.5)],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -11707,6 +11946,8 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_RFEF_2026,
   ...STARTER_EXERCISES_JFA_2026,
   ...STARTER_EXERCISES_CONMEBOL_2026,
+  ...STARTER_EXERCISES_KNVB_2026,
+  ...STARTER_EXERCISES_FSS_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
