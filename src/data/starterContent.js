@@ -11989,6 +11989,112 @@ const STARTER_EXERCISES_HNS_2026 = [
   },
 ];
 
+// Banque issue du « Manuel didactique » du cours en ligne gratuit « Jugamos Todos » (Federación Mexicana de
+// Futbol / Sistema Nacional de Formación), programme d'initiation sportive pour les 5-12 ans. Le manuel (92
+// pages) accompagne le cours en ligne obligatoire (SNF, formacionacademica.fmf.mx) et la plateforme de « Retos »
+// (jugamostodos.fmf.mx) : les deux nécessitent un compte, créé par Gregory lui-même (jamais par moi, création de
+// compte tiers hors périmètre) ; le cours est en plus séquentiel avec examens par module (voir CLAUDE.md,
+// « Depuis cette transmission »). Contenu retenu ici : chapitre III.3.2 (jeux sans ballon puis avec ballon),
+// seule partie du manuel avec de vraies fiches de jeu détaillées — le chapitre III.2 (Retos) ne fait que décrire
+// la structure des 56 défis de la plateforme (le détail concret est dans leurs vidéos, non exploitable), et le
+// chapitre II.1 (habiletés motrices) est purement définitionnel. Textes et diagrammes réécrits en français,
+// jamais recopiés ; source créditée dans chaque fiche.
+const FMF_BASE = { curriculumFederation: "FMF", fffBracket: "mx_jt", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_FMF_2026 = [
+  {
+    name: "Icebergs : garder l'équilibre à plusieurs sur un même plot", category: "athletique", ageFormat: "foot_a_4", ...FMF_BASE,
+    objectif: "Travailler l'équilibre et la réaction à une consigne chiffrée, en trouvant rapidement une solution à plusieurs sur un même appui",
+    duree: 10, nbJoueurs: "Groupe entier", materiel: "Des cerceaux (« icebergs ») dispersés dans une zone délimitée",
+    description: "Les cerceaux sont dispersés sur la zone de jeu : ce sont les « icebergs », entourés par « l'eau froide ». Au signal de l'entraîneur, les joueurs se déplacent librement dans la zone avec une consigne motrice donnée à l'avance (sauts, rotations, course, à quatre pattes, entre autres). À un second signal, l'entraîneur annonce un chiffre entre un et quatre : chaque joueur rejoint alors un iceberg et doit trouver un moyen de garder l'équilibre dessus en ne posant que ce nombre de parties du corps à l'intérieur du cerceau.",
+    comportementAttendu: "Le joueur réagit vite au chiffre annoncé, choisit une position stable et originale pour respecter le nombre de points d'appui imposé, et garde l'équilibre sans sortir du cerceau.",
+    criteresRealisation: "Le joueur est dans un cerceau avec exactement le nombre de parties du corps annoncé en contact avec l'intérieur ; l'équilibre est tenu quelques secondes sans sortir du cerceau.",
+    pointsCles: "Varier la consigne de déplacement entre les phases (sauts, rotations, course, quadrupédie) ; annoncer le chiffre au dernier moment pour forcer une vraie réaction ; accepter toutes les solutions d'équilibre trouvées par l'enfant tant que le compte est respecté.",
+    variantes: "Réduire le nombre de cerceaux disponibles pour forcer le partage à plusieurs joueurs sur un même iceberg ; imposer un déplacement différent à chaque manche.",
+    intensite: "moderee", theme: "Équilibre / coordination",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.1, jeu « Icebergs »",
+    diagram: [zel(0.15, 0.2, 0.85, 0.8), pel("hoop", 0.3, 0.35), pel("hoop", 0.55, 0.3), pel("hoop", 0.7, 0.55), pel("hoop", 0.35, 0.65), pel("playerA", 0.3, 0.35, { number: 1 }), pel("playerA", 0.55, 0.3, { number: 2 }), pel("playerA", 0.35, 0.65, { number: 3 })],
+  },
+  {
+    name: "Chevaliers et dragons : protéger ou toucher la queue du dragon", category: "athletique", ageFormat: "foot_a_4", ...FMF_BASE,
+    objectif: "Développer l'esquive et la réactivité en petit groupe, en protégeant ou en touchant une cible mobile",
+    duree: 10, nbJoueurs: "Groupes de 4, plusieurs groupes en parallèle", materiel: "Aucun",
+    description: "Le groupe est divisé en équipes de quatre, si possible par tailles proches. Trois joueurs se donnent la main pour former un cercle : c'est le « dragon ». L'un des trois est désigné comme la « queue » du dragon. Le quatrième joueur, le « chevalier », doit toucher cette queue pendant que le dragon se déplace et tourne pour la protéger sans lâcher les mains. Une fois la queue touchée, les rôles changent pour que chacun passe par les différentes positions.",
+    comportementAttendu: "Le dragon coordonne ses déplacements et ses rotations sans se lâcher les mains pour protéger sa queue ; le chevalier varie ses angles d'approche plutôt que de foncer toujours du même côté.",
+    criteresRealisation: "Le dragon reste soudé (les mains ne se lâchent pas) tout au long de l'échange ; les rôles tournent pour que chaque joueur passe par les différentes positions.",
+    pointsCles: "Coordination du groupe qui forme le dragon, sans lâcher les mains ; variation des angles d'attaque du chevalier ; rotation systématique des rôles.",
+    variantes: "Réduire ou agrandir l'espace de jeu pour ajuster la difficulté ; limiter le temps imparti au chevalier pour toucher la queue.",
+    intensite: "elevee", theme: "Esquive / réactivité",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.1, jeu « Caballeros y dragones »",
+    diagram: [zel(0.2, 0.2, 0.8, 0.8), pel("playerB", 0.45, 0.4), pel("playerB", 0.55, 0.4), pel("playerB", 0.5, 0.5, { number: 1 }), pel("playerA", 0.3, 0.6, { number: 2 }), ael("arrowMove", 0.32, 0.58, 0.48, 0.51)],
+  },
+  {
+    name: "Traverser le marécage : relais en franchissant un espace en habileté motrice imposée", category: "athletique", ageFormat: "foot_a_4", ...FMF_BASE,
+    objectif: "Enchaîner une habileté motrice imposée (saut, roulade ou quadrupédie, entre autres) en relais, avec une pénalité ludique en cas d'arrêt au mauvais moment",
+    duree: 10, nbJoueurs: "Équipes de 3 à 4 joueurs", materiel: "Plots pour délimiter le « marécage », environ 5 m entre les deux lignes",
+    description: "Chaque équipe se place en file derrière un plot. Un joueur de chaque équipe se place à un second plot, à environ 5 m de distance : l'espace entre les deux plots est le « marécage ». Au signal, le premier joueur de la file la plus fournie traverse le marécage en utilisant l'habileté motrice imposée par l'entraîneur (sauts, rotations, course, quadrupédie, entre autres), tape la main de son coéquipier arrivé de l'autre côté, puis celui-ci repart en sens inverse. Le jeu s'arrête à un second signal : les joueurs surpris au milieu du marécage réalisent une petite pénalité ludique donnée par l'entraîneur avant de pouvoir reprendre.",
+    comportementAttendu: "Le joueur enchaîne la traversée avec l'habileté motrice imposée sans revenir à la marche, et transmet le relais par un contact net avec son coéquipier.",
+    criteresRealisation: "La traversée respecte l'habileté motrice demandée du début à la fin ; le relais se transmet par un contact clair avant que le suivant ne parte.",
+    pointsCles: "Varier l'habileté motrice imposée à chaque manche ; le signal d'arrêt doit tomber de façon imprévisible pour créer l'enjeu du « marécage » ; garder la pénalité ludique et jamais punitive.",
+    variantes: "Allonger la distance du marécage pour les plus grands ; combiner deux habiletés motrices sur une même traversée.",
+    intensite: "moderee", theme: "Locomotion",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.1, jeu « Cruza el pantano »",
+    diagram: [zel(0.3, 0.15, 0.7, 0.85, "#5B7FBF"), pel("cone", 0.3, 0.15), pel("cone", 0.7, 0.15), pel("cone", 0.3, 0.85), pel("cone", 0.7, 0.85), pel("playerA", 0.2, 0.15, { number: 1 }), pel("playerA", 0.2, 0.25, { number: 2 }), pel("playerA", 0.8, 0.85), ael("arrowMove", 0.3, 0.15, 0.7, 0.85, { curved: true, cx: 0.5, cy: 0.4 })],
+  },
+  {
+    name: "La chasse au trésor par équipes, en habileté motrice imposée", category: "athletique", ageFormat: "foot_a_4", ...FMF_BASE,
+    objectif: "Répéter une habileté motrice imposée en aller-retour rapide, dans un jeu collectif par équipes avec enjeu de score",
+    duree: 10, nbJoueurs: "4 à 6 équipes", materiel: "Petits objets à collecter (chasubles, coussins...), un cerceau par équipe, plots",
+    description: "Au centre de l'espace de jeu, un cercle de plots délimite le « trésor caché » : de petits objets y sont disposés. Le groupe est réparti en quatre à six équipes, chacune placée à un plot situé à distance égale du cercle, avec un cerceau servant de « coffre ». Une habileté motrice de déplacement est choisie par l'entraîneur (sauts, rotations, course, quadrupédie, entre autres). Au signal, un joueur de chaque équipe se déplace vers le cercle avec cette habileté, récupère un objet, le rapporte dans son coffre, puis tape la main du coéquipier suivant dans la file. Le jeu continue jusqu'à épuisement du trésor, puis chaque équipe compte ses objets : l'équipe qui en a le plus gagne la manche. Plusieurs manches sont rejouées, avec une habileté motrice différente à chaque fois.",
+    comportementAttendu: "Le joueur applique l'habileté motrice imposée sur l'aller et le retour, sans revenir à un déplacement normal, et transmet le relais rapidement à son coéquipier.",
+    criteresRealisation: "Chaque objet rapporté compte pour l'équipe ; le déplacement respecte l'habileté motrice imposée ; le relais se transmet par un contact net entre coéquipiers.",
+    pointsCles: "Changer l'habileté motrice imposée à chaque manche ; encourager à battre le score de la manche précédente ; veiller à ce que toutes les équipes partent d'une distance comparable du trésor.",
+    variantes: "Rejouer plusieurs manches pour battre les records précédents ; changer la taille des objets ou du trésor selon le nombre de joueurs.",
+    intensite: "moderee", theme: "Locomotion",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.1, jeu « Búsqueda del tesoro »",
+    diagram: [zel(0.4, 0.4, 0.6, 0.6), pel("hoop", 0.2, 0.2), pel("hoop", 0.8, 0.2), pel("hoop", 0.2, 0.8), pel("hoop", 0.8, 0.8), pel("playerA", 0.15, 0.2, { number: 1 }), pel("playerA", 0.85, 0.2, { number: 2 }), pel("playerA", 0.15, 0.8, { number: 3 }), ael("arrowMove", 0.2, 0.25, 0.45, 0.45), ael("arrowMove", 0.55, 0.55, 0.2, 0.75)],
+  },
+  {
+    name: "Démolisseurs et bâtisseurs : lancer pour renverser des plots", category: "technique", ageFormat: "foot_a_5", ...FMF_BASE,
+    objectif: "Travailler la précision du lancer en visant des cibles basses, dans un jeu collectif à rôles opposés",
+    duree: 10, nbJoueurs: "Deux groupes égaux", materiel: "20 à 25 plots, un ou plusieurs ballons légers",
+    description: "Une vingtaine de plots sont dispersés dans une zone délimitée. Le groupe est divisé en deux : les « démolisseurs », qui lancent un ballon (la « boule de démolition ») pour renverser les plots, et les « bâtisseurs », qui les relèvent aussitôt. Après quelques minutes, les rôles s'échangent.",
+    comportementAttendu: "Le démolisseur vise précisément la base des plots plutôt que de lancer au hasard, en adaptant sa force selon la distance ; le bâtisseur relève vite sans se mettre en danger sur la trajectoire d'un lancer.",
+    criteresRealisation: "Les démolisseurs renversent une majorité des plots visés ; les bâtisseurs les relèvent en continu, sans interruption prolongée du jeu.",
+    pointsCles: "Viser la base du plot pour le renverser efficacement ; adapter la force du lancer à la distance ; rester attentif aux lancers en cours quand on relève un plot.",
+    variantes: "Utiliser plusieurs ballons en même temps pour accélérer le rythme ; réduire la taille de la zone pour augmenter la densité de plots à protéger.",
+    intensite: "moderee", theme: "Lancer",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.2, jeu « Destructores y arquitectos »",
+    diagram: [zel(0.15, 0.15, 0.85, 0.85), ...pts("cone", [[0.35, 0.35], [0.5, 0.3], [0.65, 0.4], [0.4, 0.55], [0.6, 0.6]]), pel("playerB", 0.2, 0.7, { number: 1 }), pel("playerA", 0.8, 0.25, { number: 2 }), pel("ball", 0.75, 0.28), ael("arrowPass", 0.75, 0.3, 0.5, 0.32)],
+  },
+  {
+    name: "Mission d'interception : lancer le ballon dans le cône du partenaire", category: "technique", ageFormat: "foot_a_5", ...FMF_BASE,
+    objectif: "Travailler la précision du lancer sur une cible tenue par un partenaire, en jeu collectif à deux équipes",
+    duree: 10, nbJoueurs: "Deux équipes égales", materiel: "Un ballon léger ou objet souple par lanceur, un plot par receveur, plots pour délimiter le terrain en deux moitiés",
+    description: "Le terrain est délimité et séparé en deux moitiés par une ligne de plots. Le groupe est réparti en deux équipes : dans une équipe, chaque joueur reçoit un ballon léger ; dans l'autre, chaque joueur reçoit un plot qu'il tient à l'envers, ouverture vers le haut, comme un cornet. Les lanceurs envoient leur ballon vers l'autre moitié de terrain en essayant de le faire entrer dans le cône d'un joueur adverse. Après un temps donné, les rôles s'échangent.",
+    comportementAttendu: "Le lanceur ajuste sa trajectoire et sa force pour viser le cône d'un receveur précis plutôt que de lancer au hasard ; le receveur oriente son cône et se déplace légèrement pour faciliter la réception.",
+    criteresRealisation: "Une part significative des lancers atteint effectivement un cône adverse ; les deux rôles sont expérimentés par tous les joueurs après l'échange.",
+    pointsCles: "Viser un receveur précis plutôt que lancer au hasard ; ajuster la force selon la distance ; orienter correctement le cône pour faciliter la réception.",
+    variantes: "Réduire la distance entre les deux moitiés pour les plus jeunes ; compter les réussites pour donner un enjeu de score à chaque équipe.",
+    intensite: "moderee", theme: "Lancer",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.2, jeu « Misión para atrapar »",
+    diagram: [zel(0.1, 0.2, 0.9, 0.8), ael("arrowMove", 0.5, 0.15, 0.5, 0.85, { curved: false }), pel("playerA", 0.25, 0.35, { number: 1 }), pel("playerA", 0.25, 0.65, { number: 2 }), pel("playerB", 0.75, 0.35, { number: 1 }), pel("playerB", 0.75, 0.65, { number: 2 }), pel("ball", 0.35, 0.35), ael("arrowPass", 0.35, 0.35, 0.7, 0.36)],
+  },
+  {
+    name: "Le kickball : frapper, courir les bases et défendre en équipe", category: "technique", ageFormat: "foot_a_5", ...FMF_BASE,
+    objectif: "Frapper un ballon roulé au pied avec précision et courir les bases en équipe, dans un jeu collectif inspiré du baseball",
+    duree: 15, nbJoueurs: "Deux équipes égales", materiel: "Un ballon, quatre bases plus le « marbre » (plots ou disques)",
+    description: "Le terrain reprend le principe du baseball, mais avec quatre bases en plus du marbre au lieu de trois. Le groupe est divisé en deux équipes : les « frappeurs » et les « défenseurs ». Les frappeurs s'alignent derrière le marbre pendant que les défenseurs se répartissent pour couvrir tout le terrain. Un défenseur fait rouler le ballon au sol vers le premier frappeur, qui le frappe du pied vers l'avant, puis court jusqu'à la première base où il s'arrête. Les défenseurs tentent d'éliminer le coureur en le touchant avec le ballon avant qu'il n'atteigne la base. Si le frappeur suivant frappe à son tour, il court vers la première base pendant que le précédent avance à la seconde, et ainsi de suite. Chaque fois qu'un frappeur parcourt toutes les bases et revient au marbre, son équipe marque un point.",
+    comportementAttendu: "Le frappeur ajuste son geste pour placer le ballon plutôt que de frapper au hasard, et les défenseurs communiquent pour couvrir l'ensemble du terrain et toucher le coureur au bon moment.",
+    criteresRealisation: "Un point est marqué chaque fois qu'un coureur boucle le tour complet des bases ; les défenseurs parviennent à éliminer une partie des coureurs avant qu'ils n'atteignent leur base.",
+    pointsCles: "Frapper le ballon vers un espace libre plutôt qu'au hasard ; couvrir collectivement tout le terrain en défense ; courir directement vers la base sans hésiter.",
+    variantes: "Réduire le nombre de bases pour les plus jeunes ou les groupes réduits ; imposer une frappe uniquement du pied faible pour varier la difficulté.",
+    intensite: "elevee", theme: "Frappe",
+    source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.2, jeu « Captura pateando el balón »",
+    diagram: [zel(0.15, 0.15, 0.85, 0.85), pel("cone", 0.5, 0.85, { number: 0 }), pel("cone", 0.8, 0.55, { number: 1 }), pel("cone", 0.65, 0.25, { number: 2 }), pel("cone", 0.35, 0.25, { number: 3 }), pel("cone", 0.2, 0.55, { number: 4 }), pel("playerA", 0.5, 0.9), pel("ball", 0.5, 0.8), pel("playerB", 0.6, 0.5), pel("playerB", 0.35, 0.45), ael("arrowDribble", 0.5, 0.8, 0.78, 0.57)],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -12069,6 +12175,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_KNVB_2026,
   ...STARTER_EXERCISES_FSS_2026,
   ...STARTER_EXERCISES_HNS_2026,
+  ...STARTER_EXERCISES_FMF_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
