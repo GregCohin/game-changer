@@ -11869,6 +11869,126 @@ const STARTER_EXERCISES_FSS_2026 = [
   },
 ];
 
+// Banque issue de « Škola nogometa » (« École de football »), livre de Pero Dujmović, Zagreb, 2000 — chapitre 5.1
+// (méthodique de la technique pour les débutants, « limači », environ 7-9 ans) et 5.2.2 (programme de préparation
+// physique pour la même tranche). Contrairement aux autres sources de ce chantier, il ne s'agit pas d'un document
+// fédéral ou institutionnel gratuit mais du travail publié d'un auteur précis (entraîneur croate, ancien
+// international) ; trouvé sur un site de partage de documents dont la légalité pour ce type de contenu est
+// douteuse. Gregory en a été informé explicitement, y compris de l'ampleur réelle de la source (le livre entier
+// est lisible sur la page, pas un simple extrait), et a confirmé vouloir l'intégrer avec la même méthode que
+// toutes les autres sources : texte et diagrammes entièrement réécrits en français (jamais recopiés), crédités
+// précisément (auteur, titre, année, chapitre). Le livre couvre bien plus que ce qui est repris ici (sélection et
+// diagnostic, systèmes de jeu, etc.) : seule la partie directement exploitable en séance — progressions technique
+// et complexes de préparation physique pour débutants — a été retenue, à l'échelle des autres lots de ce chantier.
+const HNS_BASE = { ageFormat: "foot_a_5", curriculumFederation: "HNS", fffBracket: "hr_u9", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_HNS_2026 = [
+  {
+    name: "Contrôle du ballon de la semelle : du lancer à la main au tir au but", category: "technique", ...HNS_BASE,
+    objectif: "Maîtriser la réception du ballon avec la semelle, du ballon immobile jusqu'à l'enchaînement avec la conduite et le tir",
+    duree: 15, nbJoueurs: "Par binômes, plusieurs binômes en parallèle", materiel: "1 ballon par binôme, un but",
+    description: "Un joueur lance le ballon à la main vers son partenaire, qui le contrôle de la semelle puis le renvoie du coup de pied. Progression en quatre temps : contrôle de la semelle à l'arrêt puis renvoi immédiat du coup de pied ; même geste en mouvement, avec conduite du ballon et changement de place entre les deux joueurs ; contrôle de la semelle suivi d'une remise en jeu vers un troisième joueur ; enfin, contrôle de la semelle enchaîné avec une conduite et un tir au but.",
+    comportementAttendu: "Le joueur pose le pied qui contrôle légèrement en avant du ballon, la pointe relevée juste assez pour le bloquer sans l'écraser, puis enchaîne sans temps mort vers la conduite ou le tir.",
+    criteresRealisation: "Le ballon reste sous contrôle sans rebond incontrôlé ; le pied qui contrôle est relevé, ni à plat ni trop haut ; l'enchaînement contrôle-conduite-tir se fait sans arrêt du jeu.",
+    pointsCles: "Ne pas poser le pied à plat sur le ballon (rebond incontrôlé) ; relever suffisamment la pointe du pied, sinon le ballon remonte en l'air ; garder la semelle perpendiculaire à la trajectoire du ballon, sinon il passe sous le pied ; travailler d'abord à l'arrêt par imitation avant de passer en mouvement.",
+    variantes: "Remplacer le lancer à la main par une passe au pied pour le service ; ajouter un tir au but après le contrôle et la conduite.",
+    intensite: "faible", theme: "Contrôle",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.1, progression « Primanje lopte đonom »",
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerB", 0.5, 0.5, { number: 2 }), pel("ball", 0.35, 0.5), pel("goal", 0.9, 0.5), ael("arrowPass", 0.22, 0.5, 0.33, 0.5), ael("arrowDribble", 0.5, 0.5, 0.85, 0.5, { curved: true, cx: 0.7, cy: 0.4 })],
+  },
+  {
+    name: "Dribble intérieur et extérieur du pied, du plot à l'adversaire actif", category: "technique", ...HNS_BASE,
+    objectif: "Enchaîner des dribbles à l'intérieur et à l'extérieur du pied face à une opposition progressive, jusqu'à la combinaison avec un tir au but",
+    duree: 15, nbJoueurs: "Individuel puis par binômes", materiel: "Plots, ballons, un but",
+    description: "Prédribbles sans opposition : conduite en zigzag entre des plots en changeant de direction avec l'intérieur puis l'extérieur du pied ; le ballon est dévié latéralement à gauche puis à droite en insistant sur le travail correct de la jambe basse ; imitation du geste sans ballon. Puis, en binôme : dribble face à un adversaire d'abord semi-actif puis actif ; enchaînement de deux dribbles du même côté ; enchaînement d'un dribble intérieur puis extérieur ; enfin, combinaison du dribble avec un tir au but.",
+    comportementAttendu: "Le joueur écarte le ballon suffisamment sur le côté pour déséquilibrer l'adversaire, déclenche son dribble au bon moment (ni trop tôt ni trop tard) et marque un vrai changement de rythme au moment de l'accélération.",
+    criteresRealisation: "Le ballon est écarté assez loin du pied de l'adversaire pour qu'il ne puisse pas le toucher ; l'enchaînement de deux dribbles successifs reste fluide, sans perte de contrôle.",
+    pointsCles: "Ne pas déclencher le dribble trop tôt ni trop tard face à l'adversaire ; écarter suffisamment le ballon sur le côté, sinon il reste à portée du défenseur ; marquer clairement le changement de rythme ; passer par les trois paliers d'opposition (aucune, semi-active, active) avant de complexifier.",
+    variantes: "Ajouter un tir au but en fin de séquence ; alterner dribble intérieur puis extérieur du même côté avant de changer de côté.",
+    intensite: "moderee", theme: "Dribble",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.1, progression « Dribling unutrašnjom i vanjskom stranom stopala »",
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), ...pts("cone", [[0.25, 0.5], [0.4, 0.42], [0.55, 0.58]]), pel("playerA", 0.15, 0.5, { number: 1 }), pel("playerB", 0.55, 0.45), pel("ball", 0.17, 0.5), pel("goal", 0.9, 0.5), ael("arrowDribble", 0.17, 0.5, 0.7, 0.5, { curved: true, cx: 0.45, cy: 0.65 })],
+  },
+  {
+    name: "Tête sans saut : du ballon tenu par un partenaire au tir de la tête", category: "technique", ...HNS_BASE,
+    objectif: "Apprendre le geste de la tête sans saut sur un ballon tenu puis lancé, jusqu'à l'enchaîner avec un contrôle et une conduite",
+    duree: 15, nbJoueurs: "Individuel puis par binômes", materiel: "Ballons légers (mousse ou volley pour débuter), un but",
+    description: "Prédribbles individuels : sur un ballon tenu immobile à hauteur de front, le joueur frappe en fente avant ; puis il frappe en trottinant légèrement ; puis en petits sautillements sur place pendant qu'un ballon reste en mouvement continu. Prédribbles en binôme : le partenaire tient le ballon à hauteur de front pendant que le joueur frappe en fente, puis en sautillant, puis en trottinant. Enfin en binôme : le joueur se lance d'abord le ballon lui-même puis le frappe, ensuite c'est le partenaire qui le lui lance ; la tête est travaillée à l'arrêt, puis en déplacement avant, arrière et latéral ; elle est ensuite enchaînée avec un contrôle et une conduite en changeant de place avec le partenaire ; pour finir, le partenaire lance le ballon à la main et le joueur tire de la tête au but.",
+    comportementAttendu: "Le joueur frappe le ballon avec le milieu du front, jamais le côté ou le sommet du crâne, fixe les muscles du cou au moment du contact et déclenche le mouvement depuis les hanches plutôt que depuis la seule tête.",
+    criteresRealisation: "Le contact se fait au milieu du front ; le mouvement démarre bien des hanches ; le geste reste précis aussi en déplacement avant, arrière et latéral, pas seulement à l'arrêt.",
+    pointsCles: "Frapper du milieu du front, jamais du côté ou du sommet du crâne ; fixer les muscles du cou à l'impact ; démarrer le mouvement depuis les hanches ; débuter avec des ballons légers pour ne pas créer d'appréhension du geste.",
+    variantes: "Header en déplacement avant, arrière puis latéral ; enchaîner tête, contrôle et conduite avec changement de place entre partenaires ; terminer par un tir de tête au but après un lancer à la main.",
+    intensite: "faible", theme: "Jeu de tête",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.1, progression « Udarac glavom bez odraza »",
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), pel("playerA", 0.25, 0.5, { number: 1 }), pel("playerB", 0.5, 0.5, { number: 2 }), pel("ball", 0.37, 0.42), pel("goal", 0.9, 0.5), ael("arrowPass", 0.27, 0.48, 0.35, 0.44), ael("arrowMove", 0.5, 0.5, 0.85, 0.5, { curved: true, cx: 0.7, cy: 0.38 })],
+  },
+  {
+    name: "Touche debout en binôme, de l'échange simple au tir au but", category: "technique", ...HNS_BASE,
+    objectif: "Maîtriser la touche debout en écartement, du renvoi simple jusqu'à l'enchaînement avec la conduite, le dribble et le tir",
+    duree: 12, nbJoueurs: "Par binômes", materiel: "Ballons, un but",
+    description: "Progression en quatre temps : un partenaire fait une touche debout vers l'autre, qui contrôle et renvoie du pied ; même séquence en mouvement, avec conduite du ballon et changement de place entre les deux joueurs ; ajout d'un dribble pour éliminer un adversaire après la réception de la touche ; enfin, enchaînement complet touche-réception-dribble-tir au but.",
+    comportementAttendu: "Le lanceur tient le ballon à deux mains derrière la tête, garde les deux pieds au sol pendant tout le lancer, arme le buste vers l'arrière puis le fouette vers l'avant avec un geste ample du poignet.",
+    criteresRealisation: "Les deux pieds restent au sol pendant tout le lancer ; le buste s'arme puis se fouette vers l'avant ; le ballon part avec assez de puissance pour atteindre le partenaire en une seule fois.",
+    pointsCles: "Tenue correcte du ballon à deux mains ; ne pas raccourcir l'armé du buste, sinon le lancer est trop faible ; bien dérouler le poignet au relâcher ; garder les deux pieds au sol jusqu'au lâcher du ballon.",
+    variantes: "Ajouter un dribble après la réception ; terminer la séquence par un tir au but.",
+    intensite: "faible", theme: "Touche",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.1, progression « Bacanje auta iz mjesta »",
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerB", 0.5, 0.5, { number: 2 }), pel("ball", 0.22, 0.42), pel("goal", 0.9, 0.5), ael("arrowPass", 0.22, 0.42, 0.48, 0.48), ael("arrowDribble", 0.5, 0.5, 0.85, 0.5, { curved: true, cx: 0.7, cy: 0.38 })],
+  },
+  {
+    name: "Le récupérateur progressif : du ballon immobile à l'adversaire qui dribble", category: "tactique", ...HNS_BASE,
+    objectif: "Choisir le bon moment pour intervenir et récupérer le ballon face à un adversaire de plus en plus actif",
+    duree: 15, nbJoueurs: "Par binômes", materiel: "Ballons, chasubles, un but",
+    description: "Progression par paliers d'opposition croissante. Ballon immobile entre les deux joueurs placés face à face, qui le tirent alternativement vers eux avec la semelle, latéralement puis vers l'arrière. Puis un joueur conduit le ballon lentement vers son partenaire, qui vient à sa rencontre et intervient pour le récupérer, l'attaquant restant semi-actif. Puis le même exercice avec le défenseur qui recule en miroir de la progression de l'attaquant avant d'intervenir. Puis l'attaquant devient pleinement actif et cherche à éliminer le défenseur par un dribble, qui doit choisir son moment pour s'engager. Enfin, dribble et récupération sont combinés avec un tir au but pour le joueur qui termine en possession du ballon.",
+    comportementAttendu: "Le défenseur choisit le bon moment pour s'engager dans la récupération, ni trop tôt ni trop tard, en jugeant la distance et la vitesse du porteur plutôt qu'en se précipitant.",
+    criteresRealisation: "Le défenseur récupère le ballon sans faute ni précipitation ; la difficulté progresse par paliers (ballon immobile, adversaire semi-actif, adversaire actif) avant de passer au palier suivant.",
+    pointsCles: "Juger la distance et le bon moment pour s'engager, pas seulement réagir à la vitesse du porteur ; progresser par paliers d'opposition croissante sans brûler d'étape ; enchaîner avec un tir au but pour donner un enjeu réel à la récupération.",
+    variantes: "Le défenseur recule en miroir de la progression de l'attaquant avant d'intervenir ; ajouter un tir au but pour le joueur qui termine avec le ballon.",
+    intensite: "moderee", theme: "Récupération",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.1, progression « Osnovno oduzimanje lopte »",
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), pel("playerA", 0.25, 0.5, { number: 1 }), pel("playerB", 0.55, 0.5), pel("ball", 0.27, 0.5), pel("goal", 0.9, 0.5), ael("arrowDribble", 0.27, 0.5, 0.55, 0.5), ael("arrowMove", 0.55, 0.5, 0.45, 0.5)],
+  },
+  {
+    name: "Circuit de coordination pour débutants : roulades, changements de position et parcours d'agilité", category: "athletique", ...HNS_BASE,
+    objectif: "Développer la coordination générale par des exercices au sol et un parcours d'agilité, en progressant du geste correct vers la vitesse d'exécution",
+    duree: 10, nbJoueurs: "Groupe entier, en ateliers tournants", materiel: "Tapis ou zone herbeuse, plots pour le parcours",
+    description: "Complexe de 5 à 8 exercices répétés 4 à 5 fois chacun, enchaînés sans grande pause : exercices préparatoires à la roulade avant, exercices préparatoires à la roulade arrière, changements rapides de position (assis, allongé sur le dos, debout, allongé sur le ventre), rotations variées en position debout, et un parcours d'agilité. Les jeux d'adresse au sol et en l'air qui accompagnent le complexe durent 3 à 5 minutes chacun. Le joueur apprend d'abord à exécuter chaque exercice correctement, puis seulement ensuite à le répéter plus vite.",
+    comportementAttendu: "Le joueur exécute d'abord le mouvement correctement et lentement avant de chercher la vitesse, et les enchaînements restent fluides, sans temps d'arrêt entre les exercices du complexe.",
+    criteresRealisation: "Chaque exercice est maîtrisé dans son exécution avant d'en augmenter la vitesse ; le complexe s'enchaîne sur plusieurs exercices sans grande pause.",
+    pointsCles: "Priorité au geste correct avant la vitesse ; petites pauses seulement, jamais de grand temps mort ; varier les jeux d'adresse au sol et en l'air.",
+    variantes: "Ajouter des rotations en position debout ; remplacer une partie du parcours par un jeu d'adresse chronométré.",
+    intensite: "moderee", theme: "Coordination",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.2.2, « b) Koordinacija »",
+    diagram: [zel(0.1, 0.35, 0.9, 0.65), ...pts("cone", [[0.2, 0.5], [0.35, 0.5], [0.5, 0.5], [0.65, 0.5]]), pel("hoop", 0.8, 0.5), pel("playerA", 0.1, 0.5), ael("arrowMove", 0.15, 0.5, 0.75, 0.5, { curved: true, cx: 0.45, cy: 0.3 })],
+  },
+  {
+    name: "Complexe de vitesse de réaction pour débutants : départs variés et slalom", category: "athletique", ...HNS_BASE,
+    objectif: "Travailler la vitesse de réaction à un signal et la vitesse de démarrage depuis des positions variées",
+    duree: 10, nbJoueurs: "Groupe entier, en vagues", materiel: "Plots pour le slalom, un signal sonore ou visuel",
+    description: "Complexe de 3 à 5 exercices exécutés rapidement, en 3 à 4 répétitions par série, sur 2 à 3 séries avec 2 à 3 minutes de pause entre les séries : imitation rapide d'un mouvement dicté par l'entraîneur en réaction à un signal ; départ vers l'avant depuis une position allongée sur le ventre ; course avec accélération progressive ; départ vers l'avant depuis une position à quatre pattes ; course en slalom entre des plots. Distance totale de course d'environ 200 à 300 mètres sur l'ensemble de la séance.",
+    comportementAttendu: "Le joueur réagit au signal sans anticiper ni être en retard, et enchaîne une vraie accélération sur chaque répétition plutôt qu'une course à allure constante.",
+    criteresRealisation: "Le départ suit le signal sans décalage ; les répétitions restent courtes et rapides, avec une vraie récupération entre les séries.",
+    pointsCles: "Varier les positions de départ (couché, à quatre pattes, debout) ; répétitions courtes et rapides plutôt que longues ; respecter le temps de récupération entre séries pour garder la qualité du geste.",
+    variantes: "Combiner plusieurs exercices de réaction, de démarrage et de changement de direction dans un même complexe ; remplacer le signal sonore par un signal visuel.",
+    intensite: "elevee", theme: "Vitesse",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.2.2, « c) Brzina »",
+    diagram: [zel(0.1, 0.35, 0.9, 0.65), ...pts("cone", [[0.3, 0.5], [0.45, 0.42], [0.6, 0.58], [0.75, 0.5]]), pel("playerA", 0.15, 0.5), ael("arrowMove", 0.2, 0.5, 0.85, 0.5, { curved: true, cx: 0.5, cy: 0.75 })],
+  },
+  {
+    name: "Complexe de renforcement à faible charge pour débutants : gainage au poids du corps", category: "athletique", ...HNS_BASE,
+    objectif: "Initier le renforcement musculaire général du corps avec le poids du corps seul, en gardant un rythme lent et détendu",
+    duree: 8, nbJoueurs: "Groupe entier", materiel: "Tapis ou zone herbeuse",
+    description: "Complexe de 4 à 6 exercices au poids du corps (un pour les bras et la ceinture scapulaire, un à deux pour les abdominaux, un à deux pour les lombaires, un à deux pour les jambes), répétés 6 à 8 fois en une seule série, avec un exercice de relâchement intercalé entre chaque exercice de renforcement.",
+    comportementAttendu: "Le joueur exécute chaque répétition lentement et de façon détendue, sans à-coups, et prend le temps de relâcher entre deux exercices de renforcement.",
+    criteresRealisation: "Le nombre de répétitions reste limité (6 à 8) sur une seule série ; un temps de relâchement suit systématiquement chaque exercice de renforcement.",
+    pointsCles: "Rester sur le poids du corps, jamais de charge ajoutée à cet âge ; exécution lente et détendue, jamais brusque ; toujours un exercice de relâchement entre deux exercices de renforcement ; couvrir bras, abdominaux, lombaires et jambes dans le même complexe.",
+    variantes: "Ajouter un exercice de gainage statique court en fin de complexe ; alterner l'ordre des groupes musculaires travaillés d'une séance à l'autre.",
+    intensite: "moderee", theme: "Renforcement",
+    source: "HNS (Croatie), Pero Dujmović, Škola nogometa, Zagreb, 2000, chapitre 5.2.2, « d) Jačanje »",
+    diagram: [zel(0.1, 0.35, 0.9, 0.65), pel("texte", 0.25, 0.45, { text: "Bras" }), pel("texte", 0.42, 0.45, { text: "Abdos" }), pel("texte", 0.6, 0.45, { text: "Lombaires" }), pel("texte", 0.8, 0.45, { text: "Jambes" }), pel("playerA", 0.25, 0.58), pel("playerA", 0.42, 0.58), pel("playerA", 0.62, 0.58), pel("playerA", 0.8, 0.58)],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -11948,6 +12068,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_CONMEBOL_2026,
   ...STARTER_EXERCISES_KNVB_2026,
   ...STARTER_EXERCISES_FSS_2026,
+  ...STARTER_EXERCISES_HNS_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
