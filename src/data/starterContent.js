@@ -11368,6 +11368,109 @@ const STARTER_EXERCISES_DBU_2026 = [
   },
 ];
 
+// Banque issue des fiches de séance publiées par la Fédération espagnole (RFEF, rubrique « Contenido técnico para
+// entrenadores », séances rédigées sur le modèle T-manager) : séance d'Albert Celades (comité RFEF, sélections
+// jeunes) et séance de Marcelino García Toral (Valencia CF, 28/03/2019). Les fiches sont des images (ou un PDF
+// devenu introuvable) : les textes ont été lus sur les images, certains sont tronqués à l'origine (« … ») et n'ont
+// pas été complétés. La séance de Joseba Aguirre (Betis Féminin) n'a que des vidéos. Ce sont des séances de haut
+// niveau (équipes adultes ou sélections U21) adaptables à des juniors et seniors ; réécrites en français (dépôt
+// public), diagrammes reconstruits d'après le texte.
+const RFEF_STD = { ageFormat: "standard", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_RFEF_2026 = [
+  {
+    name: "Évoluer contre un bloc bas sans opposition : largeur des ailiers et supériorité à 2 contre 1", category: "tactique", ...RFEF_STD,
+    objectif: "Écarter les ailiers pour fixer les pistons adverses et libérer un latéral, faire circuler le ballon pour attirer d'un côté, puis créer une supériorité à 2 contre 1 de l'autre côté",
+    duree: 15, nbJoueurs: "10 joueurs et un gardien contre un bloc simulé par 10 mannequins et un gardien", materiel: "10 mannequins, ballons, plots, demi-terrain",
+    description: "Travail de mouvements offensifs contre un bloc bas en 1-5-3-2, simulé par dix mannequins et un gardien. Les dix joueurs attaquants placent leurs ailiers très larges pour fixer les pistons adverses et libérer leurs latéraux ; après une circulation du ballon du côté opposé et à l'intérieur, on amène le ballon à l'aile pour l'intégration du latéral en supériorité à 2 contre 1. Trois options : le latéral attaque en profondeur par l'extérieur ; le latéral attaque en profondeur à l'intérieur, entre le piston et le défenseur central ; un joueur intérieur attaque en profondeur entre le piston et le défenseur central. On joue trois séries de 5 minutes.",
+    comportementAttendu: "Les ailiers restent larges pour fixer, la circulation du ballon est réglée en rythme et en position pour créer la supériorité, le jeu intérieur est bien utilisé, et les joueurs se replient à leur position de départ après la frappe.",
+    criteresRealisation: "La supériorité à 2 contre 1 est créée du côté opposé au côté d'attraction ; les trois options de profondeur sont travaillées ; le repli après tir est fait.",
+    pointsCles: "Largeur des ailiers pour fixer ; circulation au bon rythme ; importance du jeu intérieur ; repli après la frappe.",
+    variantes: "Alterner les trois options de profondeur (latéral par l'extérieur, latéral à l'intérieur, milieu intérieur) ; ajouter ensuite une opposition réelle.",
+    intensite: "moderee", theme: "Animation offensive",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance d'Albert Celades, tâche AC 01 « Movimientos ofensivos : evoluciones ante bloque bajo sin oposición »",
+    diagram: [zel(0.05, 0.05, 0.95, 0.95), pel("goal", 0.5, 0.04), pel("keeper", 0.5, 0.1), ...pts("playerB", [[0.3, 0.3], [0.7, 0.3], [0.25, 0.42], [0.4, 0.44], [0.5, 0.4], [0.6, 0.44], [0.75, 0.42], [0.35, 0.55], [0.5, 0.55], [0.65, 0.55]]), ...pts("playerA", [[0.06, 0.4, 1], [0.94, 0.4, 2], [0.15, 0.65, 3], [0.85, 0.65, 4], [0.4, 0.7, 5], [0.6, 0.7, 6], [0.3, 0.8, 7], [0.7, 0.8, 8], [0.5, 0.85, 9]]), pel("ball", 0.42, 0.72), ael("arrowPass", 0.42, 0.7, 0.16, 0.66), ael("arrowPass", 0.18, 0.62, 0.08, 0.42)],
+  },
+  {
+    name: "Possession en largeur : dépasser un bloc bas en passant par l'extérieur", category: "tactique", ...RFEF_STD,
+    objectif: "Attirer les adversaires dans la zone centrale par des combinaisons puis renverser vers l'extérieur pour créer une supériorité à 2 contre 1",
+    duree: 20, nbJoueurs: "20 joueurs et 2 gardiens (deux équipes de 10)", materiel: "2 buts, ballons, plots, chasubles, terrain de 75 m sur 57 m",
+    description: "Deux équipes s'affrontent. L'objectif principal est de dépasser une structure défensive en bloc bas qui accumule beaucoup de joueurs dans la zone centrale, en progressant par l'extérieur. On délimite un espace dans la zone centrale où l'on combine pour attirer des adversaires, avec l'idée d'amener le ballon dans l'espace extérieur, où l'on crée une supériorité à 2 contre 1 en ne laissant entrer qu'un seul défenseur. Pour que l'action compte, il faut soit passer en conduisant le ballon, soit recevoir une passe derrière la ligne de fond et derrière les piquets, après un mouvement de profondeur. On joue deux séries de 8 minutes avec une minute de repos.",
+    comportementAttendu: "Les joueurs progressent par l'extérieur avec un bon rythme de circulation et un bon jeu de position.",
+    criteresRealisation: "La supériorité à 2 contre 1 est créée à l'extérieur ; l'action est validée par une conduite ou une passe derrière la ligne de fond et les piquets après un appel en profondeur.",
+    pointsCles: "Largeur pour progresser par l'extérieur ; rythme de circulation ; bon jeu de position.",
+    variantes: "Adapter la taille de l'espace central et le nombre de défenseurs autorisés à entrer à l'extérieur ; alterner les côtés.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance d'Albert Celades, tâche AC 02 « Posesión amplitud »",
+    diagram: [zel(0.05, 0.05, 0.95, 0.95), zel(0.3, 0.2, 0.7, 0.8, "#5B8FD6"), pel("goal", 0.5, 0.04), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.9), ...pts("playerA", [[0.4, 0.4, 1], [0.6, 0.45, 2], [0.5, 0.6, 3], [0.1, 0.5, 4], [0.9, 0.5, 5]]), ...pts("playerB", [[0.45, 0.35], [0.55, 0.5], [0.4, 0.55]]), pel("ball", 0.42, 0.42), ael("arrowPass", 0.42, 0.4, 0.12, 0.5)],
+  },
+  {
+    name: "Match en largeur : 11 contre 11, le but compte double après une supériorité créée", category: "tactique", ...RFEF_STD,
+    objectif: "Progresser par l'extérieur, où l'équipe qui a le ballon est en supériorité, en circulant à l'intérieur ou d'un côté pour attirer l'adversaire puis en renversant vite",
+    duree: 20, nbJoueurs: "22 joueurs (11 contre 11)", materiel: "2 buts, ballons, chasubles, terrain de 75 m sur 65 m",
+    description: "Deux équipes ayant le même nombre de joueurs s'affrontent. Le but principal est de progresser par l'espace extérieur, où l'équipe qui a le ballon est en supériorité numérique. L'idée est de circuler à l'intérieur ou d'un côté pour attirer l'adversaire, puis d'amener vite le ballon de l'autre côté pour progresser en supériorité. Si l'on marque après avoir créé cette situation, le but vaut double. On joue deux séries de 8 minutes, une minute de repos.",
+    comportementAttendu: "Largeur des ailiers pour progresser par l'espace extérieur en 2 contre 1 avec l'incorporation du latéral ; importance du jeu intérieur avec une circulation adaptée au rythme et à la position pour créer la supériorité ; bons centres et bonne occupation des zones de finition.",
+    criteresRealisation: "Un but n'est doublé que s'il suit une supériorité créée par le renversement ; les ailiers restent larges ; les centres trouvent des joueurs bien placés dans la surface.",
+    pointsCles: "Largeur des ailiers ; jeu intérieur pour attirer ; renversement rapide ; bons centres et occupation de la zone de finition.",
+    variantes: "Compter le but double seulement après un centre ; limiter le nombre de touches à l'intérieur.",
+    intensite: "elevee", theme: "Animation offensive",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance d'Albert Celades, tâche AC 03 « Partido amplitud »",
+    diagram: [zel(0.05, 0.05, 0.95, 0.95), pel("goal", 0.5, 0.04), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.9), ...pts("playerA", [[0.06, 0.55, 1], [0.94, 0.55, 2], [0.3, 0.6, 3], [0.7, 0.6, 4], [0.5, 0.7, 5], [0.25, 0.8, 6], [0.75, 0.8, 7]]), ...pts("playerB", [[0.2, 0.45], [0.8, 0.45], [0.4, 0.42], [0.6, 0.42], [0.5, 0.55], [0.35, 0.25], [0.65, 0.25]]), pel("ball", 0.32, 0.62), ael("arrowPass", 0.32, 0.6, 0.08, 0.56)],
+  },
+  {
+    name: "Rondos mobiles et actifs : sortir du milieu en deux touches, puis en transition défensive", category: "tactique", ...RFEF_STD,
+    objectif: "Conserver le ballon dans un rondo où l'on sort du milieu en jouant deux touches ou en envoyant le ballon dehors, puis simuler une pression après perte",
+    duree: 5, nbJoueurs: "toute l'équipe, en plusieurs rondos", materiel: "ballons, plots, chasubles",
+    description: "Rondos actifs : pour sortir du milieu, le joueur doit toucher le ballon deux fois ou sortir le ballon du terrain. Rondos mobiles en deux séries : la première série est libre ; la seconde s'organise en transition défensive : après une perte, le joueur qui perd le ballon et le passeur vont récupérer le ballon dans le rondo libre voisin, en simulant une pression après perte.",
+    comportementAttendu: "Les joueurs se déplacent pour offrir des solutions, jouent vite et, après une perte, réagissent immédiatement en pressant.",
+    criteresRealisation: "On ne sort du milieu qu'après deux touches ou en sortant le ballon ; en deuxième série, deux joueurs vont presser dans le rondo libre après la perte.",
+    pointsCles: "Mobilité ; conservation ; pression après perte.",
+    variantes: "Jouer le rondo libre puis le rondo en transition ; changer le nombre de joueurs au milieu.",
+    intensite: "moderee", theme: "Jeu de position / possession",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : échauffements « Róndos móviles » (Albert Celades) et « Rondos activos » (Marcelino García Toral)",
+    diagram: [zel(0.15, 0.15, 0.85, 0.85), ...pts("playerA", [[0.2, 0.2, 1], [0.8, 0.2, 2], [0.8, 0.8, 3], [0.2, 0.8, 4], [0.5, 0.15, 5]]), pel("playerB", 0.5, 0.5), pel("ball", 0.23, 0.22), ael("arrowPass", 0.23, 0.22, 0.77, 0.22)],
+  },
+  {
+    name: "Pressing en bloc médian 4-4-2 : de surface à surface, sur la passe entre défenseurs centraux", category: "tactique", ...RFEF_STD,
+    objectif: "Presser en bloc médian contre un système en 4-4-2 : situation des attaquants sur la passe horizontale entre les centraux, puis moment du saut de pressing",
+    duree: 15, nbJoueurs: "20 joueurs et 2 gardiens", materiel: "2 buts, ballons, chasubles, plots, terrain de 72 m sur 68 m (de surface à surface)",
+    description: "Travail tactique défensif de pressing en bloc médian en 4-4-2 contre un système en 4-4-2, joué d'une surface à l'autre. On insiste sur deux aspects du pressing : la situation de pression des attaquants sur la passe horizontale entre les défenseurs centraux et le moment où l'on saute pour presser. On défend une action avec le milieu intérieur qui presse par l'extérieur et par l'intérieur, le pivot « divisant » (séparant) le jeu adverse ; on défend une action où la passe entre les centraux est pressée pour qu'aucun ballon n'entre entre les attaquants ; contre-attaque en jouant vers l'avant ; derrière la ligne horizontale, on défend à 4 + 2. On joue deux séries de 5 minutes avec 2 minutes de repos.",
+    comportementAttendu: "Travail défensif collectif de pressing au milieu du terrain ; les attaquants pressent la passe horizontale entre centraux et empêchent le ballon d'entrer entre eux ; contre-attaque vers l'avant ; derrière la ligne horizontale, on défend à 4 + 2.",
+    criteresRealisation: "Le pressing se déclenche à la passe entre centraux ; le ballon n'entre pas entre les attaquants ; la contre-attaque est jouée vers l'avant.",
+    pointsCles: "Pressing collectif ; déclenchement sur la passe horizontale ; défendre avec les intérieurs par l'extérieur et l'intérieur ; défendre à 4 + 2 derrière la ligne.",
+    variantes: "Alterner les actions de pressing sur l'extérieur et sur l'intérieur ; faire varier le moment du saut.",
+    intensite: "elevee", theme: "Pressing",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance de Marcelino García Toral (Valencia CF, 28/03/2019), tâche MARCE 01 « Presión ½ campo / presión pase entre CTs » (texte tronqué à l'origine)",
+    diagram: [zel(0.05, 0.05, 0.95, 0.95), pel("goal", 0.5, 0.04), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.9), ...pts("playerA", [[0.3, 0.75, 1], [0.7, 0.75, 2], [0.15, 0.6, 3], [0.4, 0.6, 4], [0.6, 0.6, 5], [0.85, 0.6, 6]]), ...pts("playerB", [[0.4, 0.45], [0.6, 0.45], [0.2, 0.32], [0.4, 0.28], [0.6, 0.28], [0.8, 0.32]]), pel("ball", 0.33, 0.77), ael("arrowPass", 0.33, 0.75, 0.66, 0.75), ael("arrowMove", 0.4, 0.45, 0.35, 0.68)],
+  },
+  {
+    name: "Attaquer contre un pressing haut ou un bloc médian : alterner les deux situations", category: "tactique", ...RFEF_STD,
+    objectif: "Alterner l'attaque en sortie de balle contre un pressing haut et l'attaque en bloc médian contre une équipe qui presse à mi-terrain, et presser à la perte",
+    duree: 15, nbJoueurs: "20 joueurs et 2 gardiens", materiel: "2 buts, ballons, chasubles, plots, terrain de 72 m sur 68 m (de surface à surface)",
+    description: "Travail tactique offensif qui alterne l'attaque en sortie de balle contre un pressing haut de l'adversaire et l'attaque en bloc médian contre une équipe qui presse à mi-terrain (alternance d'actions à 2 contre 2). En bloc médian, on cherche à sortir avec le milieu axial qui s'écarte à l'extérieur du défenseur central. On joue deux séries de 5 minutes avec 2 minutes de repos. Points à travailler : attaque contre une équipe qui presse haut ; attaque contre une équipe qui presse en bloc médian ; pressing à la perte.",
+    comportementAttendu: "L'équipe adapte sa sortie de balle au type de pressing rencontré et presse tout de suite après la perte.",
+    criteresRealisation: "Les deux situations alternent ; les sorties se font par le milieu axial à l'extérieur du défenseur central en bloc médian ; le pressing à la perte est déclenché.",
+    pointsCles: "Attaquer contre pressing haut ; attaquer contre bloc médian ; presser la perte.",
+    variantes: "Changer l'ordre d'alternance des actions ; faire varier la hauteur du pressing adverse.",
+    intensite: "elevee", theme: "Transitions",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance de Marcelino García Toral (Valencia CF, 28/03/2019), tâche MARCE 02 « Ataque vs presión alta o bloque medio » (texte tronqué à l'origine)",
+    diagram: [zel(0.05, 0.05, 0.95, 0.95), pel("goal", 0.5, 0.04), pel("goal", 0.5, 0.96), pel("keeper", 0.5, 0.1), pel("keeper", 0.5, 0.9), ...pts("playerA", [[0.3, 0.8, 1], [0.7, 0.8, 2], [0.15, 0.7, 3], [0.4, 0.68, 4], [0.6, 0.68, 5], [0.85, 0.7, 6]]), ...pts("playerB", [[0.35, 0.55], [0.65, 0.55], [0.5, 0.45], [0.2, 0.45], [0.8, 0.45]]), pel("ball", 0.33, 0.82), ael("arrowPass", 0.33, 0.8, 0.16, 0.72), ael("arrowPass", 0.16, 0.7, 0.2, 0.5)],
+  },
+  {
+    name: "Match réduit à trois équipes de six : 6 contre 6 avec un joker sur un petit terrain", category: "athletique", ...RFEF_STD,
+    objectif: "Jouer des matchs en espace réduit avec des consignes qui préservent l'idée de jeu et atteignent l'objectif physique de la séance",
+    duree: 15, nbJoueurs: "19 joueurs et 2 gardiens (3 équipes de 6 plus un joker ; 6 joueurs sur le terrain contre 6, plus le joker ; 6 joueurs se reposent)", materiel: "2 buts, ballons, chasubles de 3 couleurs, terrain de 25 m sur 15 m",
+    description: "Tâche ludique de match en espace réduit, avec des consignes qui maintiennent l'idée de jeu tout en remplissant les objectifs physiques. Trois équipes de six joueurs plus un joker : 6 contre 6 plus le joker sur le terrain, six joueurs se reposent à l'extérieur. On joue six séries de 1 minute 45, avec 30 secondes de repos (intensité 0,80). Consignes : un joueur dos au jeu doit laisser le ballon de face ou faire un contrôle orienté ; jouer avec le gardien uniquement après une récupération ; deux touches dans son camp ; touches libres dans le camp adverse ; pression après perte.",
+    comportementAttendu: "Les joueurs appliquent les consignes de touches selon la zone, contrôlent en orientant leur première touche, pressent tout de suite après la perte.",
+    criteresRealisation: "Le jeu avec le gardien n'a lieu qu'après une récupération ; deux touches maximum dans son camp ; les séries respectent 1 min 45 et 30 s de repos.",
+    pointsCles: "Contrôle orienté ou remise de face ; deux touches dans son camp, libres en camp adverse ; pression après perte.",
+    variantes: "Changer le nombre de touches selon la zone ; ajuster les temps de série et de repos pour modifier l'intensité.",
+    intensite: "elevee", theme: "Tactique générale",
+    source: "RFEF (Espagne), contenu technique pour entraîneurs : séance de Marcelino García Toral (Valencia CF, 28/03/2019), tâche MARCE 03 « FTB reducido 3×6 + 1c » (texte tronqué à l'origine)",
+    diagram: [zel(0.15, 0.3, 0.85, 0.7), pel("goal", 0.06, 0.5), pel("goal", 0.94, 0.5), pel("keeper", 0.1, 0.5), pel("keeper", 0.9, 0.5), ...pts("playerA", [[0.3, 0.4, 1], [0.35, 0.6, 2], [0.45, 0.5, 3]]), ...pts("playerB", [[0.6, 0.4], [0.65, 0.6], [0.55, 0.5]]), pel("playerC", 0.5, 0.35), pel("ball", 0.33, 0.42), ael("arrowPass", 0.33, 0.4, 0.44, 0.48), ...pts("playerC", [[0.2, 0.1], [0.4, 0.1], [0.6, 0.1], [0.8, 0.1]])],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -11442,6 +11545,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_FORMAFOOT_2026,
   ...STARTER_EXERCISES_FIGC_ESERCIZIARIO_2026,
   ...STARTER_EXERCISES_DBU_2026,
+  ...STARTER_EXERCISES_RFEF_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
