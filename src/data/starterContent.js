@@ -5954,8 +5954,9 @@ const STARTER_EXERCISES_FOOT4_2026 = [
     comportementAttendu: "L'enfant s'arrête complètement, ballon inclus, dès que le meneur se retourne.",
     criteresRealisation: "Aucun mouvement du corps ni du ballon n'est visible pendant les 2-3 secondes de contrôle.",
     pointsCles: "Jeu avant tout — pas de sanction dure, juste reculer un peu en cas de mouvement.",
-    variantes: "Sans ballon pour les tout-petits ; avec ballon pour ajouter la difficulté du contrôle ; version FFF « 1, 2, 3 soleil » (U6-U7) : le meneur énonce la formule pendant que les joueurs courent, ils s'immobilisent au mot « soleil » et repartent de la ligne de départ s'ils bougent ; le premier sur la ligne d'arrivée marque un point ; faire varier le rythme de la phrase, ajouter un ballon à la main puis au pied, poser des obstacles ; version tchèque « sucre, café, limonade » (FAČR, U8-U9) : les enfants se tiennent sur la ligne avec leur ballon ; l'éducateur, dos tourné, récite une comptine pendant que les enfants avancent ; dès qu'il se retourne, ils doivent arrêter le ballon et leur corps ; celui qui n'y arrive pas retourne sur la ligne, et celui qui touche l'éducateur gagne ; l'éducateur peut se retourner seulement après toute la comptine ou à n'importe quel moment, de façon plus ou moins prévisible ; imposer le pied de conduite pour assurer les répétitions des deux pieds",
+    variantes: "Sans ballon pour les tout-petits ; avec ballon pour ajouter la difficulté du contrôle ; version FFF « 1, 2, 3 soleil » (U6-U7) : le meneur énonce la formule pendant que les joueurs courent, ils s'immobilisent au mot « soleil » et repartent de la ligne de départ s'ils bougent ; le premier sur la ligne d'arrivée marque un point ; faire varier le rythme de la phrase, ajouter un ballon à la main puis au pied, poser des obstacles ; version tchèque « sucre, café, limonade » (FAČR, U8-U9) : les enfants se tiennent sur la ligne avec leur ballon ; l'éducateur, dos tourné, récite une comptine pendant que les enfants avancent ; dès qu'il se retourne, ils doivent arrêter le ballon et leur corps ; celui qui n'y arrive pas retourne sur la ligne, et celui qui touche l'éducateur gagne ; l'éducateur peut se retourner seulement après toute la comptine ou à n'importe quel moment, de façon plus ou moins prévisible ; imposer le pied de conduite pour assurer les répétitions des deux pieds ; version japonaise « Daruma-san ga koronda » (JFA, U8/U10) : les enfants dribblent leur ballon en avançant vers le meneur, qui tourne le dos et énonce la comptine ; à son retournement, ils doivent arrêter le ballon net, sous contrôle total ; ne pas y parvenir vaut d'être repéré, comme dans la version classique ; variantes sur la façon d'arrêter le ballon : le coincer entre les deux pieds, s'asseoir dessus",
     intensite: "moderee", theme: "Réactivité", newBatch: NEW_BATCH_TAG,
+    source: "JFA, guide « JFA Kids Project » U8/U10 : « Daruma-san ga koronda » avec ballon",
     diagram: [pel("playerB", 0.9, 0.5, { number: 0 }), pel("playerA", 0.1, 0.3, { number: 1 }), pel("playerA", 0.1, 0.5, { number: 2 }), pel("playerA", 0.1, 0.7, { number: 3 })],
   },
   {
@@ -6317,8 +6318,9 @@ const STARTER_EXERCISES_TOUR_FEDERATIONS_2026 = [
     comportementAttendu: "L'enfant explore de son propre chef plusieurs façons de toucher le ballon, sans attendre une consigne pour chaque geste.",
     criteresRealisation: "L'enfant montre au moins un geste qu'il n'a pas été explicitement montré par le coach.",
     pointsCles: "Ne pas trop intervenir — laisser l'enfant chercher et se tromper, valoriser toute tentative originale.",
-    variantes: "Proposer un thème très large (\"fais rebondir le ballon différemment\") si le groupe a besoin d'un point de départ.",
+    variantes: "Proposer un thème très large (\"fais rebondir le ballon différemment\") si le groupe a besoin d'un point de départ ; version JFA U6 (Japon), plus guidée : un parcours est tracé à l'avance au sol, à suivre en dribblant sans en sortir (« le ballon se promène ») ; on peut y ajouter des haltes de repos, puis enchaîner par un tir au but toujours sans sortir du tracé",
     intensite: "faible", theme: "Jonglerie / maîtrise de balle", newBatch: NEW_BATCH_TAG,
+    source: "JFA, guide « JFA Kids Project » U6 : « Le ballon se promène » (Boru de osanpo) et jeu de tir",
     diagram: [pel("playerA", 0.3, 0.3, { number: 1 }), pel("ball", 0.32, 0.3), pel("playerA", 0.55, 0.45, { number: 2 }), pel("ball", 0.57, 0.45), pel("playerA", 0.4, 0.65, { number: 3 }), pel("ball", 0.42, 0.65), pel("cone", 0.65, 0.3), pel("cone", 0.75, 0.6)],
   },
   {
@@ -6901,9 +6903,9 @@ const STARTER_EXERCISES_SOURCES_2026 = [
     comportementAttendu: "Les enfants changent de direction, s'arrêtent et repartent pour protéger leur queue, et regardent autour d'eux pour repérer le chasseur avant qu'il n'arrive.",
     criteresRealisation: "Chaque enfant est chasseur au moins une fois ; le chasseur réussit à prendre trois queues dans le temps donné ; personne ne sort de la zone.",
     pointsCles: "Veiller à ce que chacun ait sa chance d'être chasseur. Vérifier que la queue dépasse bien du short pour pouvoir être attrapée, et rappeler de rester dans les limites du terrain.",
-    variantes: "L'enfant sans queue se fige jambes écartées et est libéré quand un copain lui fait passer un ballon entre les jambes ; version chat et souris : les souris se déplacent à quatre pattes avec leur queue, le chat en attrape trois, et la souris sans queue reste couchée jusqu'à ce qu'une autre passe au-dessus d'elle ; version jumeaux : les enfants jouent par deux main dans la main et un couple chasseur touche un autre couple, avec des îles (cerceaux) où l'on ne peut pas être touché ; version par équipes avec prison et coffre-fort : voir « La queue du diable par équipes » ; version FA « Bib steal » : chaque joueur a un dossard glissé dans son short à hauteur de la hanche et essaie de voler les dossards des autres en protégeant le sien ; celui qui en vole un le glisse à son tour dans son short, celui qui perd le sien essaie d'en reprendre un ; progression : un ballon par joueur et une zone de sécurité où l'on peut se reposer un moment sans opposition ; version DBU « Renard et lièvres » (5-6 ans) : un joueur est le renard, les autres sont des lièvres qui glissent un chasuble dans la ceinture, dans le dos ; quand le jeu est lancé, le renard essaie d'attraper les lièvres en saisissant le chasuble, et à chaque prise on échange les rôles ; consignes : mouvements latéraux, feintes de corps, changements de rythme ; on peut jouer avec deux renards, les lièvres attrapés restant alors immobiles",
+    variantes: "L'enfant sans queue se fige jambes écartées et est libéré quand un copain lui fait passer un ballon entre les jambes ; version chat et souris : les souris se déplacent à quatre pattes avec leur queue, le chat en attrape trois, et la souris sans queue reste couchée jusqu'à ce qu'une autre passe au-dessus d'elle ; version jumeaux : les enfants jouent par deux main dans la main et un couple chasseur touche un autre couple, avec des îles (cerceaux) où l'on ne peut pas être touché ; version par équipes avec prison et coffre-fort : voir « La queue du diable par équipes » ; version FA « Bib steal » : chaque joueur a un dossard glissé dans son short à hauteur de la hanche et essaie de voler les dossards des autres en protégeant le sien ; celui qui en vole un le glisse à son tour dans son short, celui qui perd le sien essaie d'en reprendre un ; progression : un ballon par joueur et une zone de sécurité où l'on peut se reposer un moment sans opposition ; version DBU « Renard et lièvres » (5-6 ans) : un joueur est le renard, les autres sont des lièvres qui glissent un chasuble dans la ceinture, dans le dos ; quand le jeu est lancé, le renard essaie d'attraper les lièvres en saisissant le chasuble, et à chaque prise on échange les rôles ; consignes : mouvements latéraux, feintes de corps, changements de rythme ; on peut jouer avec deux renards, les lièvres attrapés restant alors immobiles ; version JFA U8/U10 (Japon) : le meneur porte la queue (un dossard glissé dans le short) et poursuit les enfants pour la leur faire attraper ; puis on échange, le meneur redevient chasseur ; variantes : queues de couleurs différentes pour un jeu par équipes, ou tout le monde porte une queue et se les prend mutuellement",
     intensite: "moderee", theme: "Agilité / coordination", newBatch: NEW_BATCH_TAG_SOURCES,
-    source: "ACFF / RBFA, Cahier de défis Festifoot U6 (défis Le chasseur, Le chat et la souris, Les jumeaux) ; The FA (England Football Learning), Bib steal (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 3 : « Ræv efter hare »",
+    source: "ACFF / RBFA, Cahier de défis Festifoot U6 (défis Le chasseur, Le chat et la souris, Les jumeaux) ; The FA (England Football Learning), Bib steal (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 3 : « Ræv efter hare » ; JFA, guide « JFA Kids Project » U8/U10 : « Chasse aux queues » (Shippo tori oni)",
     diagram: [zel(0.1, 0.12, 0.9, 0.88), pel("playerB", 0.5, 0.5), pel("playerA", 0.22, 0.28), pel("playerA", 0.78, 0.3), pel("playerA", 0.3, 0.74), pel("playerA", 0.72, 0.72), pel("playerA", 0.5, 0.22), pel("playerA", 0.16, 0.56), pel("playerA", 0.84, 0.54), ael("arrowMove", 0.5, 0.5, 0.36, 0.38), ael("arrowMove", 0.3, 0.74, 0.2, 0.84)],
   },
   {
@@ -6943,9 +6945,9 @@ const STARTER_EXERCISES_SOURCES_2026 = [
     comportementAttendu: "L'enfant regarde la cible, choisit son pied et frappe le ballon vers les cônes sans se soucier de la puissance.",
     criteresRealisation: "Chaque enfant fait plusieurs tirs par manche ; le nombre de cônes renversés progresse au fil des manches.",
     pointsCles: "Ne pas trop insister sur la technique de frappe : valoriser la réussite. Faire plusieurs manches courtes et rapprocher la ligne de tir pour les enfants qui n'arrivent pas à toucher.",
-    variantes: "Le tireur d'élite : chaque enfant conduit son ballon sur deux ou trois mètres, tire sur un cône, avance vers une bouteille de 50 cl à moitié pleine, puis vers une petite bouteille de 20 cl : des cibles de plus en plus petites à faire tomber dans le temps donné ; jouer par équipes de deux ou trois ; ajouter d'autres objets à renverser ; version FFF « Défendre son château » (U6-U7) : une équipe défend son château, matérialisé par des quilles, pendant que l'autre lance un ballon à la main sans franchir la ligne de coupelles (un point par quille tombée) ; on rejoue ensuite au pied, ballon au sol, par séquences d'une minute en inversant les rôles ; version SFV « Bowling » (5-6 ans) : par deux, l'un se place avec le ballon face à trois plots, l'autre en face de lui ; il essaie de les renverser d'une passe, puis on échange les rôles ; combien d'essais pour les renverser tous ? ; version FA « Football bowling » : par deux ou trois, les joueurs posent eux-mêmes les plots où ils veulent avec un ballon sur chacun (les quilles) et cherchent à faire tomber le plus de ballons en un temps ou un nombre de tirs donné ; ils choisissent la place des plots, la distance, le barème, et si le jeu est collaboratif ou compétitif ; version DBU « Bowling » (5-6 ans) : par deux, on dispose environ quatre plots dans une figure qu'un seul coup de pied peut renverser ; chacun tire à tour de rôle avec deux essais et celui qui renverse le plus de plots gagne ; on peut changer d'adversaire entre les parties",
+    variantes: "Le tireur d'élite : chaque enfant conduit son ballon sur deux ou trois mètres, tire sur un cône, avance vers une bouteille de 50 cl à moitié pleine, puis vers une petite bouteille de 20 cl : des cibles de plus en plus petites à faire tomber dans le temps donné ; jouer par équipes de deux ou trois ; ajouter d'autres objets à renverser ; version FFF « Défendre son château » (U6-U7) : une équipe défend son château, matérialisé par des quilles, pendant que l'autre lance un ballon à la main sans franchir la ligne de coupelles (un point par quille tombée) ; on rejoue ensuite au pied, ballon au sol, par séquences d'une minute en inversant les rôles ; version SFV « Bowling » (5-6 ans) : par deux, l'un se place avec le ballon face à trois plots, l'autre en face de lui ; il essaie de les renverser d'une passe, puis on échange les rôles ; combien d'essais pour les renverser tous ? ; version FA « Football bowling » : par deux ou trois, les joueurs posent eux-mêmes les plots où ils veulent avec un ballon sur chacun (les quilles) et cherchent à faire tomber le plus de ballons en un temps ou un nombre de tirs donné ; ils choisissent la place des plots, la distance, le barème, et si le jeu est collaboratif ou compétitif ; version DBU « Bowling » (5-6 ans) : par deux, on dispose environ quatre plots dans une figure qu'un seul coup de pied peut renverser ; chacun tire à tour de rôle avec deux essais et celui qui renverse le plus de plots gagne ; on peut changer d'adversaire entre les parties ; version JFA U6 (Japon) : des cônes sont dressés en triangle, chacun avec un repère (marqueur) posé au sommet ; on frappe fort pour faire tomber seulement le repère du dessus ; en équipes, l'une redresse les cônes pendant que l'autre les fait tomber",
     intensite: "faible", theme: "Tirs / finition", newBatch: NEW_BATCH_TAG_SOURCES,
-    source: "ACFF / RBFA, Cahier de défis Festifoot U6 (défis Le bowling et Le tireur d'élite) ; FFF, GIFE U6-U7, thème 9 (variante) ; SFV (ASF), Trainingskarten Kategorie G, entraînement 1 (variante) ; The FA (England Football Learning), Football bowling (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 6 : « Bowling »",
+    source: "ACFF / RBFA, Cahier de défis Festifoot U6 (défis Le bowling et Le tireur d'élite) ; FFF, GIFE U6-U7, thème 9 (variante) ; SFV (ASF), Trainingskarten Kategorie G, entraînement 1 (variante) ; The FA (England Football Learning), Football bowling (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 6 : « Bowling » ; JFA, guide « JFA Kids Project » U6 : « Jeu de quilles » (Kon taoshi game)",
     diagram: [zel(0.05, 0.1, 0.95, 0.9), pel("cone", 0.82, 0.32), pel("cone", 0.82, 0.44), pel("cone", 0.82, 0.56), pel("cone", 0.82, 0.68), pel("cone", 0.75, 0.38), pel("cone", 0.75, 0.5), pel("cone", 0.75, 0.62), pel("cone", 0.68, 0.44), pel("cone", 0.68, 0.56), pel("cone", 0.61, 0.5), pel("playerA", 0.15, 0.25), pel("ball", 0.2, 0.25), pel("playerA", 0.15, 0.4), pel("ball", 0.2, 0.4), pel("playerA", 0.15, 0.55), pel("ball", 0.2, 0.55), pel("playerA", 0.15, 0.7), pel("ball", 0.2, 0.7), ael("arrowPass", 0.2, 0.4, 0.6, 0.5)],
   },
   {
@@ -7086,9 +7088,9 @@ const STARTER_EXERCISES_SOURCES_2026 = [
     comportementAttendu: "Les enfants changent de direction, ralentissent et repartent en cherchant les espaces libres. Les gelés restent immobiles avec le sourire et repartent tout de suite quand ils sont délivrés.",
     criteresRealisation: "Personne ne sort de la zone ; chacun est sorcier au moins une fois dans la séance ; le jeu repart vite après chaque manche.",
     pointsCles: "Laisser les enfants inventer les sorts et les façons de délivrer : ils s'investissent davantage dans un jeu qu'ils ont façonné. Changer la forme de la zone pour renouveler l'intérêt.",
-    variantes: "Ajouter des zones refuges où l'on ne peut pas être touché ; jouer avec un ballon que chaque enfant conduit ; toucher en volant un ruban plutôt qu'à la main ; plusieurs sorciers en même temps ; version SFV « Zauberwort » (5-6 ans) : un ou deux sorciers touchent les enfants avec une baguette ; l'enfant touché court vers l'éducateur, qui lui donne un nom d'animal ; il l'imite en courant autour d'un carré, puis retourne jouer ; chercher avec les enfants comment les sorciers doivent s'y prendre pour transformer tout le monde en animaux en deux minutes ; version DBU « Stå-trold » avec ballon (5-6 ans, en salle) : un attrapeur sans ballon poursuit des joueurs qui dribblent chacun leur ballon ; le joueur attrapé dit « STOP », se place jambes écartées, et ne peut être libéré que si un autre joueur fait passer son ballon entre ses jambes ; on change d'attrapeur toutes les trois minutes",
+    variantes: "Ajouter des zones refuges où l'on ne peut pas être touché ; jouer avec un ballon que chaque enfant conduit ; toucher en volant un ruban plutôt qu'à la main ; plusieurs sorciers en même temps ; version SFV « Zauberwort » (5-6 ans) : un ou deux sorciers touchent les enfants avec une baguette ; l'enfant touché court vers l'éducateur, qui lui donne un nom d'animal ; il l'imite en courant autour d'un carré, puis retourne jouer ; chercher avec les enfants comment les sorciers doivent s'y prendre pour transformer tout le monde en animaux en deux minutes ; version DBU « Stå-trold » avec ballon (5-6 ans, en salle) : un attrapeur sans ballon poursuit des joueurs qui dribblent chacun leur ballon ; le joueur attrapé dit « STOP », se place jambes écartées, et ne peut être libéré que si un autre joueur fait passer son ballon entre ses jambes ; on change d'attrapeur toutes les trois minutes ; version JFA U6 (Japon) : des cerceaux sont dispersés dans l'espace, dans lesquels il faut sauter en jouant à chat ; on peut décider ensemble d'une couleur de cerceau interdite au chat, refuge temporaire pour les fuyards",
     intensite: "moderee", theme: "Agilité / coordination", newBatch: NEW_BATCH_TAG_SOURCES,
-    source: "The FA (England Football Learning), Play Phase : magic tag ; SFV (ASF), Trainingskarten Kategorie G, entraînement 1 (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 8 : « Stå-trold m. bold »",
+    source: "The FA (England Football Learning), Play Phase : magic tag ; SFV (ASF), Trainingskarten Kategorie G, entraînement 1 (variante) ; DBU (Danemark), Børnetræning, 5-6 ans, séance 8 : « Stå-trold m. bold » ; JFA, guide « JFA Kids Project » U6 : « Chat à la couleur interdite » (Furafuupu oni)",
     diagram: [zel(0.1, 0.12, 0.9, 0.88), pel("playerB", 0.5, 0.5), pel("playerA", 0.25, 0.3), pel("playerA", 0.75, 0.32), pel("playerA", 0.6, 0.75), pel("playerC", 0.3, 0.68), pel("playerC", 0.8, 0.6), ael("arrowMove", 0.5, 0.5, 0.68, 0.36)],
   },
   {
@@ -11004,9 +11006,10 @@ const STARTER_EXERCISES_DBU_2026 = [
     comportementAttendu: "Les joueurs choisissent le bon moment pour traverser, protègent le ballon en dribblant et changent de direction pour éviter les attrapeurs.",
     criteresRealisation: "Personne ne reste plus de 15 secondes dans une zone de côté ; les joueurs éliminés deviennent attrapeurs ; le dernier joueur gagne.",
     pointsCles: "Choisir le bon moment ; dribbler vite et protégé ; les attrapeurs se répartissent l'espace.",
-    variantes: "Agrandir ou rétrécir la zone centrale ; ajouter un attrapeur dès le départ ; imposer un pied faible pour dribbler.",
+    variantes: "Agrandir ou rétrécir la zone centrale ; ajouter un attrapeur dès le départ ; imposer un pied faible pour dribbler ; version JFA U8/U10 (Japon) : un couloir gardé par un ou plusieurs attrapeurs, à traverser en dribblant ou en course libre sans se faire toucher ; on peut jouer au tour complet (un point par tour réussi), dans un sens, dans l'autre, ou dans les deux sens au choix",
     intensite: "elevee", theme: "Dribbles / conduite de balle",
     source: `${DBU_SRC}7-8 ans, séance 7 (en salle) : « Kongeløber »`,
+    source: "JFA, guide « JFA Kids Project » U8/U10 : « Chat qui touche » (Tacchi oni), deux versions",
     diagram: [zel(0.05, 0.15, 0.25, 0.85, "#5B8FD6"), zel(0.25, 0.15, 0.75, 0.85), zel(0.75, 0.15, 0.95, 0.85, "#5B8FD6"), ...pts("playerA", [[0.15, 0.3, 1], [0.15, 0.6, 2], [0.85, 0.4, 3]]), ...pts("ball", [[0.18, 0.33], [0.18, 0.63], [0.82, 0.43]]), pel("playerB", 0.5, 0.5), ael("arrowDribble", 0.18, 0.33, 0.8, 0.36)],
   },
   {
@@ -11471,6 +11474,58 @@ const STARTER_EXERCISES_RFEF_2026 = [
   },
 ];
 
+// Banque issue des guides « JFA Kids Project » de la fédération japonaise (Japan Football Association), guides
+// publics U6 (16 pages) et U8/U10 (18 pages, avec une version anglaise du guide U8 chez la ligue de Shizuoka), texte
+// japonais avec quelques pages en anglais. Textes et schémas réécrits en français (dépôt public) ; les schémas des
+// PDF sont de petites illustrations sans texte, les diagrammes sont reconstruits d'après le texte. Plusieurs jeux
+// (quilles, chasse aux queues, sorcier gèle, 1-2-3 soleil, traversée surveillée) recoupent des jeux déjà présents
+// dans la bibliothèque sous d'autres fédérations : ils n'ont pas été redoublés, leurs variantes japonaises ont été
+// ajoutées aux fiches existantes.
+const JFA_U7 = { ageFormat: "foot_a_4", curriculumFederation: "JFA", newBatch: NEW_BATCH_TAG_SOURCES };
+const JFA_U9 = { ageFormat: "foot_a_5", curriculumFederation: "JFA", newBatch: NEW_BATCH_TAG_SOURCES };
+
+const STARTER_EXERCISES_JFA_2026 = [
+  {
+    name: "Le ballon qui roule : esquiver puis lancer la bombe électrique", category: "athletique", ...JFA_U7,
+    objectif: "Esquiver un ballon roulé au sol en observant celui qui le lance, puis apprendre à lancer à son tour vers des camarades qui fuient",
+    duree: 10, nbJoueurs: "10 à 20 joueurs (1 ou 2 adultes ou meneurs qui lancent, les autres qui fuient)", materiel: "1 ou 2 ballons, espace délimité",
+    description: "Un adulte (ou un meneur) fait rouler un ballon au sol en visant les enfants, qui doivent l'esquiver sans se faire toucher. Puis on échange les rôles : les enfants peuvent aussi lancer le ballon à la main. Variante « bombe électrique » : l'enfant touché par le ballon mime pendant deux à trois secondes une décharge électrique (tremblements, grimace) avant de reprendre le jeu.",
+    comportementAttendu: "Les enfants regardent le lanceur, changent de direction pour esquiver et, quand ils lancent à leur tour, visent avec la main ou le pied.",
+    criteresRealisation: "Les enfants restent en mouvement, l'échange de rôles se fait naturellement, le mime de la « bombe électrique » est joué avec plaisir.",
+    pointsCles: "Regarder le lanceur ; changer de direction ; rendre le passage au rôle de lanceur naturel et amusant.",
+    variantes: "Toucher le corps en lançant librement, toucher le corps en gardant le ballon en main, toucher en plongeant, ou lancer depuis le sol ; utiliser deux ballons pour plus d'intensité.",
+    intensite: "moderee", theme: "Agilité / coordination",
+    source: "JFA (Japon), guide « JFA Kids Project » U6 : jeu de fuite au ballon roulé et « bombe électrique »",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), pel("playerC", 0.5, 0.5), pel("ball", 0.4, 0.5), ...pts("playerA", [[0.2, 0.2, 1], [0.8, 0.25, 2], [0.75, 0.75, 3], [0.25, 0.8, 4]]), ael("arrowPass", 0.42, 0.5, 0.25, 0.25), ael("arrowMove", 0.2, 0.22, 0.15, 0.4)],
+  },
+  {
+    name: "Le ballon qui dessine : rouler le ballon en suivant un tracé au sol", category: "technique", ...JFA_U7,
+    objectif: "Contrôler la trajectoire du ballon en le poussant du pied pour suivre précisément un tracé dessiné au sol",
+    duree: 10, nbJoueurs: "individuel, chacun avec un ballon", materiel: "1 ballon par enfant, craie ou lignes blanches pour dessiner des formes au sol",
+    description: "On dessine à l'avance différents dessins ou tracés au sol (spirales, vagues, zigzags, formes simples) avec de la craie ou des lignes blanches. Chaque enfant fait rouler son ballon au pied en suivant le tracé, comme s'il le dessinait avec le ballon.",
+    comportementAttendu: "L'enfant garde un contact léger et continu avec le ballon pour suivre précisément la ligne, en ajustant la force de la poussée dans les courbes.",
+    criteresRealisation: "Le ballon suit le tracé sans trop s'en écarter ; l'enfant ralentit dans les parties les plus sinueuses.",
+    pointsCles: "Contact léger et continu ; ajuster la force dans les courbes ; prendre plaisir à « dessiner » avec le ballon.",
+    variantes: "Dessiner des formes de plus en plus complexes ; faire deviner aux autres ce que la forme représente ; alterner pied droit et pied gauche.",
+    intensite: "faible", theme: "Dribbles / conduite de balle",
+    source: "JFA (Japon), guide « JFA Kids Project » U6 : « Ballon pour dessiner » (Boru de oekaki)",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), ael("arrowDribble", 0.2, 0.5, 0.35, 0.2, { curved: true, cx: 0.15, cy: 0.3 }), ael("arrowDribble", 0.35, 0.2, 0.5, 0.7, { curved: true, cx: 0.55, cy: 0.4 }), ael("arrowDribble", 0.5, 0.7, 0.8, 0.3, { curved: true, cx: 0.7, cy: 0.55 }), pel("playerA", 0.2, 0.55, { number: 1 }), pel("ball", 0.22, 0.5)],
+  },
+  {
+    name: "Dribble dans le trafic puis collecte de ballons chronométrée", category: "technique", ...JFA_U9,
+    objectif: "Dribbler dans un flux croisé sans percuter les autres joueurs, puis ramasser et rapporter le plus de ballons possible en équipe dans le temps imparti",
+    duree: 10, nbJoueurs: "8 à 16 joueurs (équipes de 4)", materiel: "1 ballon par joueur pour le trafic, une réserve commune de ballons pour la collecte, plots, chronomètre",
+    description: "Premier temps, le trafic : les joueurs dribblent en se croisant depuis deux directions opposées, puis depuis quatre directions, sans se percuter. Deuxième temps, la collecte : quatre équipes s'affrontent pour rapporter le plus de ballons possible, pris dans une réserve commune, en un temps donné. On peut inventer les règles (par exemple, l'équipe qui rapporte quatre ballons le plus vite gagne). On commence en portant les ballons à la main, puis, une fois les enfants à l'aise, on joue la même course en dribblant.",
+    comportementAttendu: "Dans le trafic, les joueurs regardent autour d'eux et changent de trajectoire pour éviter les autres ; dans la collecte, ils courent vite et ramènent le ballon sans le perdre.",
+    criteresRealisation: "Aucune collision dans le trafic ; les ballons rapportés sont comptés par équipe ; on passe du portage à la main au dribble une fois le jeu maîtrisé.",
+    pointsCles: "Regarder autour de soi ; changer de trajectoire tôt ; vitesse d'exécution dans la collecte ; introduire le dribble progressivement.",
+    variantes: "Passer de deux à quatre directions de trafic ; varier la règle de victoire de la collecte (nombre fixe de ballons, temps limité) ; jouer d'abord à la main puis en dribblant.",
+    intensite: "elevee", theme: "Dribbles / conduite de balle",
+    source: "JFA (Japon), guide « JFA Kids Project » U8/U10 : « Jeu de dribble dans le trafic » (Konzatsu dribble game)",
+    diagram: [zel(0.1, 0.1, 0.9, 0.9), ...pts("playerA", [[0.15, 0.2, 1], [0.85, 0.2, 2], [0.15, 0.8, 3], [0.85, 0.8, 4]]), ...pts("ball", [[0.18, 0.23], [0.82, 0.23], [0.18, 0.77], [0.82, 0.77]]), ael("arrowDribble", 0.18, 0.23, 0.78, 0.75), ael("arrowDribble", 0.82, 0.23, 0.22, 0.75), pel("playerC", 0.5, 0.5), ...pts("ball", [[0.44, 0.44], [0.56, 0.44], [0.44, 0.56], [0.56, 0.56]])],
+  },
+];
+
 const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES.map((ex) => ({ category: "tactique", ...ex })),
   ...STARTER_EXERCISES_TECHNIQUE,
@@ -11546,6 +11601,7 @@ const RAW_STARTER_EXERCISES = [
   ...STARTER_EXERCISES_FIGC_ESERCIZIARIO_2026,
   ...STARTER_EXERCISES_DBU_2026,
   ...STARTER_EXERCISES_RFEF_2026,
+  ...STARTER_EXERCISES_JFA_2026,
 ];
 
 // Ajout du thème sur l'ensemble, sans rien changer d'autre à la donnée existante.
