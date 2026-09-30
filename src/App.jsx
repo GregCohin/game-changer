@@ -31212,12 +31212,50 @@ function ExerciseFormPanel({ form, setForm, onSave, onCancel, gameplan, pedagogy
   );
 }
 
+// Recherche texte sur la bibliothèque d'exercices (nom, objectif, thème, déroulé) — insensible à la
+// casse et aux accents, pour qu'une recherche "penalty" trouve aussi "pénalty". Ajoutée en sept. 2026 :
+// au-delà de quelques centaines d'exercices, naviguer uniquement par onglets tranche/catégorie ne
+// suffit plus à retrouver une fiche précise dont on se souvient vaguement.
+function normalizeSearchText(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function exerciseMatchesSearch(ex, query) {
+  const q = normalizeSearchText(query).trim();
+  if (!q) return true;
+  return [ex.name, ex.objectif, ex.theme, ex.description].some((field) => normalizeSearchText(field).includes(q));
+}
+// Bandeau de recherche réutilisé par les écrans de bibliothèque d'exercices. Pendant une recherche
+// active, les onglets tranche/catégorie ne filtrent plus (la recherche porte sur toute la bibliothèque) ;
+// cliquer un onglet efface la recherche pour revenir à la navigation par onglets habituelle.
+function ExerciseSearchBar({ searchQuery, setSearchQuery, resultCount }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Rechercher un exercice (nom, objectif, thème, déroulé)…"
+        style={{ maxWidth: 420 }}
+      />
+      {searchQuery.trim() && (
+        <span className="hint" style={{ marginLeft: 10 }}>
+          {resultCount} résultat{resultCount !== 1 ? "s" : ""} dans toute la bibliothèque (les onglets ci-dessous sont ignorés)
+        </span>
+      )}
+      {searchQuery.trim() && (
+        <button className="btn btn-ghost btn-small" onClick={() => setSearchQuery("")} style={{ marginLeft: 10 }}>Effacer la recherche</button>
+      )}
+    </div>
+  );
+}
+
 function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyExerciseForm());
   const [categoryFilter, setCategoryFilter] = useState("tactique");
   const [ageFormatFilter, setAgeFormatFilter] = useState("standard");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showCurriculumCoverage, setShowCurriculumCoverage] = useState(false);
   const [coverageFederation, setCoverageFederation] = useState("FFF");
   const [viewingExercise, setViewingExercise] = useState(null);
@@ -31364,9 +31402,17 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       )}
 
       {!showForm && (
+        <ExerciseSearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          resultCount={exercises.filter((e) => exerciseMatchesSearch(e, searchQuery)).length}
+        />
+      )}
+
+      {!showForm && (
         <div className="tabs" style={{ marginBottom: 6 }}>
           {EXERCISE_AGE_FORMATS.map((f) => (
-            <button key={f.key} className={`tab ${ageFormatFilter === f.key ? "active" : ""}`} onClick={() => setAgeFormatFilter(f.key)}>{f.label}</button>
+            <button key={f.key} className={`tab ${!searchQuery.trim() && ageFormatFilter === f.key ? "active" : ""}`} onClick={() => { setSearchQuery(""); setAgeFormatFilter(f.key); }}>{f.label}</button>
           ))}
         </div>
       )}
@@ -31374,14 +31420,33 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       {!showForm && (
         <div className="tabs" style={{ marginBottom: 14 }}>
           {EXERCISE_CATEGORIES.map((c) => (
-            <button key={c.key} className={`tab ${categoryFilter === c.key ? "active" : ""}`} onClick={() => setCategoryFilter(c.key)}>
+            <button key={c.key} className={`tab ${!searchQuery.trim() && categoryFilter === c.key ? "active" : ""}`} onClick={() => { setSearchQuery(""); setCategoryFilter(c.key); }}>
               {c.label} <span className="scouting-club">({exercises.filter((e) => (e.category || "tactique") === c.key && (e.ageFormat || "standard") === ageFormatFilter).length})</span>
             </button>
           ))}
         </div>
       )}
 
-      {!showForm && (() => {
+      {!showForm && searchQuery.trim() && (() => {
+        const results = exercises.filter((e) => exerciseMatchesSearch(e, searchQuery));
+        return (
+          <>
+            {results.length === 0 && <div className="empty-state">Aucun exercice ne correspond à « {searchQuery.trim()} ».</div>}
+            <div className="roster-grid">
+              {results.map((ex) => (
+                <ExerciseCard
+                  key={ex.id}
+                  ex={ex}
+                  metaExtra={`${EXERCISE_CATEGORIES.find((c) => c.key === (ex.category || "tactique"))?.label} · ${EXERCISE_AGE_FORMATS.find((f) => f.key === (ex.ageFormat || "standard"))?.label}`}
+                  onCardClick={() => setViewingExercise(ex)}
+                />
+              ))}
+            </div>
+          </>
+        );
+      })()}
+
+      {!showForm && !searchQuery.trim() && (() => {
         const filtered = exercises.filter((e) => (e.category || "tactique") === categoryFilter && (e.ageFormat || "standard") === ageFormatFilter);
         const byTheme = {};
         filtered.forEach((ex) => { const t = ex.theme || "Général"; (byTheme[t] || (byTheme[t] = [])).push(ex); });
@@ -31696,7 +31761,9 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
   const [viewingExercise, setViewingExercise] = useState(null);
   const [pedagogyEntries, setPedagogyEntries] = useState([]);
   const [pedagogyFilterItemId, setPedagogyFilterItemId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const newExercises = exercises.filter((ex) => ex.newBatch);
+  const searchResults = searchQuery.trim() ? exercises.filter((ex) => exerciseMatchesSearch(ex, searchQuery)) : [];
 
   useEffect(() => {
     try { setPedagogyEntries(JSON.parse(localStorage.getItem("tf_club_pedagogy") || "[]")); } catch (e) {}
@@ -31751,17 +31818,40 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
           />
         </details>
       )}
+      <ExerciseSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} resultCount={searchResults.length} />
       <div className="tabs" style={{ marginBottom: 6 }}>
         {EXERCISE_AGE_FORMATS.map((f) => (
-          <button key={f.key} className={`tab ${ageFormatFilter === f.key ? "active" : ""}`} onClick={() => setAgeFormatFilter(f.key)}>{f.label}</button>
+          <button key={f.key} className={`tab ${!searchQuery.trim() && ageFormatFilter === f.key ? "active" : ""}`} onClick={() => { setSearchQuery(""); setAgeFormatFilter(f.key); }}>{f.label}</button>
         ))}
       </div>
       <div className="tabs" style={{ marginBottom: 14 }}>
         {EXERCISE_CATEGORIES.map((c) => (
-          <button key={c.key} className={`tab ${categoryFilter === c.key ? "active" : ""}`} onClick={() => setCategoryFilter(c.key)}>{c.label}</button>
+          <button key={c.key} className={`tab ${!searchQuery.trim() && categoryFilter === c.key ? "active" : ""}`} onClick={() => { setSearchQuery(""); setCategoryFilter(c.key); }}>{c.label}</button>
         ))}
       </div>
-      {pedagogyEntries.length > 0 && (
+      {searchQuery.trim() && (() => {
+        return (
+          <>
+            {searchResults.length === 0 && <div className="empty-state">Aucun exercice ne correspond à « {searchQuery.trim()} ».</div>}
+            <PaginatedGrid
+              items={searchResults}
+              renderItem={(ex) => (
+                <ExerciseCard
+                  key={ex.id}
+                  ex={ex}
+                  metaExtra={`${EXERCISE_CATEGORIES.find((c) => c.key === (ex.category || "tactique"))?.label} · ${EXERCISE_AGE_FORMATS.find((f) => f.key === (ex.ageFormat || "standard"))?.label}`}
+                  onCardClick={() => setViewingExercise(ex)}
+                  actions={<>
+                    <button className="btn btn-ghost btn-small" onClick={() => shareToClub(ex)}>Partager au club</button>
+                    {onAddToSession && <button className="btn btn-ghost btn-small" onClick={() => onAddToSession(ex)}>+ Ajouter</button>}
+                  </>}
+                />
+              )}
+            />
+          </>
+        );
+      })()}
+      {!searchQuery.trim() && pedagogyEntries.length > 0 && (
         <label style={{ display: "inline-block", marginBottom: 14 }}>
           Filtrer par priorité pédagogique
           <select value={pedagogyFilterItemId} onChange={(e) => setPedagogyFilterItemId(e.target.value)} style={{ display: "block", marginTop: 4, maxWidth: 340 }}>
@@ -31777,7 +31867,7 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
         </label>
       )}
 
-      {categoryFilter !== "tactique" && (() => {
+      {!searchQuery.trim() && categoryFilter !== "tactique" && (() => {
         const byTheme = {};
         otherCategoryExercises.forEach((ex) => { const t = ex.theme || "Général"; (byTheme[t] || (byTheme[t] = [])).push(ex); });
         const themeKeys = Object.keys(byTheme).sort();
@@ -31807,7 +31897,7 @@ function ExerciseBankScreen({ exercises, gameplan, specific, onAddToSession }) {
         );
       })()}
 
-      {categoryFilter === "tactique" && (
+      {!searchQuery.trim() && categoryFilter === "tactique" && (
       <>
       <p className="radar-note">
         {specific
