@@ -30452,6 +30452,8 @@ const PAD_PLAYER_KEYS = ["playerA", "playerB", "playerC", "playerD", "keeper"];
 function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey, isFutsal }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
+  const zoomViewportRef = useRef(null);
+  const panRef = useRef(null);
   const [tool, setTool] = useState("playerA");
   const [pendingPoints, setPendingPoints] = useState([]);
   const [preview, setPreview] = useState(null);
@@ -30459,6 +30461,7 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
   const [textPending, setTextPending] = useState(null);
   const [textValue, setTextValue] = useState("");
   const [size, setSize] = useState({ w: 600, h: 400 });
+  const [zoom, setZoom] = useState(1);
   const [rotatingId, setRotatingId] = useState(null);
   const [movingId, setMovingId] = useState(null);
   const [moveDragStart, setMoveDragStart] = useState(null);
@@ -30501,6 +30504,39 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
     window.addEventListener("resize", syncSize);
     return () => window.removeEventListener("resize", syncSize);
   }, []);
+
+  // Zoom du pad (01/10/2026, demandé par Gregory après un retour sur la difficulté à voir/viser le
+  // Mini but sur mobile) : `.pad-wrap` grandit (largeur en % de `.pad-zoom-viewport`, qui garde lui
+  // la taille d'affichage normale avec overflow:auto) plutôt qu'un agrandissement CSS de l'existant —
+  // le canevas se redessine alors à une résolution plus grande (net, pas flou) via le même mécanisme
+  // que le redimensionnement de fenêtre. `getBoundingClientRect()` (déjà utilisé par `getPos`) reste
+  // juste quel que soit le défilement du conteneur : aucun changement nécessaire côté détection de clic.
+  const ZOOM_LEVELS = [1, 1.5, 2, 2.5, 3];
+  function centerZoomViewport() {
+    const el = zoomViewportRef.current;
+    if (!el) return;
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+    el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+  }
+  useEffect(() => { syncSize(); centerZoomViewport(); }, [zoom]);
+  function zoomIn() { setZoom((z) => ZOOM_LEVELS[Math.min(ZOOM_LEVELS.indexOf(z) + 1, ZOOM_LEVELS.length - 1)]); }
+  function zoomOut() { setZoom((z) => ZOOM_LEVELS[Math.max(ZOOM_LEVELS.indexOf(z) - 1, 0)]); }
+
+  // Le dessin/placement au doigt utilise déjà un seul doigt (voir handleTouchStart plus bas) : le
+  // déplacement de la vue zoomée passe donc par deux doigts (distinct, jamais les deux en même temps).
+  function panStart(e) {
+    const [t0, t1] = e.touches;
+    panRef.current = { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
+  }
+  function panMove(e) {
+    const el = zoomViewportRef.current;
+    if (!panRef.current || !el) return;
+    const [t0, t1] = e.touches;
+    const mx = (t0.clientX + t1.clientX) / 2, my = (t0.clientY + t1.clientY) / 2;
+    el.scrollLeft -= mx - panRef.current.x;
+    el.scrollTop -= my - panRef.current.y;
+    panRef.current = { x: mx, y: my };
+  }
 
   // Le redimensionnement du canvas ne dépend QUE de sa taille réelle — jamais du dessin en cours,
   // pour éviter de perturber la détection des clics pendant une interaction à plusieurs étapes.
@@ -30769,10 +30805,16 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
   // Support tactile : mêmes gestionnaires que la souris (getPos gère déjà les deux types
   // d'événement), avec preventDefault pour éviter le scroll/zoom du navigateur pendant le dessin
   // et empêcher les événements souris de synthèse que certains navigateurs déclenchent après un
-  // touchend (qui déclencheraient sinon l'action une seconde fois).
-  function handleTouchStart(e) { e.preventDefault(); handleMouseDown(e); }
-  function handleTouchMove(e) { e.preventDefault(); handleMove(e); }
-  function handleTouchEnd(e) { e.preventDefault(); handleMouseUp(); handleClick(e); }
+  // touchend (qui déclencheraient sinon l'action une seconde fois). Deux doigts = déplacer la vue
+  // zoomée (panStart/panMove) plutôt que dessiner — vérifié avant toute autre logique, sans toucher
+  // au chemin à un doigt déjà en place.
+  function handleTouchStart(e) { e.preventDefault(); if (e.touches.length >= 2) { panStart(e); return; } handleMouseDown(e); }
+  function handleTouchMove(e) { e.preventDefault(); if (e.touches.length >= 2) { panMove(e); return; } handleMove(e); }
+  function handleTouchEnd(e) {
+    e.preventDefault();
+    if (panRef.current) { panRef.current = null; return; }
+    handleMouseUp(); handleClick(e);
+  }
 
   // Attachés nativement plutôt que via les props JSX onTouchStart/onTouchMove : React les force en
   // écouteur "passive" (pour ne pas bloquer le scroll par défaut du navigateur), ce qui fait échouer
@@ -30894,16 +30936,25 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
       )}
       {isRotateTool && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>Clique un élément et fais glisser la souris autour de lui pour l'orienter.</p>}
       {stepHint && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>{stepHint}</p>}
-      <div className="pad-wrap" ref={wrapRef}>
-        {isFutsal ? <FutsalCourtBackground /> : <PitchBackgroundFull />}
-        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
-        {textPending && (
-          <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
-            <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextPending(null); }} />
-            <button className="btn btn-primary btn-small" onClick={commitText}>Ajouter</button>
-          </div>
-        )}
+      <div className="pad-zoom-controls">
+        <button className="btn btn-ghost btn-small" onClick={zoomOut} disabled={zoom === ZOOM_LEVELS[0]}>−</button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button className="btn btn-ghost btn-small" onClick={zoomIn} disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}>+</button>
+        {zoom !== 1 && <button className="btn btn-ghost btn-small" onClick={() => setZoom(1)}>Réinitialiser</button>}
+        {zoom !== 1 && <span className="hint" style={{ margin: 0 }}>Deux doigts pour déplacer la vue</span>}
+      </div>
+      <div className="pad-zoom-viewport" ref={zoomViewportRef}>
+        <div className="pad-wrap" ref={wrapRef} style={{ width: `${zoom * 100}%`, maxWidth: "none", margin: 0 }}>
+          {isFutsal ? <FutsalCourtBackground /> : <PitchBackgroundFull />}
+          <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
+          {textPending && (
+            <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
+              <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextPending(null); }} />
+              <button className="btn btn-primary btn-small" onClick={commitText}>Ajouter</button>
+            </div>
+          )}
+        </div>
       </div>
       <p className="hint">Choisis un élément dans les groupes ci-dessus puis clique sur le terrain pour le placer (les joueurs des 4 équipes se numérotent automatiquement, dans l'ordre où tu les places). Pour une flèche ou une zone : un clic par étape, coche "Courber" pour ajouter un point de courbure. "Pivoter" et "Déplacer" agissent au clic-glisse ; "Points de passage" construit un trajet en plusieurs clics, quand "Courber un trajet" n'incurve que le tout dernier segment, sans étape intermédiaire.</p>
     </div>

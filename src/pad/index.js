@@ -43,7 +43,9 @@ function drawGroundShadow(ctx, x, y, rx, ry) {
 const GOAL_SIZES = {
   goalrect: { hw: 14, hh: 13, pt: 4, net: 3 },
   goalrect_u8: { hw: 11, hh: 9.5, pt: 3, net: 2 },
-  goalrect_mini: { hw: 8, hh: 6.5, pt: 2, net: 1 },
+  // hw/hh agrandis le 01/10/2026 (8/6.5 → 9.5/8) : à la taille d'un canevas mobile, l'original
+  // était difficile à distinguer/viser au doigt — reste nettement plus petit que goalrect_u8.
+  goalrect_mini: { hw: 9.5, hh: 8, pt: 2.5, net: 1 },
 };
 
 const HURDLE_HEIGHTS = { hurdle_low: 6, hurdle: 10, hurdle_high: 14 };
