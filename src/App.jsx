@@ -30745,6 +30745,31 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
   function handleTouchMove(e) { e.preventDefault(); handleMove(e); }
   function handleTouchEnd(e) { e.preventDefault(); handleMouseUp(); handleClick(e); }
 
+  // Attachés nativement plutôt que via les props JSX onTouchStart/onTouchMove : React les force en
+  // écouteur "passive" (pour ne pas bloquer le scroll par défaut du navigateur), ce qui fait échouer
+  // silencieusement le preventDefault() ci-dessus — trouvé le 30/09/2026 en vérifiant le Tactical Pad
+  // sur mobile (erreur console « Unable to preventDefault inside passive event listener invocation »
+  // au premier toucher), pas visible en test à la souris. Le ref évite de ré-attacher les écouteurs à
+  // chaque rendu tout en appelant toujours la version à jour des gestionnaires (qui capturent l'état
+  // courant : outil choisi, points en attente, élément en cours de déplacement...).
+  const touchHandlersRef = useRef({});
+  touchHandlersRef.current = { handleTouchStart, handleTouchMove, handleTouchEnd };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onStart = (e) => touchHandlersRef.current.handleTouchStart(e);
+    const onMoveT = (e) => touchHandlersRef.current.handleTouchMove(e);
+    const onEnd = (e) => touchHandlersRef.current.handleTouchEnd(e);
+    canvas.addEventListener("touchstart", onStart, { passive: false });
+    canvas.addEventListener("touchmove", onMoveT, { passive: false });
+    canvas.addEventListener("touchend", onEnd, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove", onMoveT);
+      canvas.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
   function commitText() {
     if (textValue.trim()) setElements((prev) => [...prev, { id: newId(), type: "text", x: textPending.x, y: textPending.y, text: textValue.trim(), color }]);
     setTextPending(null);
@@ -30842,7 +30867,7 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
       {stepHint && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>{stepHint}</p>}
       <div className="pad-wrap" ref={wrapRef}>
         {isFutsal ? <FutsalCourtBackground /> : <PitchBackgroundFull />}
-        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
+        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
         {textPending && (
           <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
             <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
