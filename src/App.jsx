@@ -31749,9 +31749,21 @@ function ExerciseAnimationPlayer({ frames, isFutsal }) {
   const [playing, setPlaying] = useState(false);
   const rafRef = useRef(null);
   const lastTsRef = useRef(null);
-  const SEGMENT_MS = 900; // durée d'une transition entre deux images, glissée depuis l'ancien pas fixe
+  const SEGMENT_MS = 900; // durée d'une transition simple (sans points de passage), inchangée
+  const HOP_MS = 450; // par point de passage (plot d'un slalom...) pour une transition qui en a
 
   const totalSegments = Math.max(0, (frames ? frames.length : 0) - 1);
+
+  // Un slalom à 8 plots a 2 à 3 fois plus de terrain à couvrir qu'un slalom à 2 ou 3 plots — une
+  // durée fixe par transition (l'ancien SEGMENT_MS seul) les joue toutes à la même vitesse, ce qui
+  // rendait les plus fournies illisibles (retour de Gregory du 01/10/2026 : "un peu trop rapide").
+  // Chaque transition dure maintenant SEGMENT_MS, ou HOP_MS par point de passage si elle en a
+  // (mouvement à trajet simple, sans point de passage : comportement exactement inchangé).
+  function segmentDurationMs(frameA) {
+    const movers = (frameA || []).filter((e) => e.movePath && e.movePath.length);
+    const maxHops = movers.reduce((m, e) => Math.max(m, e.movePath.length + 1), 1);
+    return maxHops > 1 ? maxHops * HOP_MS : SEGMENT_MS;
+  }
 
   useEffect(() => { setRawSegment(0); setPlaying(false); }, [frames]);
 
@@ -31763,7 +31775,9 @@ function ExerciseAnimationPlayer({ frames, isFutsal }) {
       const dt = ts - lastTsRef.current;
       lastTsRef.current = ts;
       setRawSegment((prev) => {
-        const next = prev + dt / SEGMENT_MS;
+        const idx = Math.min(Math.floor(prev), totalSegments - 1);
+        const dur = segmentDurationMs(frames[idx]);
+        const next = prev + dt / dur;
         return next >= totalSegments ? 0 : next; // boucle
       });
       rafRef.current = requestAnimationFrame(step);
