@@ -29960,20 +29960,49 @@ function generateSessionOutline(exercises, { sectionPath, ageFormat, targetDurat
 }
 
 
+// Bandes de tonte, coins et arc de surface ("D") ajoutés — refonte visuelle du 30/09/2026 (voir
+// CLAUDE.md). Les coins et l'arc de surface sont dessinés comme des cercles pleins découpés par un
+// clipPath plutôt qu'avec l'arc SVG (A rx,ry ...) : un premier essai à la main s'est trompé de point
+// d'arrivée (le coin de la diagonale au lieu d'un point sur chaque ligne de touche) — le clipPath
+// évite ce calcul et ne peut pas se tromper de la même façon. Buts approfondis (14 au lieu de 8) et
+// canevas élargi en conséquence pour les loger sans les rogner ; le décalage (18) est resté modeste
+// pour limiter le déplacement des lignes de fond par rapport aux positions 0-1 des schémas existants
+// (indépendantes du viewBox, seule cette image de fond se déplace légèrement).
 function PitchBackgroundFull() {
   return (
-    <svg viewBox="0 0 600 400" className="pad-pitch-svg" preserveAspectRatio="none">
-      <rect x="0" y="0" width="600" height="400" fill="#1F7A3D" />
-      <rect x="8" y="8" width="584" height="384" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <line x1="300" y1="8" x2="300" y2="392" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <circle cx="300" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <circle cx="300" cy="200" r="3" fill="rgba(255,255,255,0.7)" />
-      <rect x="8" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="8" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="502" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="557" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="0" y="182" width="8" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
-      <rect x="592" y="182" width="8" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+    <svg viewBox="0 0 620 400" className="pad-pitch-svg" preserveAspectRatio="none">
+      <defs>
+        <clipPath id="pitchCornerClip"><rect x="18" y="8" width="584" height="384" /></clipPath>
+        <clipPath id="pitchLeftBoxArcClip"><rect x="108" y="8" width="494" height="384" /></clipPath>
+        <clipPath id="pitchRightBoxArcClip"><rect x="18" y="8" width="494" height="384" /></clipPath>
+      </defs>
+      <rect x="0" y="0" width="620" height="400" fill="#1F7A3D" />
+      <rect x="62.92" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="152.77" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="242.62" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="332.46" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="422.31" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="512.15" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="18" y="8" width="584" height="384" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <line x1="310" y1="8" x2="310" y2="392" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="310" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="310" cy="200" r="3" fill="rgba(255,255,255,0.92)" />
+      <rect x="18" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <rect x="18" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="80" cy="200" r="2.8" fill="rgba(255,255,255,0.92)" />
+      <rect x="512" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <rect x="567" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="540" cy="200" r="2.8" fill="rgba(255,255,255,0.92)" />
+      <g clipPath="url(#pitchLeftBoxArcClip)"><circle cx="80" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" /></g>
+      <g clipPath="url(#pitchRightBoxArcClip)"><circle cx="540" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" /></g>
+      <g clipPath="url(#pitchCornerClip)">
+        <circle cx="18" cy="8" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="602" cy="8" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="18" cy="392" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="602" cy="392" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+      </g>
+      <rect x="4" y="182" width="14" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+      <rect x="602" y="182" width="14" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
     </svg>
   );
 }

@@ -3,21 +3,50 @@
 // Note : drawArrowHead(Only)/drawWavyArrow sont aussi réutilisés par la Feuille de match et
 // l'annotation de clips vidéo dans App.jsx — d'où leur export ici plutôt qu'un usage 100% interne.
 
+// "shape" est un identifiant de rendu interne (résolu dans drawPadElement), jamais persisté tel quel :
+// seul "key" est écrit dans les schémas sauvegardés (tf_exercices, starterContent.js). Renommer ou
+// affiner un "shape" est donc sans risque pour les données existantes ; retirer ou renommer une "key"
+// ne l'est pas (goal/hurdle référencés par 158/4 schémas de départ) — d'où l'ajout de clés supplémentaires
+// (goalU8, goalMini, hurdleLow, hurdleHigh) plutôt que le remplacement de "goal"/"hurdle".
 export const PAD_ELEMENT_TYPES = [
-  { key: "playerA", label: "Équipe A", shape: "disc", color: "#E3B23C" },
-  { key: "playerB", label: "Équipe B", shape: "disc", color: "#D6483F" },
-  { key: "playerC", label: "Équipe C", shape: "disc", color: "#4CAF7D" },
-  { key: "playerD", label: "Équipe D", shape: "disc", color: "#5B8FD6" },
-  { key: "keeper", label: "Gardien", shape: "disc", color: "#B98FE0" },
+  { key: "playerA", label: "Équipe A", shape: "jersey", color: "#E3B23C" },
+  { key: "playerB", label: "Équipe B", shape: "jersey", color: "#D6483F" },
+  { key: "playerC", label: "Équipe C", shape: "jersey", color: "#4CAF7D" },
+  { key: "playerD", label: "Équipe D", shape: "jersey", color: "#5B8FD6" },
+  { key: "keeper", label: "Gardien", shape: "jersey", color: "#B98FE0" },
   { key: "cone", label: "Plot", shape: "triangle", color: "#FF8C00" },
   { key: "ball", label: "Ballon", shape: "ball", color: "#FFFFFF" },
-  { key: "goal", label: "But", shape: "goalrect", color: "#FFFFFF" },
+  { key: "goal", label: "But foot à 11", shape: "goalrect", color: "#FFFFFF" },
+  { key: "goalU8", label: "But foot à 8", shape: "goalrect_u8", color: "#FFFFFF" },
+  { key: "goalMini", label: "Mini but", shape: "goalrect_mini", color: "#FFFFFF" },
   { key: "zone", label: "Zone délimitée", shape: "zone", color: "#E3B23C" },
   { key: "ladder", label: "Échelle de rythme", shape: "ladder", color: "#FFFFFF" },
   { key: "pole", label: "Jalon", shape: "pole", color: "#FF8C00" },
-  { key: "hurdle", label: "Haie", shape: "hurdle", color: "#FFFFFF" },
+  { key: "hurdle", label: "Haie moyenne", shape: "hurdle", color: "#FFFFFF" },
+  { key: "hurdleLow", label: "Haie basse", shape: "hurdle_low", color: "#FFFFFF" },
+  { key: "hurdleHigh", label: "Haie haute", shape: "hurdle_high", color: "#FFFFFF" },
   { key: "hoop", label: "Cerceau", shape: "hoop", color: "#E3B23C" },
 ];
+
+// Ombre plate au sol pour tout ce qui est planté debout (joueur, ballon, plot, jalon, haie) — pas pour
+// un tracé au sol (zone, échelle, cerceau, but) qui n'a pas de hauteur dans ce diagramme stylisé.
+function drawGroundShadow(ctx, x, y, rx, ry) {
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+const GOAL_SIZES = {
+  goalrect: { hw: 14, hh: 13, pt: 4, net: 3 },
+  goalrect_u8: { hw: 11, hh: 9.5, pt: 3, net: 2 },
+  goalrect_mini: { hw: 8, hh: 6.5, pt: 2, net: 1 },
+};
+
+const HURDLE_HEIGHTS = { hurdle_low: 6, hurdle: 10, hurdle_high: 14 };
 
 export function drawArrowHeadOnly(ctx, fromX, fromY, tipX, tipY, s) {
   s = s == null ? 1 : s;
@@ -84,11 +113,21 @@ export function drawPadElement(ctx, el, w, h) {
   if (el.type === "zone") {
     const x1 = el.x1 * w, y1 = el.y1 * h, x2 = el.x2 * w, y2 = el.y2 * h;
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const rx1 = Math.min(x1, x2), ry1 = Math.min(y1, y2), rx2 = Math.max(x1, x2), ry2 = Math.max(y1, y2);
     ctx.save();
     if (el.rotation) { ctx.translate(cx, cy); ctx.rotate((el.rotation * Math.PI) / 180); ctx.translate(-cx, -cy); }
     ctx.setLineDash([6 * s, 4 * s]); ctx.strokeStyle = el.color || "#E3B23C"; ctx.lineWidth = Math.max(1, 2 * s);
-    ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    ctx.strokeRect(rx1, ry1, rx2 - rx1, ry2 - ry1);
     ctx.setLineDash([]);
+    // Poignées de coin (traits pleins) pour distinguer un rectangle "zone" d'un simple contour pointillé.
+    const tick = Math.min(9 * s, (rx2 - rx1) / 4, (ry2 - ry1) / 4);
+    ctx.lineWidth = Math.max(1.2, 2.5 * s);
+    ctx.beginPath();
+    ctx.moveTo(rx1, ry1 + tick); ctx.lineTo(rx1, ry1); ctx.lineTo(rx1 + tick, ry1);
+    ctx.moveTo(rx2 - tick, ry1); ctx.lineTo(rx2, ry1); ctx.lineTo(rx2, ry1 + tick);
+    ctx.moveTo(rx1, ry2 - tick); ctx.lineTo(rx1, ry2); ctx.lineTo(rx1 + tick, ry2);
+    ctx.moveTo(rx2 - tick, ry2); ctx.lineTo(rx2, ry2); ctx.lineTo(rx2, ry2 - tick);
+    ctx.stroke();
     ctx.restore();
     return;
   }
@@ -105,33 +144,83 @@ export function drawPadElement(ctx, el, w, h) {
   if (!def) { ctx.restore(); return; }
   const c = el.color || def.color; // couleur choisie pour cette instance, sinon couleur par défaut du type
   ctx.fillStyle = c; ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = Math.max(0.75, 1.5 * s);
-  if (def.shape === "disc") {
-    ctx.beginPath(); ctx.arc(x, y, 11 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    if (el.number) { ctx.fillStyle = "#1a1a1a"; ctx.font = `bold ${Math.max(7, Math.round(10 * s))}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(el.number, x, y); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; }
+  if (def.shape === "jersey") {
+    drawGroundShadow(ctx, x, y + 18 * s, 13 * s, 4 * s);
+    ctx.beginPath();
+    ctx.moveTo(x - 5 * s, y - 13 * s);
+    ctx.lineTo(x - 14 * s, y - 9 * s);
+    ctx.lineTo(x - 10 * s, y - 1 * s);
+    ctx.lineTo(x - 10 * s, y + 14 * s);
+    ctx.lineTo(x + 10 * s, y + 14 * s);
+    ctx.lineTo(x + 10 * s, y - 1 * s);
+    ctx.lineTo(x + 14 * s, y - 9 * s);
+    ctx.lineTo(x + 5 * s, y - 13 * s);
+    ctx.quadraticCurveTo(x, y - 9 * s, x - 5 * s, y - 13 * s);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.moveTo(x - 8 * s, y - 7 * s); ctx.lineTo(x - 5 * s, y - 7 * s); ctx.lineTo(x - 8 * s, y + 10 * s); ctx.lineTo(x - 10 * s, y + 10 * s); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    if (el.number) { ctx.fillStyle = "#1a1a1a"; ctx.font = `bold ${Math.max(7, Math.round(10 * s))}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(el.number, x, y + 4 * s); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; }
   } else if (def.shape === "triangle") {
+    drawGroundShadow(ctx, x, y + 15 * s, 8 * s, 2.2 * s);
     ctx.beginPath(); ctx.moveTo(x, y - 9 * s); ctx.lineTo(x + 8 * s, y + 7 * s); ctx.lineTo(x - 8 * s, y + 7 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.moveTo(x, y - 9 * s); ctx.lineTo(x - 4 * s, y + 7 * s); ctx.lineTo(x - 6 * s, y + 7 * s); ctx.closePath(); ctx.fill();
+    ctx.restore();
   } else if (def.shape === "ball") {
-    ctx.beginPath(); ctx.arc(x, y, 7 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  } else if (def.shape === "goalrect") {
-    ctx.lineWidth = Math.max(1, 1.5 * s);
-    ctx.strokeRect(x - 12 * s, y - 8 * s, 24 * s, 16 * s);
+    const R = 8 * s;
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const pr = R * 0.38;
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * (2 * Math.PI / 5); const px = x + pr * Math.cos(a), py = y + pr * Math.sin(a); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = Math.max(0.5, 1 * s);
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * (2 * Math.PI / 5); ctx.moveTo(x + pr * Math.cos(a), y + pr * Math.sin(a)); ctx.lineTo(x + R * Math.cos(a), y + R * Math.sin(a)); }
+    ctx.stroke();
+  } else if (def.shape === "goalrect" || def.shape === "goalrect_u8" || def.shape === "goalrect_mini") {
+    const cfg = GOAL_SIZES[def.shape];
+    const hw = cfg.hw * s, hh = cfg.hh * s, pt = cfg.pt * s;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(x - hw, y - hh, pt, 2 * hh);
+    ctx.fillRect(x + hw - pt, y - hh, pt, 2 * hh);
+    ctx.fillRect(x - hw, y - hh, 2 * hw, pt);
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(0.4, 0.6 * s);
+    ctx.beginPath();
+    const ix1 = x - hw + pt, ix2 = x + hw - pt, iy1 = y - hh + pt, iy2 = y + hh, netN = cfg.net;
+    for (let i = 1; i <= netN; i++) { const vx = ix1 + (ix2 - ix1) * (i / (netN + 1)); ctx.moveTo(vx, iy1); ctx.lineTo(vx, iy2); }
+    for (let j = 1; j <= netN; j++) { const hy = iy1 + (iy2 - iy1) * (j / (netN + 1)); ctx.moveTo(ix1, hy); ctx.lineTo(ix2, hy); }
+    ctx.stroke();
+    ctx.restore();
   } else if (def.shape === "ladder") {
     ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, 2 * s);
     ctx.beginPath(); ctx.moveTo(x - 10 * s, y - 16 * s); ctx.lineTo(x - 10 * s, y + 16 * s); ctx.moveTo(x + 10 * s, y - 16 * s); ctx.lineTo(x + 10 * s, y + 16 * s); ctx.stroke();
     for (let i = -14; i <= 14; i += 7) { ctx.beginPath(); ctx.moveTo(x - 10 * s, y + i * s); ctx.lineTo(x + 10 * s, y + i * s); ctx.stroke(); }
   } else if (def.shape === "pole") {
+    drawGroundShadow(ctx, x, y + 17 * s, 6 * s, 2 * s);
     ctx.fillStyle = c;
     ctx.fillRect(x - 2 * s, y - 15 * s, 4 * s, 24 * s);
     ctx.beginPath(); ctx.arc(x, y - 15 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
-  } else if (def.shape === "hurdle") {
-    ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, 2.5 * s);
+    ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = "#fff";
+    ctx.fillRect(x - 1.2 * s, y - 13 * s, 0.6 * s, 20 * s);
+    ctx.restore();
+  } else if (def.shape === "hurdle" || def.shape === "hurdle_low" || def.shape === "hurdle_high") {
+    drawGroundShadow(ctx, x, y + 13 * s, 14 * s, 3 * s);
+    const barH = HURDLE_HEIGHTS[def.shape] * s, legX = 8 * s, footY = 12 * s;
+    ctx.strokeStyle = c; ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(1, 2.2 * s);
     ctx.beginPath();
-    ctx.moveTo(x - 12 * s, y + 8 * s); ctx.lineTo(x - 6 * s, y - 6 * s);
-    ctx.moveTo(x + 12 * s, y + 8 * s); ctx.lineTo(x + 6 * s, y - 6 * s);
-    ctx.moveTo(x - 8 * s, y - 6 * s); ctx.lineTo(x + 8 * s, y - 6 * s);
+    ctx.moveTo(x - legX, y - barH); ctx.lineTo(x - legX, y + footY);
+    ctx.moveTo(x + legX, y - barH); ctx.lineTo(x + legX, y + footY);
+    ctx.moveTo(x - legX - 5 * s, y + footY); ctx.lineTo(x - legX + 5 * s, y + footY);
+    ctx.moveTo(x + legX - 5 * s, y + footY); ctx.lineTo(x + legX + 5 * s, y + footY);
     ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, 3.2 * s);
+    ctx.beginPath(); ctx.moveTo(x - legX, y - barH); ctx.lineTo(x + legX, y - barH); ctx.stroke();
+    ctx.lineCap = "butt";
   } else if (def.shape === "hoop") {
-    ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, 2.5 * s);
+    ctx.strokeStyle = c; ctx.lineWidth = Math.max(1.5, 3 * s);
     ctx.beginPath(); ctx.arc(x, y, 10 * s, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.restore();
