@@ -29347,6 +29347,28 @@ function ClipEditor({ clip, url, onClose, onDelete, onSaved }) {
   function handleTouchStart(e) { e.preventDefault(); handleDown(e); }
   function handleTouchMove(e) { e.preventDefault(); handleMove(e); }
   function handleTouchEnd(e) { e.preventDefault(); handleUp(); }
+
+  // Attachés nativement plutôt que via des props JSX onTouchStart/onTouchMove/onTouchEnd : React
+  // les force en écouteur "passive", ce qui fait échouer silencieusement le preventDefault()
+  // ci-dessus (même défaut que celui trouvé et corrigé sur le Tactical Pad, voir CLAUDE.md).
+  const touchHandlersRef = useRef({});
+  touchHandlersRef.current = { handleTouchStart, handleTouchMove, handleTouchEnd };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onStart = (e) => touchHandlersRef.current.handleTouchStart(e);
+    const onMoveT = (e) => touchHandlersRef.current.handleTouchMove(e);
+    const onEnd = (e) => touchHandlersRef.current.handleTouchEnd(e);
+    canvas.addEventListener("touchstart", onStart, { passive: false });
+    canvas.addEventListener("touchmove", onMoveT, { passive: false });
+    canvas.addEventListener("touchend", onEnd, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove", onMoveT);
+      canvas.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
   function commitText() {
     if (textValue.trim()) setAnnotations((prev) => [...prev, { id: newId(), type: "text", x: textPending.x / canvasSize.w, y: textPending.y / canvasSize.h, text: textValue.trim(), color }]);
     setTextPending(null);
@@ -29436,9 +29458,6 @@ function ClipEditor({ clip, url, onClose, onDelete, onSaved }) {
           onMouseMove={handleMove}
           onMouseUp={handleUp}
           onMouseLeave={handleUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           style={{ touchAction: "none" }}
         />
         {textPending && (
@@ -30348,6 +30367,27 @@ function MatchSheetEditor({ elements, setElements, roster, halfPitch }) {
   function handleTouchMove(e) { e.preventDefault(); handleMove(e); }
   function handleTouchEnd(e) { e.preventDefault(); handleMouseUp(); handleClick(e); }
 
+  // Attachés nativement plutôt que via des props JSX onTouchStart/onTouchMove/onTouchEnd : React
+  // les force en écouteur "passive", ce qui fait échouer silencieusement le preventDefault()
+  // ci-dessus (même défaut que celui trouvé et corrigé sur le Tactical Pad, voir CLAUDE.md).
+  const touchHandlersRef = useRef({});
+  touchHandlersRef.current = { handleTouchStart, handleTouchMove, handleTouchEnd };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onStart = (e) => touchHandlersRef.current.handleTouchStart(e);
+    const onMoveT = (e) => touchHandlersRef.current.handleTouchMove(e);
+    const onEnd = (e) => touchHandlersRef.current.handleTouchEnd(e);
+    canvas.addEventListener("touchstart", onStart, { passive: false });
+    canvas.addEventListener("touchmove", onMoveT, { passive: false });
+    canvas.addEventListener("touchend", onEnd, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove", onMoveT);
+      canvas.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
   function commitText() {
     if (textValue.trim() && textPending) setElements([...(elements || []), { id: newId(), type: "texte", x: textPending.x, y: textPending.y, text: textValue.trim(), color: "#ffffff" }]);
     setTextPending(null);
@@ -30388,7 +30428,7 @@ function MatchSheetEditor({ elements, setElements, roster, halfPitch }) {
       {isPlayerTool && !playerPicker && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>Clique sur le terrain pour choisir quel joueur y placer.</p>}
       <div className={`pad-wrap ${halfPitch ? "pad-wrap-half" : ""}`} ref={wrapRef}>
         {halfPitch ? <PitchBackgroundHalf /> : <PitchBackgroundFull />}
-        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: isRotateTool ? "grab" : undefined, touchAction: "none" }} />
+        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool ? "grab" : undefined, touchAction: "none" }} />
         {textPending && (
           <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
             <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
