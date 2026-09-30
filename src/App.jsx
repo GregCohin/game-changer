@@ -32930,7 +32930,7 @@ function SessionsScreen({ roster }) {
         <p className="subtitle">Calendrier, bibliothèque d'exercices liée à ton Projet de jeu, et construction de séances.</p>
       </div>
 
-      <div className="tabs">
+      <div className="tabs" style={{ flexWrap: "wrap" }}>
         {SUB_TABS.map((t) => (
           <button key={t.id} className={`tab ${subTab === t.id ? "active" : ""}`} onClick={() => setSubTab(t.id)}>{t.label}</button>
         ))}
