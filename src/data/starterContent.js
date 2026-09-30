@@ -155,13 +155,14 @@ function genPenalty() {
 // {diagram, diagramFrames} (à étaler avec ...genSlalom(n) sur chaque fiche, pas diagram: genSlalom(n))
 // : une deuxième image où le joueur et le ballon ont réellement traversé le slalom, générée par
 // generateSlalomAnimation à partir des plots qu'on vient de placer — jamais recalculée à la main,
-// donc jamais en décalage avec eux si nbCones ou l'espacement change un jour.
+// donc jamais en décalage avec eux si nbCones ou l'espacement change un jour. Pas de flèche
+// décorative (il y en avait une, courbe et fixe, avant l'animation réelle) : Gregory l'a jugée
+// redondante et plus vraiment fidèle une fois le trajet en zigzag visible (01/10/2026).
 function genSlalom(nbCones) {
   const els = [];
   els.push(pel("playerA", 0.08, 0.5, { number: 1 }));
   els.push(pel("ball", 0.13, 0.5));
   for (let i = 0; i < nbCones; i++) els.push(pel("cone", 0.22 + (0.6 * i) / Math.max(nbCones - 1, 1), 0.5 + (i % 2 === 0 ? -0.06 : 0.06)));
-  els.push(ael("arrowDribble", 0.13, 0.5, 0.88, 0.5, { curved: true, cx: 0.5, cy: 0.35 }));
   const animated = generateSlalomAnimation(els);
   return animated || { diagram: els, diagramFrames: [] };
 }
