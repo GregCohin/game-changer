@@ -268,6 +268,12 @@ export const CSS = `
   .pad-pitch-svg { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 6px; }
   .pad-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
   .pad-curve-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink); padding: 0 8px; }
+  .pad-toolbar-groups { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .pad-toolbar-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 10px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .pad-toolbar-group.pad-toolbar-actions-row { justify-content: space-between; background: transparent; border: none; padding: 0; }
+  .pad-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); font-weight: 700; flex-basis: 100%; }
+  .pad-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(0,0,0,0.3); vertical-align: middle; }
+  .pad-tool-btn { padding: 7px 12px; font-size: 12px; }
   .new-match-card select { background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 9px 10px; font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: normal; }
   .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 

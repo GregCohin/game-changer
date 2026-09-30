@@ -30416,6 +30416,10 @@ function MatchSheetEditor({ elements, setElements, roster, halfPitch }) {
 
 
 
+// Les 5 types "joueur" du Tactical Pad (4 équipes + gardien) — regroupés à part des éléments de
+// terrain dans la barre d'outils, plus lisible qu'une seule rangée de 13 boutons plats.
+const PAD_PLAYER_KEYS = ["playerA", "playerB", "playerC", "playerD", "keeper"];
+
 function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey, isFutsal }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -30654,7 +30658,12 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
       return;
     }
 
-    setElements((prev) => [...prev, { id: newId(), type: tool, x: pos.x, y: pos.y, color }]);
+    // Les 4 équipes (mais pas le gardien, toujours seul sur le schéma) reprennent la numérotation
+    // déjà en place : sans ça, un joueur ajouté après coup à un schéma qui en a déjà (typiquement
+    // depuis la banque de départ) se retrouvait sans numéro, contrairement à ceux déjà présents.
+    const isNumberedTeam = tool === "playerA" || tool === "playerB" || tool === "playerC" || tool === "playerD";
+    const number = isNumberedTeam ? elements.filter((x) => x.type === tool).length + 1 : undefined;
+    setElements((prev) => [...prev, { id: newId(), type: tool, x: pos.x, y: pos.y, color, ...(number ? { number } : {}) }]);
   }
 
   function handleMouseDown(e) {
@@ -30770,33 +30779,57 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
     else stepHint = `Clique chaque point de passage successif (${pathPoints.length} pour l'instant), puis "Terminer ce trajet".`;
   }
 
+  const padPlayerTypes = PAD_ELEMENT_TYPES.filter((t) => PAD_PLAYER_KEYS.includes(t.key));
+  const padFieldTypes = PAD_ELEMENT_TYPES.filter((t) => !PAD_PLAYER_KEYS.includes(t.key));
+  function padSwatch(hex) { return <span className="pad-swatch" style={{ background: hex }} />; }
+
   return (
     <div>
-      <div className="clip-editor-toolbar pad-toolbar">
-        {PAD_ELEMENT_TYPES.map((t) => (
-          <button key={t.key} className={`qcm-option ${tool === t.key ? "selected" : ""}`} onClick={() => setTool(t.key)}>{t.label}</button>
-        ))}
-        <button className={`qcm-option ${tool === "arrowMove" ? "selected" : ""}`} onClick={() => setTool("arrowMove")}>Flèche course</button>
-        <button className={`qcm-option ${tool === "arrowPass" ? "selected" : ""}`} onClick={() => setTool("arrowPass")}>Flèche passe</button>
-        <button className={`qcm-option ${tool === "arrowDribble" ? "selected" : ""}`} onClick={() => setTool("arrowDribble")}>Flèche course + ballon</button>
-        <button className={`qcm-option ${tool === "text" ? "selected" : ""}`} onClick={() => setTool("text")}>Texte</button>
-        <button className={`qcm-option ${isRotateTool ? "selected" : ""}`} onClick={() => setTool("rotate")}>Pivoter</button>
-        <button className={`qcm-option ${isMoveTool ? "selected" : ""}`} onClick={() => setTool("move")}>Déplacer</button>
-        <button className={`qcm-option ${isWaypointTool ? "selected" : ""}`} onClick={() => setTool("waypoints")} disabled={!nextFrameElements}>Points de passage</button>
-        <button className={`qcm-option ${isCurveTool ? "selected" : ""}`} onClick={() => setTool("curveMove")} disabled={!nextFrameElements}>Courber un trajet</button>
-        <button className={`qcm-option ${isRecolorTool ? "selected" : ""}`} onClick={() => setTool("recolor")}>Recolorer</button>
-        <button className={`qcm-option ${isDeleteTool ? "selected" : ""}`} onClick={() => setTool("delete")}>Supprimer un élément</button>
-        <label className="pad-curve-toggle" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          Couleur
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 30, height: 24, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
-        </label>
-        {(isArrowTool || isWaypointTool) && (
-          <label className="pad-curve-toggle">
-            <input type="checkbox" checked={curveMode} onChange={(e) => setCurveMode(e.target.checked)} /> Courber
+      <div className="pad-toolbar-groups">
+        <div className="pad-toolbar-group">
+          <span className="pad-group-label">Joueurs</span>
+          {padPlayerTypes.map((t) => (
+            <button key={t.key} className={`qcm-option pad-tool-btn ${tool === t.key ? "selected" : ""}`} onClick={() => setTool(t.key)}>{padSwatch(t.color)}{t.label}</button>
+          ))}
+        </div>
+        <div className="pad-toolbar-group">
+          <span className="pad-group-label">Terrain &amp; matériel</span>
+          {padFieldTypes.map((t) => (
+            <button key={t.key} className={`qcm-option pad-tool-btn ${tool === t.key ? "selected" : ""}`} onClick={() => setTool(t.key)}>{padSwatch(t.color)}{t.label}</button>
+          ))}
+        </div>
+        <div className="pad-toolbar-group">
+          <span className="pad-group-label">Flèches &amp; texte</span>
+          <button className={`qcm-option pad-tool-btn ${tool === "arrowMove" ? "selected" : ""}`} onClick={() => setTool("arrowMove")}>Flèche course (pointillés)</button>
+          <button className={`qcm-option pad-tool-btn ${tool === "arrowPass" ? "selected" : ""}`} onClick={() => setTool("arrowPass")}>Flèche passe (trait plein)</button>
+          <button className={`qcm-option pad-tool-btn ${tool === "arrowDribble" ? "selected" : ""}`} onClick={() => setTool("arrowDribble")}>Flèche course + ballon (ondulée)</button>
+          <button className={`qcm-option pad-tool-btn ${tool === "text" ? "selected" : ""}`} onClick={() => setTool("text")}>Texte</button>
+          {(isArrowTool || isWaypointTool) && (
+            <label className="pad-curve-toggle">
+              <input type="checkbox" checked={curveMode} onChange={(e) => setCurveMode(e.target.checked)} /> Courber
+            </label>
+          )}
+        </div>
+        <div className="pad-toolbar-group">
+          <span className="pad-group-label">Outils</span>
+          <button className={`qcm-option pad-tool-btn ${isRotateTool ? "selected" : ""}`} onClick={() => setTool("rotate")}>Pivoter</button>
+          <button className={`qcm-option pad-tool-btn ${isMoveTool ? "selected" : ""}`} onClick={() => setTool("move")}>Déplacer</button>
+          <button className={`qcm-option pad-tool-btn ${isWaypointTool ? "selected" : ""}`} onClick={() => setTool("waypoints")} disabled={!nextFrameElements}>Points de passage</button>
+          <button className={`qcm-option pad-tool-btn ${isCurveTool ? "selected" : ""}`} onClick={() => setTool("curveMove")} disabled={!nextFrameElements}>Courber un trajet</button>
+          <button className={`qcm-option pad-tool-btn ${isRecolorTool ? "selected" : ""}`} onClick={() => setTool("recolor")}>Recolorer</button>
+          <button className={`qcm-option pad-tool-btn ${isDeleteTool ? "selected" : ""}`} onClick={() => setTool("delete")}>Supprimer un élément</button>
+          <label className="pad-curve-toggle" style={{ marginLeft: "auto" }}>
+            Couleur
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 30, height: 24, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
           </label>
-        )}
-        <button className="btn btn-ghost btn-small" onClick={undoLast} disabled={elements.length === 0}>Annuler le dernier</button>
-        <button className="btn btn-ghost btn-small" onClick={clearAll} disabled={elements.length === 0}>Tout effacer</button>
+        </div>
+        <div className="pad-toolbar-group pad-toolbar-actions-row">
+          <span className="pad-group-label" style={{ flexBasis: "auto" }}>{elements.length} élément{elements.length !== 1 ? "s" : ""} sur ce schéma</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-ghost btn-small" onClick={undoLast} disabled={elements.length === 0}>Annuler le dernier</button>
+            <button className="btn btn-ghost btn-small" onClick={clearAll} disabled={elements.length === 0}>Tout effacer</button>
+          </div>
+        </div>
       </div>
       {isWaypointTool && waypointingId != null && (
         <div className="clip-editor-toolbar pad-toolbar" style={{ marginTop: -4, marginBottom: 8 }}>
@@ -30818,7 +30851,7 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
           </div>
         )}
       </div>
-      <p className="hint">Choisis un élément et une couleur puis clique sur le terrain pour le placer. Pour les flèches et la zone, un clic par étape (coche "Courber" avant de commencer pour ajouter un point de courbure). "Flèche course" est en pointillés, "Flèche passe" en trait plein, "Flèche course + ballon" est ondulée. "Pivoter" oriente un élément au clic-glisse, "Déplacer" le repositionne au clic-glisse. "Points de passage" construit un trajet en plusieurs étapes (un clic par point, coche "Courber" pour incurver un segment avant de placer son point d'arrivée) ; "Courber un trajet" incurve seulement le tout dernier segment, sans étape intermédiaire. "Recolorer" et "Supprimer un élément" agissent au clic simple.</p>
+      <p className="hint">Choisis un élément dans les groupes ci-dessus puis clique sur le terrain pour le placer (les joueurs des 4 équipes se numérotent automatiquement, dans l'ordre où tu les places). Pour une flèche ou une zone : un clic par étape, coche "Courber" pour ajouter un point de courbure. "Pivoter" et "Déplacer" agissent au clic-glisse ; "Points de passage" construit un trajet en plusieurs clics, quand "Courber un trajet" n'incurve que le tout dernier segment, sans étape intermédiaire.</p>
     </div>
   );
 }
