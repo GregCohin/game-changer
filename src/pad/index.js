@@ -314,3 +314,46 @@ export function interpolateFrames(frameA, frameB, t) {
   frameB.forEach((elB) => { if (!aIds.has(elB.id)) result.push(elB); });
   return result;
 }
+
+// Slalom automatique (01/10/2026, premier pilote d'animation "selon les règles" demandé par
+// Gregory) : à partir d'un schéma statique où des plots sont disposés à peu près en ligne, calcule
+// un trajet en zigzag passant par chaque plot dans l'ordre et produit une deuxième image où le
+// porteur (et le ballon, s'il y en a un) en est sorti — `diagram`/`diagramFrames` au format déjà lu
+// par ExerciseDetailModal/ExerciseAnimationPlayer (via getExerciseFrames), aucun changement de ce
+// côté n'est nécessaire. Pas d'analyse du texte de la consigne : uniquement la géométrie déjà
+// dessinée, ce qui reste fiable quel que soit le nom ou le thème de l'exercice — voir CLAUDE.md pour
+// pourquoi ce choix ne se généralise pas à un exercice tactique (rondo, possession...), où le
+// mouvement dépend de décisions, pas d'un trajet fixe. Renvoie null si le schéma ne ressemble pas à
+// un slalom (moins de 2 plots, ou aucun joueur à proximité du premier).
+export function generateSlalomAnimation(elements) {
+  const cones = elements.filter((e) => e.type === "cone");
+  if (cones.length < 2) return null;
+  const xSpread = Math.max(...cones.map((c) => c.x)) - Math.min(...cones.map((c) => c.x));
+  const ySpread = Math.max(...cones.map((c) => c.y)) - Math.min(...cones.map((c) => c.y));
+  const axis = xSpread >= ySpread ? "x" : "y"; // trie les plots le long de leur axe dominant, pas l'ordre du tableau
+  const sorted = [...cones].sort((a, b) => a[axis] - b[axis]);
+  const first = sorted[0], last = sorted[sorted.length - 1];
+  let avgGap = 0;
+  for (let i = 1; i < sorted.length; i++) avgGap += Math.hypot(sorted[i].x - sorted[i - 1].x, sorted[i].y - sorted[i - 1].y);
+  avgGap = avgGap / (sorted.length - 1);
+  // Rayon de recherche généreux (validé sur les 11 genSlalom() réels de starterContent.js, 2 à 8
+  // plots) : assez large pour attraper un joueur posé juste avant le premier plot, assez restreint
+  // pour ignorer des joueurs sans rapport posés ailleurs sur un schéma plus complexe.
+  const threshold = Math.max(avgGap * 2.5, 0.2);
+  const candidates = elements.filter((e) => e.x != null && (e.type === "ball" || (e.type && (e.type.startsWith("player") || e.type === "keeper"))));
+  const movers = candidates.filter((e) => Math.hypot(e.x - first.x, e.y - first.y) <= threshold);
+  if (movers.filter((e) => e.type !== "ball").length === 0) return null; // un ballon seul, sans porteur, ne définit pas un trajet
+  const dx = last.x - first.x, dy = last.y - first.y;
+  const dirLen = Math.hypot(dx, dy) || 1;
+  // Plafonnée : avec seulement 2 plots, l'unique "espacement" couvre tout le slalom, et la moitié
+  // de sa valeur dépasserait largement le terrain (trouvé en testant genSlalom(2), ligne réelle de
+  // starterContent.js — le point de sortie tombait hors cadre et se retrouvait plaqué au bord).
+  const exitExt = Math.min(avgGap * 0.5, 0.08);
+  const endX = Math.min(1, Math.max(0, last.x + (dx / dirLen) * exitExt));
+  const endY = Math.min(1, Math.max(0, last.y + (dy / dirLen) * exitExt));
+  const movePath = sorted.map((c) => ({ x: c.x, y: c.y }));
+  const moverIds = new Set(movers.map((e) => e.id));
+  const frame1 = elements.map((e) => (moverIds.has(e.id) ? { ...e, movePath } : e));
+  const frame2 = elements.map((e) => (moverIds.has(e.id) ? { ...e, x: endX, y: endY } : e));
+  return { diagram: frame1, diagramFrames: [frame2] };
+}

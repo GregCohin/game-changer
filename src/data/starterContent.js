@@ -7,6 +7,7 @@
 // Extrait de App.jsx (refactor de séparation des fichiers, sans aucun changement de comportement).
 
 import { FORMATION_LAYOUTS } from "./formations.js";
+import { generateSlalomAnimation } from "../pad/index.js";
 
 function newId() {
   return (crypto.randomUUID && crypto.randomUUID()) || `id_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -150,14 +151,19 @@ function genPenalty() {
   return [pel("ball", 0.79, 0.5), pel("playerA", 0.7, 0.5, { number: 1 }), pel("keeper", 0.94, 0.5)];
 }
 
-// Slalom de plots pour conduite de balle / dribble, en ligne de gauche à droite.
+// Slalom de plots pour conduite de balle / dribble, en ligne de gauche à droite. Renvoie
+// {diagram, diagramFrames} (à étaler avec ...genSlalom(n) sur chaque fiche, pas diagram: genSlalom(n))
+// : une deuxième image où le joueur et le ballon ont réellement traversé le slalom, générée par
+// generateSlalomAnimation à partir des plots qu'on vient de placer — jamais recalculée à la main,
+// donc jamais en décalage avec eux si nbCones ou l'espacement change un jour.
 function genSlalom(nbCones) {
   const els = [];
   els.push(pel("playerA", 0.08, 0.5, { number: 1 }));
   els.push(pel("ball", 0.13, 0.5));
   for (let i = 0; i < nbCones; i++) els.push(pel("cone", 0.22 + (0.6 * i) / Math.max(nbCones - 1, 1), 0.5 + (i % 2 === 0 ? -0.06 : 0.06)));
   els.push(ael("arrowDribble", 0.13, 0.5, 0.88, 0.5, { curved: true, cx: 0.5, cy: 0.35 }));
-  return els;
+  const animated = generateSlalomAnimation(els);
+  return animated || { diagram: els, diagramFrames: [] };
 }
 
 // Grille de passes : joueurs en carré/losange, ballon au centre.
@@ -1047,7 +1053,7 @@ const STARTER_EXERCISES_TECHNIQUE = [
     criteresRealisation: "Le slalom est terminé sans perte de contrôle, avec un temps qui progresse d'une série à l'autre.",
     pointsCles: "Alterner intérieur/extérieur du pied à chaque plot plutôt que de toujours pousser du même côté.",
     variantes: "Resserrer les plots pour plus de difficulté ; imposer une seule surface de contact pour cibler un point technique précis.",
-    diagram: genSlalom(6),
+    ...genSlalom(6),
   },
   {
     name: "Passes courtes en grille (rondo technique)", category: "technique",
@@ -1102,7 +1108,7 @@ const STARTER_EXERCISES_TECHNIQUE = [
     criteresRealisation: "Le geste technique est reconnaissable et contrôlé, même à vitesse réduite, avant d'être tenté à pleine vitesse.",
     pointsCles: "Un geste à la fois, répété jusqu'à l'aisance, avant d'en introduire un nouveau.",
     variantes: "Intégrer un adversaire passif puis actif une fois le geste maîtrisé seul face à un plot.",
-    diagram: genSlalom(4),
+    ...genSlalom(4),
   },
   {
     name: "Jonglerie et maîtrise de balle", category: "technique",
@@ -1538,7 +1544,7 @@ const STARTER_EXERCISES_FOOT8_TECHNIQUE = [
     criteresRealisation: "Le temps individuel de chaque enfant progresse d'une série à l'autre, sans perte de contrôle du ballon.",
     pointsCles: "Le chronomètre est un défi personnel, jamais un classement affiché entre enfants.",
     variantes: "Resserrer les plots pour les plus à l'aise ; les espacer si le contrôle se perd trop souvent.",
-    diagram: genSlalom(6),
+    ...genSlalom(6),
   },
   {
     name: "Première frappe technique", category: "technique", ageFormat: "foot_a_8",
@@ -2171,7 +2177,7 @@ const STARTER_EXERCISES_FFF_U8_9 = [
     criteresRealisation: "Le parcours est terminé avec le ballon sous contrôle, plots évités.",
     pointsCles: "Le petit défi individuel doit rester motivant, pas source de frustration en cas d'échec.",
     variantes: "Resserrer les plots pour les plus à l'aise ; les espacer si le contrôle se perd trop souvent.",
-    diagram: genSlalom(4),
+    ...genSlalom(4),
   },
   {
     name: "On joue à plusieurs vers le but", category: "tactique", ageFormat: "foot_a_5",
@@ -2561,7 +2567,7 @@ const STARTER_EXERCISES_FIGC = [
     criteresRealisation: "Le ballon reste sous contrôle malgré la densité d'opposants accrue.",
     pointsCles: "Le ratio d'opposition plus dense exige une lecture plus fréquente, sans perdre l'esprit ludique de l'atelier d'origine.",
     variantes: "Ajuster le ratio d'opposants selon l'aisance du groupe avec la conduite de balle.",
-    diagram: genSlalom(6),
+    ...genSlalom(6),
   },
 ];
 
@@ -2849,7 +2855,7 @@ const STARTER_EXERCISES_DFB_1 = [
     criteresRealisation: "Le temps sur le parcours progresse sans perte de contrôle du ballon.",
     pointsCles: "L'adresse et la vitesse se travaillent ensemble ici, pas l'une après l'autre séparément.",
     variantes: "Resserrer les plots pour privilégier l'adresse ; les espacer pour privilégier la vitesse pure.",
-    diagram: genSlalom(6),
+    ...genSlalom(6),
   },
   {
     name: "Apprendre à gagner et à perdre", category: "mental", ageFormat: "foot_a_8",
@@ -5158,7 +5164,7 @@ const STARTER_EXERCISES_FOOT5_TECHNIQUE = [
     criteresRealisation: "L'enfant termine le parcours en poussant son ballon d'un plot à l'autre.",
     pointsCles: "Ne jamais comparer les enfants publiquement — le chronomètre reste un défi personnel amusant.",
     variantes: "Espacer davantage les plots pour les plus jeunes ; les resserrer pour les plus à l'aise.",
-    diagram: genSlalom(4),
+    ...genSlalom(4),
   },
   {
     name: "La passe au copain (jeu de la cible)", category: "technique", ageFormat: "foot_a_5",
@@ -5294,7 +5300,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "L'accélération sur 5-10 mètres suit directement la feinte, sans ralentissement intermédiaire.",
     pointsCles: "Feinte et accélération doivent être un seul geste continu — ralentir après la feinte annule tout son bénéfice.",
     variantes: "Varier le geste technique choisi avant l'accélération pour couvrir plusieurs types de feintes.",
-    diagram: genSlalom(3),
+    ...genSlalom(3),
   },
 ];
 
@@ -5443,7 +5449,7 @@ const STARTER_EXERCISES_ATHLETIQUE_2 = [
     criteresRealisation: "Les appuis restent précis et rapides sur l'ensemble du parcours, sans erreur de rythme excessive.",
     pointsCles: "La coordination neuromusculaire complète la vitesse pure travaillée en sprint linéaire — les deux sont complémentaires.",
     variantes: "Varier les patterns d'appuis (un appui, deux appuis, latéral) pour enrichir la coordination.",
-    diagram: genSlalom(8),
+    ...genSlalom(8),
   },
   {
     name: "Musculation haut du corps et gainage complet", category: "athletique",
@@ -5534,7 +5540,7 @@ const STARTER_EXERCISES_TECHNIQUE_2 = [
     criteresRealisation: "Les gestes techniques au pied faible progressent visiblement au fil des répétitions régulières.",
     pointsCles: "La répétition régulière et progressive est l'objectif — pas la performance immédiate.",
     variantes: "Alterner pied fort et pied faible dans le même exercice une fois le pied faible plus à l'aise.",
-    diagram: genSlalom(5),
+    ...genSlalom(5),
   },
   {
     name: "Remise en une touche, jeu de pivot", category: "technique",
@@ -6800,7 +6806,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Si la perte de contrôle devient fréquente, ralentir légèrement l'exigence de vitesse avant de la réaugmenter progressivement.",
     variantes: "Varier la distance et la direction du départ ; ajouter un adversaire passif qui part en même temps pour un effet de compétition.",
     intensite: "elevee", theme: "Explosivité", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genSlalom(2),
+    ...genSlalom(2),
   },
   {
     name: "Gestion des rotations fréquentes (entrées-sorties)",
