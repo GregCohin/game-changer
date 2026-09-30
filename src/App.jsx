@@ -7325,6 +7325,7 @@ function BibliothequeGardienScreen({ exercises, persistExercises }) {
   const [domainFilter, setDomainFilter] = useState("technique");
   const [skillFilter, setSkillFilter] = useState("Tous");
   const [viewingExercise, setViewingExercise] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const gkExercises = exercises.filter((e) => e.forGoalkeepers);
   const gkTechnique = gkExercises.filter((e) => { const c = e.category || "tactique"; return c !== "athletique" && c !== "mental"; });
@@ -7334,17 +7335,26 @@ function BibliothequeGardienScreen({ exercises, persistExercises }) {
   const filtered = skillFilter === "Tous" ? domainExercises : domainExercises.filter((e) => e.goalkeeperSkill === skillFilter);
   const bySkill = {};
   gkTechnique.forEach((e) => { const s = e.goalkeeperSkill || "Non classé"; (bySkill[s] || (bySkill[s] = [])).push(e); });
+  const searchResults = searchQuery.trim() ? gkExercises.filter((e) => exerciseMatchesSearch(e, searchQuery)) : [];
+  function gkDomainBadge(ex) {
+    if (ex.category === "athletique") return "Physique";
+    if (ex.category === "mental") return "Mental";
+    return ex.goalkeeperSkill || "Non classé";
+  }
 
   return (
     <div>
       <p className="radar-note">Les exercices marqués "spécifique gardien" dans la banque — {gkExercises.length} au total, tous domaines confondus.</p>
       {gkExercises.length === 0 && <button className="btn btn-ghost btn-small" onClick={populateGoalkeeperStarters} style={{ marginBottom: 14 }}>Importer la banque gardien de départ ({STARTER_GOALKEEPER_EXERCISES.length} exercices)</button>}
+      {gkExercises.length > 0 && (
+        <ExerciseSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} resultCount={searchResults.length} />
+      )}
       <div className="tabs" style={{ marginBottom: 10 }}>
-        <button className={`tab ${domainFilter === "technique" ? "active" : ""}`} onClick={() => { setDomainFilter("technique"); setSkillFilter("Tous"); }}>Technique ({gkTechnique.length})</button>
-        <button className={`tab ${domainFilter === "athletique" ? "active" : ""}`} onClick={() => setDomainFilter("athletique")}>Préparation physique ({gkPhysique.length})</button>
-        <button className={`tab ${domainFilter === "mental" ? "active" : ""}`} onClick={() => setDomainFilter("mental")}>Mental ({gkMental.length})</button>
+        <button className={`tab ${!searchQuery.trim() && domainFilter === "technique" ? "active" : ""}`} onClick={() => { setSearchQuery(""); setDomainFilter("technique"); setSkillFilter("Tous"); }}>Technique ({gkTechnique.length})</button>
+        <button className={`tab ${!searchQuery.trim() && domainFilter === "athletique" ? "active" : ""}`} onClick={() => { setSearchQuery(""); setDomainFilter("athletique"); }}>Préparation physique ({gkPhysique.length})</button>
+        <button className={`tab ${!searchQuery.trim() && domainFilter === "mental" ? "active" : ""}`} onClick={() => { setSearchQuery(""); setDomainFilter("mental"); }}>Mental ({gkMental.length})</button>
       </div>
-      {domainFilter === "technique" && (
+      {!searchQuery.trim() && domainFilter === "technique" && (
         <div className="tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
           <button className={`tab ${skillFilter === "Tous" ? "active" : ""}`} onClick={() => setSkillFilter("Tous")}>Tous ({gkTechnique.length})</button>
           {GOALKEEPER_SKILLS.map((s) => (
@@ -7352,17 +7362,35 @@ function BibliothequeGardienScreen({ exercises, persistExercises }) {
           ))}
         </div>
       )}
-      {filtered.length === 0 && <div className="empty-state">Aucun exercice {domainFilter === "athletique" ? "de préparation physique gardien" : domainFilter === "mental" ? "mental gardien" : "gardien"} {skillFilter !== "Tous" ? "pour ce geste" : ""} pour l'instant — ajoutes-en depuis Création d'exercices en cochant "Exercice spécifique gardien"{domainFilter === "athletique" ? ' et en choisissant la catégorie "Athlétique"' : domainFilter === "mental" ? ' et en choisissant la catégorie "Mental"' : ""}.</div>}
-      <div className="scouting-list">
-        {filtered.map((ex) => (
-          <div className="scouting-card" key={ex.id} onClick={() => setViewingExercise(ex)} style={{ cursor: "pointer" }}>
-            <div className="scouting-info">
-              <div className="scouting-name">{ex.name} <span className="scouting-club">{ex.goalkeeperSkill || (domainFilter === "athletique" ? "Physique" : domainFilter === "mental" ? "Mental" : "Non classé")}</span></div>
-              {ex.objectif && <div className="scouting-meta">{ex.objectif}</div>}
-            </div>
+      {searchQuery.trim() ? (
+        <>
+          {searchResults.length === 0 && <div className="empty-state">Aucun exercice gardien ne correspond à « {searchQuery.trim()} ».</div>}
+          <div className="scouting-list">
+            {searchResults.map((ex) => (
+              <div className="scouting-card" key={ex.id} onClick={() => setViewingExercise(ex)} style={{ cursor: "pointer" }}>
+                <div className="scouting-info">
+                  <div className="scouting-name">{ex.name} <span className="scouting-club">{gkDomainBadge(ex)}</span></div>
+                  {ex.objectif && <div className="scouting-meta">{ex.objectif}</div>}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      ) : (
+        <>
+          {filtered.length === 0 && <div className="empty-state">Aucun exercice {domainFilter === "athletique" ? "de préparation physique gardien" : domainFilter === "mental" ? "mental gardien" : "gardien"} {skillFilter !== "Tous" ? "pour ce geste" : ""} pour l'instant — ajoutes-en depuis Création d'exercices en cochant "Exercice spécifique gardien"{domainFilter === "athletique" ? ' et en choisissant la catégorie "Athlétique"' : domainFilter === "mental" ? ' et en choisissant la catégorie "Mental"' : ""}.</div>}
+          <div className="scouting-list">
+            {filtered.map((ex) => (
+              <div className="scouting-card" key={ex.id} onClick={() => setViewingExercise(ex)} style={{ cursor: "pointer" }}>
+                <div className="scouting-info">
+                  <div className="scouting-name">{ex.name} <span className="scouting-club">{gkDomainBadge(ex)}</span></div>
+                  {ex.objectif && <div className="scouting-meta">{ex.objectif}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <ExerciseDetailModal exercise={viewingExercise} onClose={() => setViewingExercise(null)} />
     </div>
   );
