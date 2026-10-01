@@ -430,3 +430,26 @@ export function generateDribbleAnimation(elements) {
   const frame2 = withoutArrow.map((e) => (moverIds.has(e.id) ? { ...e, x: e.x + dx, y: e.y + dy } : e));
   return { diagram: frame1, diagramFrames: [frame2] };
 }
+
+// Trajet simple le long d'une flèche déjà posée (01/10/2026, suite du pilote slalom, pour
+// genLine()/genShooting()/genPassingGrid()). Contrairement au slalom, la flèche existante décrit déjà
+// sans ambiguïté le trajet voulu (un seul segment droit, jamais courbé dans ces trois fonctions) :
+// pas besoin de déduire un ordre depuis des plots, juste rejouer x1/y1 -> x2/y2. Toujours le ballon,
+// jamais un joueur même s'il se trouve par hasard plus près du départ de la flèche (cas réel sur
+// genLine(3, 1) : l'unique attaquant tombe exactement sur le départ de la flèche, un peu plus près que
+// le ballon — l'animer aurait pu vouloir dire "l'attaquant démarque" ou "le ballon est joué devant
+// lui", deux lectures différentes d'un même schéma ; rester sur le ballon évite ce choix). Seuil de
+// proximité volontairement plus serré que pour le slalom (0,08, pas 2,5x l'espacement moyen) : il ne
+// s'agit pas de capturer un porteur posé à quelque distance d'un premier plot, mais de confirmer que
+// LE ballon dessiné est bien celui que la flèche décrit, pas un simple repère sans rapport avec elle.
+// Renvoie null si aucun ballon n'est à cette distance : la flèche reste alors affichée telle quelle.
+export function generateArrowPathAnimation(elements) {
+  const arrow = elements.find((e) => (e.type === "arrowMove" || e.type === "arrowPass") && !e.curved);
+  if (!arrow) return null;
+  const ball = elements.find((e) => e.type === "ball" && e.x != null);
+  if (!ball || Math.hypot(ball.x - arrow.x1, ball.y - arrow.y1) > 0.08) return null;
+  const dx = arrow.x2 - arrow.x1, dy = arrow.y2 - arrow.y1;
+  const withoutArrow = elements.filter((e) => e.id !== arrow.id);
+  const frame2 = withoutArrow.map((e) => (e.id === ball.id ? { ...e, x: e.x + dx, y: e.y + dy } : e));
+  return { diagram: withoutArrow, diagramFrames: [frame2] };
+}
