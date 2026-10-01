@@ -11350,7 +11350,15 @@ const STARTER_EXERCISES_DBU_2026 = [
     variantes: "Alterner pied droit et pied gauche ; ajouter un défenseur qui presse.",
     intensite: "moderee", theme: "Passes",
     source: `${DBU_SRC}11-12 ans, séance 5 : « 1. gangs pasninger – lang-kort-kort »`,
-    diagram: [...pts("cone", [[0.2, 0.2], [0.8, 0.2], [0.35, 0.5], [0.65, 0.5]]), ...pts("playerA", [[0.15, 0.22, 1], [0.85, 0.22, 2], [0.15, 0.8, 3], [0.85, 0.8, 4]]), pel("ball", 0.18, 0.24), ael("arrowPass", 0.2, 0.22, 0.8, 0.22), ael("arrowMove", 0.15, 0.22, 0.32, 0.48), ael("arrowPass", 0.82, 0.24, 0.36, 0.5)],
+    // Ballon décalé de 0,18/0,24 à 0,3/0,22 : à 0,15 du joueur 1 ET du départ de sa flèche de
+    // course (même point), au-delà du seuil de 0,08 — même mécanisme que les trois points
+    // précédents. La passe longue (recalée pour partir du nouveau ballon) s'enchaîne ensuite dans
+    // la remise à une touche de B (leur jonction, 0,0283, est sous le seuil et sans ballon dédié à
+    // son départ) : le ballon anime toute la séquence longue-courte en un seul mouvement jusqu'au
+    // plot du milieu, pendant que le joueur A s'y rend séparément par sa propre course — les deux
+    // se retrouvent au même endroit, sans conflit entre eux (01/10/2026, sur demande de Gregory
+    // après la page "Flèches bloquées").
+    diagram: [...pts("cone", [[0.2, 0.2], [0.8, 0.2], [0.35, 0.5], [0.65, 0.5]]), ...pts("playerA", [[0.15, 0.22, 1], [0.85, 0.22, 2], [0.15, 0.8, 3], [0.85, 0.8, 4]]), pel("ball", 0.3, 0.22), ael("arrowPass", 0.3, 0.22, 0.8, 0.22), ael("arrowMove", 0.15, 0.22, 0.32, 0.48), ael("arrowPass", 0.82, 0.24, 0.36, 0.5)],
   },
   {
     name: "Trois zones : 3 contre 3 aux extrémités et 2 contre 2 au milieu", category: "tactique", ...DBU_U13,
