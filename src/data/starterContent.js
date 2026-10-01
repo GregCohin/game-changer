@@ -7074,7 +7074,13 @@ const STARTER_EXERCISES_SOURCES_2026 = [
     variantes: "Passer entre les jambes des partenaires (les ponts deviennent des tunnels) ; faire remonter un ballon jusqu'en tête de file : quand le dernier passe, il le monte au premier.",
     intensite: "moderee", theme: "Agilité / coordination", newBatch: NEW_BATCH_TAG_SOURCES,
     source: "ACFF / RBFA, Cahier de défis Festifoot U6 (défi Passer les ponts)",
-    diagram: [zel(0.06, 0.2, 0.94, 0.8), pel("playerA", 0.14, 0.4), pel("playerA", 0.26, 0.4), pel("playerA", 0.38, 0.4), pel("playerA", 0.5, 0.4), pel("playerA", 0.62, 0.4), pel("playerB", 0.14, 0.62), pel("playerB", 0.26, 0.62), pel("playerB", 0.38, 0.62), pel("playerB", 0.5, 0.62), pel("playerB", 0.62, 0.62), pel("cone", 0.9, 0.35), pel("cone", 0.9, 0.65), ael("arrowDribble", 0.62, 0.48, 0.14, 0.48, { curved: true, cx: 0.38, cy: 0.52 }), ael("arrowMove", 0.66, 0.4, 0.88, 0.4)],
+    // La 2e flèche (arrowMove, 0,66->0,88) a été retirée : elle ne représentait pas le trajet d'un
+    // joueur précis mais « la chaîne avance vers l'arrivée », un mouvement d'équipe que ce moteur
+    // d'animation ne sait pas représenter — garder arrowDribble seule (le dernier de la file A qui
+    // slalome sous les bras jusqu'en tête, exactement ce que décrit description ci-dessus) l'anime
+    // proprement au lieu de bloquer les deux (01/10/2026, sur demande de Gregory après la page
+    // "Flèches bloquées").
+    diagram: [zel(0.06, 0.2, 0.94, 0.8), pel("playerA", 0.14, 0.4), pel("playerA", 0.26, 0.4), pel("playerA", 0.38, 0.4), pel("playerA", 0.5, 0.4), pel("playerA", 0.62, 0.4), pel("playerB", 0.14, 0.62), pel("playerB", 0.26, 0.62), pel("playerB", 0.38, 0.62), pel("playerB", 0.5, 0.62), pel("playerB", 0.62, 0.62), pel("cone", 0.9, 0.35), pel("cone", 0.9, 0.65), ael("arrowDribble", 0.62, 0.48, 0.14, 0.48, { curved: true, cx: 0.38, cy: 0.52 })],
   },
   {
     name: "Jean a dit : jongle avec les mains",
