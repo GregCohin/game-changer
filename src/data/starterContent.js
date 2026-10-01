@@ -8197,7 +8197,14 @@ const STARTER_EXERCISES_SFV_2026 = [
     variantes: "Prévoir un second but pour réduire les attentes ; agrandir le terrain si les défenseurs sont trop vite présents ; commencer directement à 2 contre 1 pour un groupe à l'aise ; version futsal FPF (niveau Especialização) : on commence à 1 contre 1 ; après un temps donné, un joueur entre pour un 2 contre 1, puis 2 contre 2, 3 contre 2, 3 contre 3, 4 contre 3 jusqu'au 4 contre 4 ; on redescend ensuite dans l'ordre inverse jusqu'au 1 contre 1 ; les attaquants exploitent la supériorité créée par les joueurs qui entrent pour finir, les défenseurs empêchent la finition en infériorité, avec pression sur le porteur et sur les lignes de passe",
     intensite: "moderee", theme: "Jeu de position / possession",
     source: "SFV (ASF), Trainingskarten Kategorie F, entraînement 1 : « Vom 1 gegen 0 zum 3 gegen 3 » ; FPF, Etapas de formação do Jogador de Futsal, niveau Especialização, exercice 5 (variante)",
-    diagram: [zel(0.06, 0.25, 0.94, 0.75), pel("goal", 0.94, 0.5), ...pts("playerA", [[0.3, 0.32, 1], [0.3, 0.5, 2], [0.3, 0.68, 3]]), ...pts("playerB", [[0.6, 0.35, 1], [0.6, 0.5, 2], [0.6, 0.65, 3]]), pel("ball", 0.34, 0.5), ael("arrowDribble", 0.34, 0.5, 0.55, 0.42), ael("arrowPass", 0.34, 0.5, 0.34, 0.34)],
+    // La 2e flèche (arrowPass, vers le haut) a été retirée : elle ne correspond à rien de décrit à
+    // cet instant du schéma (le déroulé ne parle que du dribble vers le but ; "passent quand c'est
+    // utile" est une consigne générale sur plusieurs tours, pas une action de cette image précise) —
+    // contrairement à "Passer les ponts", ici les deux flèches avaient un mobile valide (le ballon
+    // pour les deux), mais une seule correspond à une action réellement décrite. Le dribble seul
+    // s'anime désormais, ballon et joueur blanc ensemble (01/10/2026, sur demande de Gregory après
+    // la page "Flèches bloquées").
+    diagram: [zel(0.06, 0.25, 0.94, 0.75), pel("goal", 0.94, 0.5), ...pts("playerA", [[0.3, 0.32, 1], [0.3, 0.5, 2], [0.3, 0.68, 3]]), ...pts("playerB", [[0.6, 0.35, 1], [0.6, 0.5, 2], [0.6, 0.65, 3]]), pel("ball", 0.34, 0.5), ael("arrowDribble", 0.34, 0.5, 0.55, 0.42)],
   },
   {
     name: "Les licornes à déterrer", category: "athletique", ...SFV_F,
