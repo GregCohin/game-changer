@@ -7,7 +7,7 @@
 // Extrait de App.jsx (refactor de séparation des fichiers, sans aucun changement de comportement).
 
 import { FORMATION_LAYOUTS } from "./formations.js";
-import { generateSlalomAnimation } from "../pad/index.js";
+import { generateSlalomAnimation, generateSprintAnimation, generateAgilityAnimation, generateDribbleAnimation } from "../pad/index.js";
 
 function newId() {
   return (crypto.randomUUID && crypto.randomUUID()) || `id_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -179,7 +179,11 @@ function genPassingGrid(nbPlayers) {
   return els;
 }
 
-// Couloirs de sprint parallèles avec plots de départ/arrivée.
+// Couloirs de sprint parallèles avec plots de départ/arrivée. Renvoie {diagram, diagramFrames} (à
+// étaler avec ...genSprintLanes(n) sur chaque fiche, pas diagram: genSprintLanes(n)) : chaque joueur
+// rejoint réellement le plot d'arrivée de son couloir, via generateSprintAnimation. Plus de flèche
+// décorative : redondante une fois le trajet réellement animé (même choix que pour le slalom,
+// 01/10/2026, voir genSlalom()).
 function genSprintLanes(nbLanes) {
   const els = [];
   for (let i = 0; i < nbLanes; i++) {
@@ -187,19 +191,22 @@ function genSprintLanes(nbLanes) {
     els.push(pel("playerA", 0.12, y, { number: i + 1 }));
     els.push(pel("cone", 0.12, y));
     els.push(pel("cone", 0.85, y));
-    els.push(ael("arrowMove", 0.15, y, 0.82, y));
   }
-  return els;
+  const animated = generateSprintAnimation(els);
+  return animated || { diagram: els, diagramFrames: [] };
 }
 
-// Parcours d'agilité : plots en losange/étoile pour changements de direction.
+// Parcours d'agilité : plots en losange/étoile pour changements de direction. Renvoie
+// {diagram, diagramFrames} (à étaler avec ...genAgilityPattern()) : le joueur traverse réellement
+// les 6 plots dans l'ordre via generateAgilityAnimation. Plus de flèche décorative (elle ne montrait
+// de toute façon que le tout premier appui, jamais l'ensemble du parcours).
 function genAgilityPattern() {
   const els = [];
   els.push(pel("playerA", 0.15, 0.5, { number: 1 }));
   const points = [[0.35, 0.3], [0.5, 0.5], [0.35, 0.7], [0.65, 0.3], [0.5, 0.5], [0.65, 0.7]];
   points.forEach((p) => els.push(pel("cone", p[0], p[1])));
-  els.push(ael("arrowMove", 0.15, 0.5, 0.35, 0.3));
-  return els;
+  const animated = generateAgilityAnimation(els);
+  return animated || { diagram: els, diagramFrames: [] };
 }
 
 // Frappe/technique de tir isolée, sans opposition tactique — accent sur le geste.
@@ -213,14 +220,16 @@ function genTechniqueShot(opts) {
   return els;
 }
 
-// Geste de dribble en un contre un : attaquant, ballon, et un plot/défenseur passif juste en face, au moment de la feinte.
+// Geste de dribble en un contre un : attaquant, ballon, et un plot/défenseur passif juste en face, au
+// moment de la feinte. Renvoie {diagram, diagramFrames} (à étaler avec ...genDribbleMove()) : le
+// porteur et le ballon contournent réellement le plot via generateDribbleAnimation, qui reprend la
+// courbe de la flèche ci-dessous pour calculer le trajet puis la retire (devenue redondante une fois
+// le trajet réellement animé, 01/10/2026).
 function genDribbleMove() {
-  return [
-    pel("playerA", 0.35, 0.5, { number: 1 }),
-    pel("ball", 0.42, 0.5),
-    pel("cone", 0.55, 0.5),
-    ael("arrowDribble", 0.42, 0.5, 0.7, 0.5, { curved: true, cx: 0.55, cy: 0.35 }),
-  ];
+  const els = [pel("playerA", 0.35, 0.5, { number: 1 }), pel("ball", 0.42, 0.5), pel("cone", 0.55, 0.5)];
+  const curveSeed = ael("arrowDribble", 0.42, 0.5, 0.7, 0.5, { curved: true, cx: 0.55, cy: 0.35 });
+  const animated = generateDribbleAnimation([...els, curveSeed]);
+  return animated || { diagram: [...els, curveSeed], diagramFrames: [] };
 }
 
 const STARTER_EXERCISES = [
@@ -1131,7 +1140,7 @@ const STARTER_EXERCISES_TECHNIQUE = [
     criteresRealisation: "La passe atteint la cible ou s'en approche nettement sur la majorité des tentatives, à chaque distance travaillée.",
     pointsCles: "Qualité de l'armé et de l'accompagnement du geste, pas seulement la force de frappe.",
     variantes: "Augmenter progressivement la distance à la cible ; ajouter une contrainte de temps pour se rapprocher d'une situation de match.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
 ];
 
@@ -1145,7 +1154,7 @@ const STARTER_EXERCISES_ATHLETIQUE = [
     criteresRealisation: "Le temps sur la distance chronométrée reste stable ou progresse d'une série à l'autre, sans chute liée à la fatigue.",
     pointsCles: "La qualité de la récupération complète entre répétitions conditionne la qualité de la vitesse pure — ne pas la raccourcir.",
     variantes: "Varier la distance (10 à 30 mètres) pour cibler accélération ou vitesse de pointe ; réduire le nombre de répétitions si la qualité chute.",
-    diagram: genSprintLanes(4),
+    ...genSprintLanes(4),
   },
   {
     name: "Fractionné, développement de la VMA", category: "athletique",
@@ -1156,7 +1165,7 @@ const STARTER_EXERCISES_ATHLETIQUE = [
     criteresRealisation: "L'intensité reste comparable entre le premier et le dernier bloc d'effort sur la séance.",
     pointsCles: "La récupération active doit rester active (course lente), pas un arrêt complet, pour garder l'effet du fractionné.",
     variantes: "Ajuster la durée des blocs selon le niveau de forme et la période de la saison ; réduire l'intensité en période de charge élevée.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Changements de direction, agilité", category: "athletique",
@@ -1167,7 +1176,7 @@ const STARTER_EXERCISES_ATHLETIQUE = [
     criteresRealisation: "Le parcours est réalisé sans perte d'équilibre ni ralentissement excessif dans les changements d'appui.",
     pointsCles: "Acquérir le schéma moteur à vitesse modérée avant de chercher la vitesse maximale.",
     variantes: "Varier les angles de changement de direction (droit, épingle, diagonale) ; ajouter un signal visuel ou sonore pour la réactivité.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Pliométrie, détente et puissance", category: "athletique",
@@ -1200,7 +1209,7 @@ const STARTER_EXERCISES_ATHLETIQUE = [
     criteresRealisation: "La chute de vitesse entre la première et la dernière répétition reste limitée, signe d'une bonne capacité de répétition.",
     pointsCles: "La récupération volontairement courte est le cœur de l'exercice — ne pas l'allonger même si le joueur le demande.",
     variantes: "Réduire encore le temps de récupération pour les groupes avancés ; l'allonger si la qualité de sprint chute trop vite.",
-    diagram: genSprintLanes(4),
+    ...genSprintLanes(4),
   },
   {
     name: "Récupération active et étirements", category: "athletique",
@@ -1578,7 +1587,7 @@ const STARTER_EXERCISES_FOOT8_TECHNIQUE = [
     criteresRealisation: "Le crochet intérieur est reconnaissable et contrôlé, même lentement, avant d'être tenté plus vite.",
     pointsCles: "Un seul geste travaillé à la fois — ne pas en introduire un second avant que celui-ci soit acquis.",
     variantes: "Introduire un second geste plus tard dans la saison, une fois le crochet intérieur bien maîtrisé.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Le contrôle orienté, première approche", category: "technique", ageFormat: "foot_a_8",
@@ -1661,7 +1670,7 @@ const STARTER_EXERCISES_NATIONS2_TECHNIQUE_11 = [
     criteresRealisation: "La feinte reste techniquement propre même à vitesse maximale, sans perte de contrôle du ballon.",
     pointsCles: "Une fois le geste acquis à vitesse modérée, ne plus accepter de le refaire au ralenti — c'est la vitesse qui est travaillée ici.",
     variantes: "Ajouter un défenseur passif puis actif une fois la vitesse maîtrisée seul.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Dégagement et jeu de tête défensif puissant", category: "technique", ageFormat: "standard",
@@ -1697,7 +1706,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_11 = [
     criteresRealisation: "Le temps sur le parcours progresse sans perte de qualité dans les changements de direction.",
     pointsCles: "Simuler le rythme réel d'un ailier en match — accélérations et changements de direction répétés, pas un seul effort isolé.",
     variantes: "Ajouter un ballon à conduire pour les plus avancés ; le retirer pour isoler la composante athlétique pure.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Puissance de contact et duels physiques", category: "athletique", ageFormat: "standard",
@@ -1719,7 +1728,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_11 = [
     criteresRealisation: "L'allure reste stable entre le début et la fin de la course continue.",
     pointsCles: "La régularité de l'effort est l'objectif — pas la performance sur une portion isolée du parcours.",
     variantes: "Allonger progressivement la durée au fil des séances ; réduire l'allure demandée si la régularité n'est pas tenue.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
 ];
 
@@ -2254,7 +2263,7 @@ const STARTER_EXERCISES_RBFA = [
     criteresRealisation: "L'enfant termine le circuit en ayant tenté chaque mouvement proposé, même imparfaitement.",
     pointsCles: "L'aspect ludique prime totalement sur la performance du mouvement à cet âge.",
     variantes: "Changer les obstacles régulièrement pour maintenir la nouveauté et l'engagement.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Le plaisir avant tout : FUN = apprendre en jouant", category: "mental", ageFormat: "foot_a_4",
@@ -2303,7 +2312,7 @@ const STARTER_EXERCISES_RBFA = [
     criteresRealisation: "L'enfant participe activement à chaque manche du jeu, avec un engagement physique visible.",
     pointsCles: "Le jeu doit rester ludique en surface — c'est lui qui produit l'effet physique recherché, pas une consigne d'effort direct.",
     variantes: "Changer de jeu régulièrement pour renouveler l'intérêt et solliciter des qualités variées.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Construire sa confiance et sa motivation", category: "mental", ageFormat: "foot_a_5",
@@ -2556,7 +2565,7 @@ const STARTER_EXERCISES_FIGC = [
     criteresRealisation: "Le parcours est complété avec une exécution correcte de chaque obstacle, à un rythme soutenu.",
     pointsCles: "La rapidité d'exécution est la vraie nouveauté par rapport à la version plus jeune du même parcours.",
     variantes: "Ajouter un défi par équipes en fin de parcours comme dans la version d'origine, pour garder l'aspect collectif.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Jeux de technique avec opposition accrue", category: "technique", ageFormat: "foot_a_8",
@@ -2657,7 +2666,7 @@ const STARTER_EXERCISES_DFB_2 = [
     criteresRealisation: "La coordination sur les exercices proposés progresse au fil des séances, malgré la période de croissance rapide.",
     pointsCles: "Ces déficits sont temporaires et normaux à cet âge — ne jamais les présenter comme un recul ou un échec.",
     variantes: "Cibler spécifiquement les mouvements où un joueur montre le plus de gêne au moment donné.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Responsabilité personnelle sur et hors du terrain", category: "mental", ageFormat: "standard",
@@ -2706,7 +2715,7 @@ const STARTER_EXERCISES_DFB_2 = [
     criteresRealisation: "Les indicateurs physiques suivis (temps, répétitions) progressent de façon cohérente avec la planification.",
     pointsCles: "La systématisation et la progressivité sur plusieurs semaines sont la vraie nouveauté par rapport à un travail physique plus ponctuel.",
     variantes: "Ajuster la charge selon la période de la saison (préparation, compétition, récupération).",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Sérieux et volonté de performance", category: "mental", ageFormat: "standard",
@@ -2758,7 +2767,7 @@ const STARTER_EXERCISES_DFB_1 = [
     criteresRealisation: "L'enfant participe activement à l'ensemble des activités du circuit.",
     pointsCles: "La variété prime sur la répétition — ne pas insister longtemps sur une seule activité.",
     variantes: "Changer complètement les activités proposées d'une séance à l'autre pour maximiser la variété motrice.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Un cœur et une oreille ouverte pour chaque enfant", category: "mental", ageFormat: "foot_a_4",
@@ -2807,7 +2816,7 @@ const STARTER_EXERCISES_DFB_1 = [
     criteresRealisation: "L'enfant participe à l'ensemble des activités proposées avec un engagement physique visible.",
     pointsCles: "La motricité générale prime sur la spécialisation précoce à cet âge.",
     variantes: "Emprunter des jeux à d'autres sports (athlétisme, gymnastique) pour renouveler l'intérêt.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Patience et modèle de l'entraîneur", category: "mental", ageFormat: "foot_a_5",
@@ -2908,7 +2917,7 @@ const STARTER_EXERCISES_FA = [
     criteresRealisation: "L'enfant termine le parcours en ayant tenté chaque mouvement proposé.",
     pointsCles: "La variété des habiletés motrices prime sur la performance à cet âge — aucune spécialisation précoce.",
     variantes: "Changer les obstacles régulièrement pour maintenir la nouveauté et l'engagement.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Maîtrise du ballon en liberté", category: "technique", ageFormat: "foot_a_5",
@@ -3018,7 +3027,7 @@ const STARTER_EXERCISES_FA = [
     criteresRealisation: "Les indicateurs physiques suivis restent stables ou progressent légèrement, signe de constance plutôt que de progrès rapides.",
     pointsCles: "La constance devient la clé à ce niveau — la marge de progression rapide a diminué par rapport aux catégories plus jeunes.",
     variantes: "Individualiser la charge selon le profil physique et le poste de chaque joueur.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Perfectionnement technique par poste", category: "technique", ageFormat: "standard",
@@ -3143,7 +3152,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_5 = [
     criteresRealisation: "L'enfant termine le parcours en ayant suivi le chemin rigolo proposé.",
     pointsCles: "Présenter toujours comme un jeu — jamais comme un exercice d'agilité formel à cet âge.",
     variantes: "Changer le thème du chemin (une rivière, une forêt) pour renouveler l'aspect ludique.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Pousse le ballon, pas ton copain", category: "athletique", ageFormat: "foot_a_5",
@@ -3165,7 +3174,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_5 = [
     criteresRealisation: "Le groupe court ensemble sans s'arrêter pendant la durée prévue.",
     pointsCles: "La durée doit rester très courte — l'ambiance de jeu prime sur toute notion d'endurance sérieuse.",
     variantes: "Ajouter un thème imaginaire à la course (une course de fusées) pour renforcer le plaisir.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
 ];
 
@@ -3179,7 +3188,7 @@ const STARTER_EXERCISES_NATIONS2_TECHNIQUE_5 = [
     criteresRealisation: "L'enfant reproduit le geste (faire semblant d'un côté, partir de l'autre) au moins une fois.",
     pointsCles: "Présenter le geste comme un jeu amusant, pas comme une correction technique stricte.",
     variantes: "Laisser l'enfant inventer sa propre petite variante du geste.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Le bon coup de pied pour dégager", category: "technique", ageFormat: "foot_a_5",
@@ -3287,7 +3296,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_8 = [
     criteresRealisation: "Les appuis restent propres et stables sur l'ensemble du parcours.",
     pointsCles: "L'attention porte sur les appuis, pas sur la vitesse pure à ce niveau.",
     variantes: "Augmenter progressivement la vitesse une fois les appuis bien maîtrisés.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Contacts contrôlés, protection de balle", category: "athletique", ageFormat: "foot_a_8",
@@ -3309,7 +3318,7 @@ const STARTER_EXERCISES_NATIONS2_ATHLETIQUE_8 = [
     criteresRealisation: "L'allure reste stable sur la durée courte de la course.",
     pointsCles: "La régularité prime sur la vitesse — la durée reste volontairement courte à cet âge.",
     variantes: "Allonger très légèrement la durée au fil de la saison, sans jamais approcher une version adulte.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
 ];
 
@@ -3323,7 +3332,7 @@ const STARTER_EXERCISES_NATIONS2_TECHNIQUE_8 = [
     criteresRealisation: "Le geste reste propre à mesure que le rythme augmente progressivement.",
     pointsCles: "La progressivité du rythme est la clé — ne pas imposer la vitesse maximale immédiatement comme à onze.",
     variantes: "Revenir à un rythme plus modéré si la qualité du geste se dégrade en accélérant.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Dégagement et contact de tête prudent", category: "technique", ageFormat: "foot_a_8",
@@ -3555,7 +3564,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_5 = [
     criteresRealisation: "L'enfant se dirige vers la bonne couleur annoncée sur la majorité des essais.",
     pointsCles: "Rester ludique — c'est un jeu de réaction amusant, pas un exercice d'agilité formel.",
     variantes: "Ajouter une troisième couleur pour les enfants les plus à l'aise.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Le chat et la souris", category: "athletique", ageFormat: "foot_a_5",
@@ -3588,7 +3597,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_5 = [
     criteresRealisation: "L'enfant termine le parcours en ayant tenté chaque étape proposée.",
     pointsCles: "Présenter comme une aventure, jamais comme un circuit chronométré et comparé.",
     variantes: "Changer le thème de l'aventure (une île, une forêt) pour renouveler la motivation.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Le jeu de la poursuite joyeuse", category: "athletique", ageFormat: "foot_a_5",
@@ -3621,7 +3630,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_5 = [
     criteresRealisation: "L'enfant termine la course collective sans s'arrêter avant la fin.",
     pointsCles: "Rester extrêmement bref (30 secondes maximum) — adapté à la capacité physique de cet âge.",
     variantes: "Ajouter un encouragement collectif à voix haute pour renforcer l'esprit d'équipe.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Le petit étirement rigolo", category: "athletique", ageFormat: "foot_a_5",
@@ -3643,7 +3652,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_5 = [
     criteresRealisation: "L'enfant participe à la course amicale jusqu'au bout, quel que soit le classement.",
     pointsCles: "Le plaisir de courir ensemble prime — jamais de chronométrage comparatif sérieux à cet âge.",
     variantes: "Changer les duos ou trios de course régulièrement pour varier les confrontations amicales.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
 ];
 
@@ -3712,7 +3721,7 @@ const STARTER_EXERCISES_NATIONS_TECHNIQUE_5 = [
     criteresRealisation: "L'enfant reproduit le geste de feinte (faire semblant à droite, partir à gauche) au moins une fois.",
     pointsCles: "Le plaisir du geste prime — aucune exigence de vitesse ou de perfection à cet âge.",
     variantes: "Laisser l'enfant inventer sa propre variante amusante du geste.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Jongle avec tes pieds", category: "technique", ageFormat: "foot_a_5",
@@ -3996,7 +4005,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "Les départs sprintés et bondissements restent explosifs sur l'ensemble des répétitions, grâce à la récupération complète.",
     pointsCles: "Le volume reste volontairement faible — la qualité de l'explosivité prime sur la quantité.",
     variantes: "Ajouter très progressivement des répétitions au fil des séances si le groupe récupère bien.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Agilité en espace confiné, Foot à 8", category: "athletique", ageFormat: "foot_a_8",
@@ -4007,7 +4016,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "Les appuis restent précis et stables malgré le rapprochement des plots.",
     pointsCles: "L'attention porte sur la qualité des appuis, pas sur la vitesse pure — ce travail convient bien à cet âge.",
     variantes: "Resserrer encore les plots pour les joueurs les plus à l'aise.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Intermittent modéré et ludique", category: "athletique", ageFormat: "foot_a_8",
@@ -4018,7 +4027,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "L'intensité reste comparable sur l'ensemble des blocs, malgré la durée courte.",
     pointsCles: "Présenter comme un jeu plutôt qu'un travail de conditionnement pur, avec des blocs volontairement courts.",
     variantes: "Ajuster la durée des blocs selon le niveau de forme du groupe.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Maintenir sa concentration quelques minutes", category: "athletique", ageFormat: "foot_a_8",
@@ -4040,7 +4049,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "Chaque atelier du circuit est complété dans le temps imparti.",
     pointsCles: "Le suivi simple des performances doit rester motivant, jamais comparatif entre enfants.",
     variantes: "Faire varier l'ordre des ateliers d'une séance à l'autre pour maintenir l'intérêt.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Petits efforts répétés avec engagement", category: "athletique", ageFormat: "foot_a_8",
@@ -4051,7 +4060,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "L'action technique qui suit chaque effort reste correcte, même en fin de série.",
     pointsCles: "Le volume reste modéré à cet âge — l'objectif est l'introduction du concept, pas la performance.",
     variantes: "Augmenter très progressivement le nombre de répétitions au fil des séances.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Rythme et coordination, Foot à 8", category: "athletique", ageFormat: "foot_a_8",
@@ -4062,7 +4071,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "L'enfant reste synchronisé avec le rythme pendant l'ensemble de l'exercice.",
     pointsCles: "Cet aspect ludique et rythmique convient naturellement à cet âge, sans adaptation particulière nécessaire.",
     variantes: "Changer de rythme ou de musique régulièrement pour maintenir l'engagement.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Petite ténacité, courts efforts soutenus", category: "athletique", ageFormat: "foot_a_8",
@@ -4073,7 +4082,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "L'intensité de la course reste constante sur l'ensemble de la durée courte prévue.",
     pointsCles: "La durée reste bien plus courte qu'en version adulte — introduire le concept progressivement.",
     variantes: "Allonger très progressivement la durée si le groupe maintient bien son engagement.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Mobilité et prévention simple", category: "athletique", ageFormat: "foot_a_8",
@@ -4095,7 +4104,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_8 = [
     criteresRealisation: "Le temps sur les courtes distances reste rapide sur l'ensemble des répétitions, grâce au volume modéré.",
     pointsCles: "Le volume modéré préserve la qualité de l'accélération — ne pas le multiplier excessivement à cet âge.",
     variantes: "Ajouter un ballon à conduire sur la dernière portion pour les plus avancés.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
 ];
 
@@ -4164,7 +4173,7 @@ const STARTER_EXERCISES_NATIONS_TECHNIQUE_8 = [
     criteresRealisation: "Le geste reste propre à mesure que le rythme d'exécution augmente progressivement.",
     pointsCles: "La progressivité du rythme prime sur la vitesse maximale immédiate travaillée plus tard.",
     variantes: "Revenir à un rythme plus modéré si la qualité du geste se dégrade en accélérant.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Jeu de pieds simple façon futsal", category: "technique", ageFormat: "foot_a_8",
@@ -4175,7 +4184,7 @@ const STARTER_EXERCISES_NATIONS_TECHNIQUE_8 = [
     criteresRealisation: "Le geste (déplacement rapide du ballon d'un pied à l'autre) est reproduit correctement.",
     pointsCles: "Ce geste accessible prépare des gestes plus avancés réservés à un stade technique plus mûr — ne pas brûler les étapes.",
     variantes: "Introduire un geste plus avancé (élastico) une fois celui-ci bien maîtrisé.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Réception et pivot, pression modérée", category: "technique", ageFormat: "foot_a_8",
@@ -4448,7 +4457,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "La qualité d'explosivité reste constante sur l'ensemble des répétitions, grâce à la récupération complète.",
     pointsCles: "La récupération complète entre répétitions est indispensable pour préserver la qualité de l'explosivité.",
     variantes: "Ajouter une charge légère (élastique) une fois la qualité au poids du corps bien maîtrisée.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Agilité en espace confiné", category: "athletique", ageFormat: "standard",
@@ -4459,7 +4468,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "Les appuis restent rapides et précis malgré le resserrement des plots.",
     pointsCles: "L'agilité en espace réduit prime sur la puissance pure — c'est le besoin réel du jeu de possession.",
     variantes: "Resserrer encore les plots pour les groupes les plus avancés.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Intermittent haute intensité", category: "athletique", ageFormat: "standard",
@@ -4470,7 +4479,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "L'intensité reste comparable entre le premier et le dernier bloc d'effort de la séance.",
     pointsCles: "La récupération courte et active est le cœur de l'exercice — ne pas l'allonger même en cas de fatigue visible.",
     variantes: "Ajuster le ratio effort/récupération selon la période de la saison et le niveau de forme du groupe.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Endurance de concentration positionnelle", category: "athletique", ageFormat: "standard",
@@ -4492,7 +4501,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "Les temps et répétitions suivis progressent ou se maintiennent de façon cohérente d'une séance à l'autre.",
     pointsCles: "Le suivi systématique d'une séance à l'autre est ce qui rend cette approche scientifique et méthodique.",
     variantes: "Ajuster la progressivité des blocs selon la période de la saison (préparation, compétition, récupération).",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Résistance à la fatigue et à l'adversité", category: "athletique", ageFormat: "standard",
@@ -4503,7 +4512,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "L'action technique ou tactique qui suit l'effort reste de qualité correcte, même en fin d'enchaînement.",
     pointsCles: "Le maintien de la qualité d'exécution malgré la fatigue est l'objectif central, pas l'effort physique seul.",
     variantes: "Augmenter progressivement l'exigence physique avant l'action technique au fil des séances.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Rythme et coordination", category: "athletique", ageFormat: "standard",
@@ -4514,7 +4523,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "La coordination du mouvement avec le rythme reste correcte sur la durée de l'exercice.",
     pointsCles: "Cet aspect rythmique développe une coordination générale complémentaire au travail technique habituel.",
     variantes: "Complexifier progressivement le rythme ou les déplacements demandés.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Endurance et ténacité du petit collectif", category: "athletique", ageFormat: "standard",
@@ -4525,7 +4534,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "L'intensité de l'effort reste stable sur l'ensemble de la course prolongée.",
     pointsCles: "La constance de l'engagement sur la durée est ce qui est recherché, pas la vitesse de pointe.",
     variantes: "Allonger progressivement la durée de l'effort au fil de la saison.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Périodisation et prévention structurée", category: "athletique", ageFormat: "standard",
@@ -4547,7 +4556,7 @@ const STARTER_EXERCISES_NATIONS_ATHLETIQUE_11 = [
     criteresRealisation: "Le temps sur les distances courtes reste rapide sur l'ensemble des répétitions.",
     pointsCles: "Reproduire fidèlement la vitesse d'accélération nécessaire pour exploiter un espace réel en contre-attaque.",
     variantes: "Ajouter un ballon à conduire sur la dernière portion pour rapprocher l'exercice d'une situation de match.",
-    diagram: genSprintLanes(4),
+    ...genSprintLanes(4),
   },
 ];
 
@@ -4616,7 +4625,7 @@ const STARTER_EXERCISES_NATIONS_TECHNIQUE_11 = [
     criteresRealisation: "Le geste reste techniquement propre malgré la vitesse élevée d'exécution.",
     pointsCles: "L'exigence à ce niveau est l'exécution à pleine vitesse, pas seulement à l'arrêt.",
     variantes: "Ajouter un défenseur passif puis actif une fois la vitesse maîtrisée seul.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "L'élastico et jeu de pieds rapide", category: "technique", ageFormat: "standard",
@@ -4627,7 +4636,7 @@ const STARTER_EXERCISES_NATIONS_TECHNIQUE_11 = [
     criteresRealisation: "Le geste de l'élastico est reconnaissable et contrôlé, même lentement, avant d'être tenté plus vite.",
     pointsCles: "Décomposer lentement d'abord — l'accélération progressive vient ensuite, jamais l'inverse.",
     variantes: "Introduire un autre geste de jeu de pieds issu du futsal une fois l'élastico bien maîtrisé.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Réception et pivot sous pression au milieu", category: "technique", ageFormat: "standard",
@@ -4856,7 +4865,7 @@ const STARTER_EXERCISES_FOOT8_ATHLETIQUE = [
     criteresRealisation: "Le départ se déclenche rapidement après le signal, avec une posture de course correcte.",
     pointsCles: "La technique de course (position, appuis) est une vraie nouveauté par rapport au simple jeu de poursuite du Foot à 5.",
     variantes: "Varier les signaux (sonore, visuel) et les positions de départ pour garder l'aspect ludique.",
-    diagram: genSprintLanes(4),
+    ...genSprintLanes(4),
   },
   {
     name: "Parcours d'agilité technique", category: "athletique", ageFormat: "foot_a_8",
@@ -4867,7 +4876,7 @@ const STARTER_EXERCISES_FOOT8_ATHLETIQUE = [
     criteresRealisation: "Les appuis restent de qualité (position basse, réactifs) sur l'ensemble du parcours.",
     pointsCles: "L'attention portée aux appuis est le premier pas vers le travail d'agilité plus poussé des catégories suivantes.",
     variantes: "Complexifier progressivement le parcours une fois les appuis de base bien maîtrisés.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Renforcement au poids du corps, première approche", category: "athletique", ageFormat: "foot_a_8",
@@ -4900,7 +4909,7 @@ const STARTER_EXERCISES_FOOT8_ATHLETIQUE = [
     criteresRealisation: "La phase avec ballon reste de qualité malgré la fatigue de coordination de la phase précédente.",
     pointsCles: "Le lien entre qualités motrices générales et leur application avec ballon est ce qui est travaillé ici.",
     variantes: "Varier l'ordre des deux phases pour tester différentes formes de transfert.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Le relais par équipe", category: "athletique", ageFormat: "foot_a_8",
@@ -4911,7 +4920,7 @@ const STARTER_EXERCISES_FOOT8_ATHLETIQUE = [
     criteresRealisation: "Chaque enfant s'engage pleinement dans sa portion du relais, sans économiser son effort.",
     pointsCles: "L'esprit d'équipe motive l'effort individuel — c'est le levier principal de cet exercice.",
     variantes: "Alterner les variantes (course simple, avec ballon, slalom) d'une séance à l'autre.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Échauffement dynamique adapté", category: "athletique", ageFormat: "foot_a_8",
@@ -4922,7 +4931,7 @@ const STARTER_EXERCISES_FOOT8_ATHLETIQUE = [
     criteresRealisation: "La routine est complétée dans l'ordre, avec une exécution correcte de chaque mouvement.",
     pointsCles: "La routine doit devenir reconnaissable au fil des séances — la répétition de l'ordre construit l'habitude.",
     variantes: "Ajouter progressivement un mouvement supplémentaire une fois la routine de base bien installée.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
 ];
 
@@ -5096,7 +5105,7 @@ const STARTER_EXERCISES_FOOT5_ATHLETIQUE = [
     criteresRealisation: "L'enfant termine le parcours en ayant tenté chaque mouvement (ramper, sauter, enjamber, rouler).",
     pointsCles: "La richesse et la variété des mouvements priment sur la vitesse d'exécution.",
     variantes: "Changer le thème de l'aventure régulièrement pour renouveler la motivation.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Le jeu des statues", category: "athletique", ageFormat: "foot_a_5",
@@ -5118,7 +5127,7 @@ const STARTER_EXERCISES_FOOT5_ATHLETIQUE = [
     criteresRealisation: "L'enfant reproduit le mouvement de chaque animal demandé tout au long du parcours.",
     pointsCles: "L'approche imaginative développe des schémas moteurs bien plus riches qu'une simple course en ligne droite.",
     variantes: "Changer les animaux imités régulièrement pour varier les schémas moteurs travaillés.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Le jeu de la rivière", category: "athletique", ageFormat: "foot_a_5",
@@ -5210,7 +5219,7 @@ const STARTER_EXERCISES_FOOT5_TECHNIQUE = [
     criteresRealisation: "Chaque enfant conduit son ballon jusqu'au plot et revient le donner au suivant.",
     pointsCles: "Le cadre collectif et ludique motive l'effort de conduite bien plus qu'un exercice individuel répétitif.",
     variantes: "Ajouter un slalom léger sur le trajet pour les enfants les plus à l'aise.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
 ];
 
@@ -5224,7 +5233,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le changement de direction est net et le ballon reste sous contrôle immédiatement après le crochet.",
     pointsCles: "Fixer le geste à vitesse modérée avant de le tenter à vitesse de match — ne pas brûler cette étape.",
     variantes: "Ajouter un défenseur semi-actif une fois le geste maîtrisé face à un plot.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Crochet extérieur", category: "technique",
@@ -5235,7 +5244,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le ballon change de direction sans perte de vitesse notable dans la foulée du joueur.",
     pointsCles: "Le geste est plus discret que le crochet intérieur — il doit rester fluide dans la course, pas une rupture brutale.",
     variantes: "Travailler des deux côtés (pied gauche et droit) pour ne pas créer un pied fort de dribble.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Roulette (Zidane)", category: "technique",
@@ -5246,7 +5255,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le pivot à 360 degrés se termine avec le ballon toujours sous contrôle du joueur.",
     pointsCles: "L'arrêt sur image à mi-mouvement pendant l'apprentissage est indispensable avant la vitesse réelle.",
     variantes: "Introduire un défenseur passif dans le dos une fois le geste maîtrisé seul.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Petit pont (nutmeg)", category: "technique",
@@ -5257,7 +5266,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le ballon passe entre les jambes du défenseur et est récupéré de l'autre côté par le joueur.",
     pointsCles: "Commencer contre un défenseur totalement passif avant de progresser vers un défenseur actif.",
     variantes: "Introduire une contrainte de temps une fois le geste maîtrisé contre un défenseur passif.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Feinte de corps (stepover)", category: "technique",
@@ -5268,7 +5277,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "La feinte trompe visiblement le défenseur (déplacement de poids, hésitation) avant le départ réel.",
     pointsCles: "Le regard et l'orientation du buste doivent accompagner la feinte pour qu'elle soit crédible, pas seulement le pied.",
     variantes: "Enchaîner deux feintes de corps successives pour les joueurs les plus avancés.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Double contact (crochet appuyé)", category: "technique",
@@ -5279,7 +5288,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le changement de direction latéral se fait en un temps très court, sans ralentissement visible.",
     pointsCles: "Ce geste s'exécute en pleine course — le travailler d'abord à vitesse modérée avant la vitesse de match.",
     variantes: "Alterner les pieds utilisés pour le double contact pour ne pas créer de latéralité unique.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "La Croqueta (déplacement entre les appuis)", category: "technique",
@@ -5290,7 +5299,7 @@ const STARTER_EXERCISES_DRIBBLES = [
     criteresRealisation: "Le ballon reste protégé du défenseur pendant tout le changement d'axe.",
     pointsCles: "Le geste protège le ballon tout en permettant le changement d'axe — les deux fonctions doivent être présentes.",
     variantes: "Travailler ce geste spécifiquement près d'une ligne de touche simulée pour reproduire la situation réelle.",
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Élimination en vitesse après feinte", category: "technique",
@@ -5406,7 +5415,7 @@ const STARTER_EXERCISES_ATHLETIQUE_2 = [
     criteresRealisation: "Le joueur peut tenir une conversation courte pendant l'effort, signe d'une intensité bien calibrée.",
     pointsCles: "L'intensité modérée et constante est la clé — ce n'est pas un travail de fractionné.",
     variantes: "Allonger progressivement la durée en période de préparation ; la raccourcir en récupération active.",
-    diagram: genSprintLanes(1),
+    ...genSprintLanes(1),
   },
   {
     name: "Mobilité articulaire dynamique", category: "athletique",
@@ -5417,7 +5426,7 @@ const STARTER_EXERCISES_ATHLETIQUE_2 = [
     criteresRealisation: "Toutes les grandes articulations sollicitées en match sont mobilisées avant la fin de la routine.",
     pointsCles: "Préférer ces mouvements actifs aux étirements statiques juste avant un effort intense.",
     variantes: "Ajuster l'ordre et le nombre de mouvements selon le temps disponible avant la séance.",
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Proprioception, prévention des entorses", category: "athletique",
@@ -5439,7 +5448,7 @@ const STARTER_EXERCISES_ATHLETIQUE_2 = [
     criteresRealisation: "L'intensité reste élevée jusqu'à la fin de chaque répétition, malgré la récupération incomplète.",
     pointsCles: "La récupération incomplète entre répétitions est volontaire — c'est elle qui développe la tolérance recherchée.",
     variantes: "Ajuster la durée des efforts (30 à 90 secondes) selon la période de la saison.",
-    diagram: genSprintLanes(2),
+    ...genSprintLanes(2),
   },
   {
     name: "Vitesse gestuelle, fréquence de jambes", category: "athletique",
@@ -5472,7 +5481,7 @@ const STARTER_EXERCISES_ATHLETIQUE_2 = [
     criteresRealisation: "Les deux tâches combinées restent de qualité correcte sur l'ensemble de l'exercice.",
     pointsCles: "La combinaison de tâches, pas leur exécution isolée, est ce qui développe la coordination générale recherchée.",
     variantes: "Simplifier à une seule tâche pour les joueurs qui découvrent l'exercice, avant de combiner.",
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Prévention ischio-jambiers, renforcement excentrique", category: "athletique",
@@ -6716,7 +6725,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Rappeler que l'espace réduit favorise la vitesse d'exécution du geste sur son amplitude — un petit geste rapide bat un grand geste lent ici.",
     variantes: "Réduire encore l'espace de duel ; ajouter un but miniature à franchir pour donner un objectif concret à l'élimination.",
     intensite: "moderee", theme: "Dribble / feinte", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
   {
     name: "Passe piquée courte par-dessus un adversaire proche",
@@ -6742,7 +6751,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Prioriser la qualité et la fréquence des appuis sur la vitesse de déplacement globale — c'est la fréquence qui est spécifique ici.",
     variantes: "Ajouter un ballon à conduire pendant l'exercice pour les joueurs plus avancés ; réduire encore la surface pour intensifier la contrainte.",
     intensite: "moderee", theme: "Agilité", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Accélérations courtes répétées sur 5 mètres",
@@ -6755,7 +6764,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Rappeler que l'intensité de départ (les 2 premiers appuis) compte plus ici que sur un sprint long — c'est elle qui fait la différence sur 5 mètres.",
     variantes: "Varier le type de départ (dos au sens de course, assis, en mouvement latéral) ; réduire le temps de récupération pour les joueurs les plus confirmés.",
     intensite: "elevee", theme: "Vitesse", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genSprintLanes(3),
+    ...genSprintLanes(3),
   },
   {
     name: "Endurance intermittente spécifique futsal",
@@ -6768,7 +6777,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Ajuster le ratio effort/récupération selon le niveau du groupe plutôt que d'appliquer un standard unique.",
     variantes: "Intégrer un ballon sur les phases d'effort pour un travail technique combiné ; augmenter progressivement le nombre de cycles sur plusieurs séances.",
     intensite: "elevee", theme: "Endurance", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genSprintLanes(4),
+    ...genSprintLanes(4),
   },
   {
     name: "Renforcement des chevilles et adducteurs",
@@ -6794,7 +6803,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Varier réellement le délai avant le signal pour éviter toute anticipation.",
     variantes: "Combiner avec un ballon pour un geste technique déclenché par le signal ; réduire encore l'espace disponible.",
     intensite: "moderee", theme: "Réactivité", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genAgilityPattern(),
+    ...genAgilityPattern(),
   },
   {
     name: "Explosivité sur très courte distance avec ballon",
@@ -6885,7 +6894,7 @@ const STARTER_EXERCISES_FUTSAL_2026 = [
     pointsCles: "Si la précipitation ou la crispation apparaît nettement, ralentir temporairement le rythme des répétitions avant de le réaugmenter.",
     variantes: "Alterner les partenaires de duel pour varier les gabarits et styles rencontrés ; ajouter un enjeu simple (le perdant du duel sort du carré) pour renforcer l'engagement mental.",
     intensite: "moderee", theme: "Confiance", newBatch: NEW_BATCH_TAG_FUTSAL,
-    diagram: genDribbleMove(),
+    ...genDribbleMove(),
   },
 ];
 

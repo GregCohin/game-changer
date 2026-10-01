@@ -357,3 +357,76 @@ export function generateSlalomAnimation(elements) {
   const frame2 = elements.map((e) => (moverIds.has(e.id) ? { ...e, x: endX, y: endY } : e));
   return { diagram: frame1, diagramFrames: [frame2] };
 }
+
+// Sprint en ligne (01/10/2026, même principe pour genSprintLanes()). Contrairement au slalom, pas de
+// tri par position : chaque couloir est une paire de plots consécutifs dans le tableau (départ,
+// arrivée — toujours poussés dans cet ordre, couloir par couloir), et une ligne droite n'a de toute
+// façon aucun zigzag à reconstituer. Chaque joueur rejoint le plot d'arrivée de son propre couloir
+// (le plus proche de son plot de départ) en ligne droite, sans movePath. Renvoie null si le nombre
+// de plots est impair ou si aucun couloir n'a de joueur à proximité de son plot de départ.
+export function generateSprintAnimation(elements) {
+  const cones = elements.filter((e) => e.type === "cone");
+  if (cones.length < 2 || cones.length % 2 !== 0) return null;
+  const players = elements.filter((e) => e.x != null && e.type && (e.type.startsWith("player") || e.type === "keeper"));
+  const targets = new Map();
+  for (let i = 0; i < cones.length; i += 2) {
+    const a = cones[i], b = cones[i + 1];
+    const start = a.x <= b.x ? a : b, end = a.x <= b.x ? b : a;
+    let mover = null, bestDist = Infinity;
+    for (const p of players) {
+      const d = Math.hypot(p.x - start.x, p.y - start.y);
+      if (d < bestDist) { bestDist = d; mover = p; }
+    }
+    if (mover && bestDist <= 0.15) targets.set(mover.id, { x: end.x, y: end.y });
+  }
+  if (targets.size === 0) return null;
+  const frame2 = elements.map((e) => (targets.has(e.id) ? { ...e, ...targets.get(e.id) } : e));
+  return { diagram: elements, diagramFrames: [frame2] };
+}
+
+// Parcours d'agilité (01/10/2026, même principe pour genAgilityPattern()). Contrairement au slalom,
+// les plots ne sont pas alignés sur un axe (schéma en étoile, qui repasse deux fois par le centre) :
+// les trier par position mélangerait le trajet voulu. L'ordre de création du tableau EST l'ordre du
+// trajet (toujours le même, fixé par genAgilityPattern()) : le joueur le plus proche du premier plot
+// les traverse dans cet ordre exact. Pas de recherche de ballon : ce type d'exercice (changements
+// d'appuis/direction) n'en a jamais dans la bibliothèque actuelle.
+export function generateAgilityAnimation(elements) {
+  const cones = elements.filter((e) => e.type === "cone");
+  if (cones.length < 2) return null;
+  const first = cones[0], last = cones[cones.length - 1];
+  const players = elements.filter((e) => e.x != null && e.type && (e.type.startsWith("player") || e.type === "keeper"));
+  let mover = null, bestDist = Infinity;
+  for (const p of players) {
+    const d = Math.hypot(p.x - first.x, p.y - first.y);
+    if (d < bestDist) { bestDist = d; mover = p; }
+  }
+  if (!mover || bestDist > 0.5) return null;
+  const movePath = cones.map((c) => ({ x: c.x, y: c.y }));
+  const frame1 = elements.map((e) => (e.id === mover.id ? { ...e, movePath } : e));
+  const frame2 = elements.map((e) => (e.id === mover.id ? { ...e, x: last.x, y: last.y } : e));
+  return { diagram: frame1, diagramFrames: [frame2] };
+}
+
+// Feinte de dribble (01/10/2026, même principe pour genDribbleMove()). Reprend la courbe déjà posée
+// à la main sur la flèche décorative qu'on lui passe (x1/y1 -> x2/y2 via cx/cy) comme SEUL segment du
+// trajet, via moveCx/moveCy sur l'image de départ plutôt qu'un movePath : il n'y a aucun point de
+// passage intermédiaire, juste un départ et une arrivée courbés — exactement le cas prévu pour
+// moveCx/moveCy (voir interpolatePadElement). Appliquée au porteur et au ballon par la même
+// translation, pour qu'ils restent ensemble comme au contrôle. La flèche n'est là que pour donner sa
+// courbe : elle est retirée du résultat (devenue redondante une fois le trajet réellement animé,
+// même choix que pour le slalom et le reste de cette fiche). Renvoie null si le schéma n'a pas la
+// forme attendue (pas de plot, ou pas de flèche de dribble courbée pour en déduire le contournement).
+export function generateDribbleAnimation(elements) {
+  const cone = elements.find((e) => e.type === "cone");
+  const arrow = elements.find((e) => e.type === "arrowDribble" && e.curved && e.cx != null && e.cy != null);
+  if (!cone || !arrow) return null;
+  const dx = arrow.x2 - arrow.x1, dy = arrow.y2 - arrow.y1;
+  const cdx = arrow.cx - arrow.x1, cdy = arrow.cy - arrow.y1;
+  const movers = elements.filter((e) => e.x != null && (e.type === "ball" || (e.type && (e.type.startsWith("player") || e.type === "keeper"))));
+  if (movers.length === 0) return null;
+  const moverIds = new Set(movers.map((e) => e.id));
+  const withoutArrow = elements.filter((e) => e.id !== arrow.id);
+  const frame1 = withoutArrow.map((e) => (moverIds.has(e.id) ? { ...e, moveCx: e.x + cdx, moveCy: e.y + cdy } : e));
+  const frame2 = withoutArrow.map((e) => (moverIds.has(e.id) ? { ...e, x: e.x + dx, y: e.y + dy } : e));
+  return { diagram: frame1, diagramFrames: [frame2] };
+}
