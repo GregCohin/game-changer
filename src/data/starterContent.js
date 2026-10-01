@@ -4975,7 +4975,13 @@ const STARTER_EXERCISES_FOOT8_TACTIQUE = [
     criteresRealisation: "Le une-deux se termine par une réception en mouvement sur la majorité des tentatives.",
     pointsCles: "Travailler d'abord en situation isolée à trois avant de l'intégrer dans le jeu à thème.",
     variantes: "Valoriser chaque une-deux réussi en jeu libre une fois le geste bien acquis en situation isolée.",
-    diagram: [pel("playerA", 0.3, 0.5, { number: 1 }), pel("playerA", 0.5, 0.4, { number: 2 }), ael("arrowPass", 0.3, 0.5, 0.5, 0.4), ael("arrowMove", 0.3, 0.5, 0.45, 0.55, { curved: true })],
+    // Ballon positionné à 0,0894 du joueur 1 (tout juste au-delà du seuil de proximité de
+    // deriveArrowAnimation, 0,08) plutôt qu'à ses pieds : sans ça, le ballon serait aussi considéré
+    // comme le compagnon de la flèche de course (joueur + ballon avancent ensemble jusqu'à la
+    // position du joueur 2 — faux pour une passe, où le joueur ne suit pas le ballon). Au-delà du
+    // seuil, la passe anime le ballon seul et la course anime le joueur seul, chacun vers sa propre
+    // arrivée (01/10/2026, cas réel débloqué sur demande de Gregory après "Flèches bloquées").
+    diagram: [pel("playerA", 0.3, 0.5, { number: 1 }), pel("playerA", 0.5, 0.4, { number: 2 }), pel("ball", 0.38, 0.46), ael("arrowPass", 0.38, 0.46, 0.5, 0.4), ael("arrowMove", 0.3, 0.5, 0.45, 0.55, { curved: true })],
   },
   {
     name: "Élargir le jeu, utiliser la largeur", category: "tactique", ageFormat: "foot_a_8",
