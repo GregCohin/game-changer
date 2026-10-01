@@ -20,6 +20,11 @@ Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des nu
   PANORAMA_HALF_CUT_S coupure de mi-temps dans la capture, en secondes brutes (fin/début simultanés de toutes les pistes) ; défaut 2861 (1er match)
   PANORAMA_NOIR_OWN_RIGHT_H1  "1" (défaut, 1er match) : l'équipe noire défend le but de droite (X > 0) en 1re période ; "0" : celui de gauche.
                        À déterminer sur les données de chaque match (position moyenne des équipes juste après les coups d'envoi)
+  PANORAMA_TEAM_SHAPE_THR  probabilité d'équipe (mesure lissée) au-delà de laquelle un joueur compte pour la forme d'équipe (teamshape.team_members) ;
+                       défaut 0.9 (1er match). Abaisser augmente la couverture (plus de mesures retenues) mais retient des mesures moins sûres :
+                       vérifié sur le 2e match qu'abaisser à 0.85 ne déplace pas les mètres de forme (hauteur/largeur/profondeur), contrairement à
+                       baisser le nombre minimum de joueurs par image (N_MIN dans teamshape.py, pas exposé en variable : rétrécit la largeur mesurée,
+                       pas qu'un gain de couverture gratuit)
   FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
   FOLLOWCAM_CHECKPOINT  checkpoint extract.py pour ce match (défaut : output/checkpoint_local_v4.pkl, capture du 1er match)
   FOLLOWCAM_ROSTER    roster certifié pour ce match, produit par la revue assistée (défaut : output/roster_v4.json,
@@ -49,6 +54,7 @@ PANORAMA_PITCH = os.environ.get("PANORAMA_PITCH", "")
 PANORAMA_TRACK_MODEL = os.environ.get("PANORAMA_TRACK_MODEL", "")
 PANORAMA_HALF_CUT_S = os.environ.get("PANORAMA_HALF_CUT_S", "")
 PANORAMA_NOIR_OWN_RIGHT_H1 = os.environ.get("PANORAMA_NOIR_OWN_RIGHT_H1", "")
+PANORAMA_TEAM_SHAPE_THR = os.environ.get("PANORAMA_TEAM_SHAPE_THR", "")
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
 FOLLOWCAM_CHECKPOINT = os.environ.get("FOLLOWCAM_CHECKPOINT", "")
 FOLLOWCAM_ROSTER = os.environ.get("FOLLOWCAM_ROSTER", "")
@@ -90,6 +96,11 @@ def half_cut_s():
 def noir_own_right_h1():
     """True : l'équipe noire défend le but de droite (X > 0) en 1re période (1er match) ; PANORAMA_NOIR_OWN_RIGHT_H1=0 : celui de gauche."""
     return PANORAMA_NOIR_OWN_RIGHT_H1 != "0"
+
+
+def team_shape_thr():
+    """Seuil de probabilité d'équipe pour la forme (teamshape.team_members) : PANORAMA_TEAM_SHAPE_THR, sinon 0.9 (1er match)."""
+    return float(PANORAMA_TEAM_SHAPE_THR) if PANORAMA_TEAM_SHAPE_THR else 0.9
 
 
 def require(path, var):

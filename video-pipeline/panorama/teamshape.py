@@ -15,13 +15,14 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama import teamclass as C
 from panorama import track as T
-from panorama.config import half_cut_s, noir_own_right_h1, pitch_dims
+from panorama.config import half_cut_s, noir_own_right_h1, pitch_dims, team_shape_thr
 from panorama.match import sample_hz
 
 MATCH = T.OUT / "match"
 FPS = sample_hz()                   # cadence réelle des images (10 Hz pour le 1er match ; 9,36 Hz pour une capture à 56,17 im/s)
 HALF_CUT_S = half_cut_s()           # coupure de mi-temps dans l'enregistrement (fin/début simultanés de toutes les pistes) ; PANORAMA_HALF_CUT_S
 NOIR_OWN_RIGHT_H1 = noir_own_right_h1()
+TEAM_SHAPE_THR = team_shape_thr()   # probabilité d'équipe minimum pour compter dans la forme ; PANORAMA_TEAM_SHAPE_THR, défaut 0.9
 # Terrain du match (PANORAMA_PITCH ; 1er match : RÉGLEMENTAIRE 105 x 68 m, confirmé sur la vue satellite du stade : rapport longueur/largeur 1,544, cercle
 # 18,3 m, surfaces 16,5 x 40,32 m), coordonnées en vrais mètres depuis le calage v2 (panorama.calibrate2 / calibrate3). Les personnes hors du terrain
 # (staff, spectateurs) sont écartées.
@@ -60,7 +61,7 @@ def load_measurements(half_s=2.0):
     return out
 
 
-def team_members(D, team, thr=0.9, max_team=MAX_TEAM, use_gk_filter=True, dedup_m=DEDUP_M):
+def team_members(D, team, thr=TEAM_SHAPE_THR, max_team=MAX_TEAM, use_gk_filter=True, dedup_m=DEDUP_M):
     """Indices des mesures retenues pour l'équipe (0 noir, 1 clair) : probabilité >= thr, hors gardiens/arbitres, <= max_team par image."""
     P = D["PN"] if team == 0 else D["PW"]
     ok = (P >= thr) & (np.abs(D["X"]) <= L_HALF + PITCH_MARGIN) & (D["Y"] >= Y_FAR - PITCH_MARGIN) & (D["Y"] <= Y_NEAR + PITCH_MARGIN)
