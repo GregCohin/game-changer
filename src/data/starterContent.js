@@ -11910,7 +11910,14 @@ const STARTER_EXERCISES_FSS_2026 = [
     variantes: "Les quatre formes (extérieure, en profondeur, extérieure avec appel derrière, intérieure) se travaillent séparément puis s'enchaînent ; changer le sens de rotation du groupe.",
     intensite: "moderee", theme: "Animation offensive",
     source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème II, séance III, « Rešavanje situacije 2:1 kroz dupli pas »",
-    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.35, { number: 2 }), pel("playerA", 0.5, 0.65, { number: 3 }), pel("playerB", 0.65, 0.5), pel("ball", 0.23, 0.52), ael("arrowPass", 0.23, 0.5, 0.47, 0.37), ael("arrowPass", 0.5, 0.4, 0.5, 0.6), ael("arrowMove", 0.2, 0.5, 0.4, 0.6)],
+    // Ballon décalé de 0,23/0,52 à 0,33/0,47 : à 0,1334 du joueur 1 ET du départ de sa flèche de
+    // course (même point), au-delà du seuil de 0,08 — même mécanisme que les quatre points
+    // précédents. La 1re passe (recalée pour partir du nouveau ballon) s'enchaîne dans la 2e (leur
+    // jonction, 0,0424, est sous le seuil et sans ballon dédié à son départ) : le ballon anime toute
+    // la double passe extérieure (joueur 1 → joueur 2 → joueur 3) en un seul mouvement, pendant que
+    // le joueur 1 s'anime séparément sur sa propre course après sa passe (01/10/2026, sur demande
+    // de Gregory après la page "Flèches bloquées").
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.35, { number: 2 }), pel("playerA", 0.5, 0.65, { number: 3 }), pel("playerB", 0.65, 0.5), pel("ball", 0.33, 0.47), ael("arrowPass", 0.33, 0.47, 0.47, 0.37), ael("arrowPass", 0.5, 0.4, 0.5, 0.6), ael("arrowMove", 0.2, 0.5, 0.4, 0.6)],
   },
   {
     name: "Passer et suivre en profondeur : troisième joueur, rotation, appel dans le dos", category: "technique", ...FSS_BASE,
