@@ -10063,7 +10063,15 @@ const STARTER_EXERCISES_FA_2026 = [
     variantes: "Passer au pied ; éloigner le plot ; ajouter un défenseur qui défend le plot.",
     intensite: "moderee", theme: "Vitesse",
     source: "The FA (England Football Learning), séances de pressing et de tacle : Gate race (2025)",
-    diagram: [zel(0.1, 0.3, 0.9, 0.7), ...pts("cone", [[0.45, 0.4], [0.45, 0.6], [0.85, 0.5]]), pel("playerA", 0.25, 0.5), pel("playerB", 0.6, 0.5), pel("ball", 0.28, 0.5), ael("arrowPass", 0.28, 0.5, 0.58, 0.5), ael("arrowDribble", 0.62, 0.5, 0.82, 0.5), ael("arrowMove", 0.27, 0.55, 0.83, 0.6, { curved: true, cx: 0.55, cy: 0.75 })],
+    // Ballon décalé de 0,28 à 0,38 : à 0,13 du joueur A ET à 0,1208 du départ de sa flèche de
+    // course, les deux au-delà du seuil de 0,08 (même mécanisme que "Presser le gardien" et
+    // "Échauffement : passe et suit"). La flèche de passe (recalée pour partir du nouveau ballon)
+    // s'enchaîne dans la flèche de dribble (leur jonction, à 0,04, est sous le seuil et sans ballon
+    // dédié à son départ) : le ballon anime tout le trajet passe + dribble jusqu'au plot, comme pour
+    // "Le troisième homme joué" où le receveur intermédiaire ne bouge pas non plus visuellement —
+    // la flèche de course du joueur A (inchangée) s'anime maintenant séparément, sans conflit
+    // (01/10/2026, sur demande de Gregory après la page "Flèches bloquées").
+    diagram: [zel(0.1, 0.3, 0.9, 0.7), ...pts("cone", [[0.45, 0.4], [0.45, 0.6], [0.85, 0.5]]), pel("playerA", 0.25, 0.5), pel("playerB", 0.6, 0.5), pel("ball", 0.38, 0.5), ael("arrowPass", 0.38, 0.5, 0.58, 0.5), ael("arrowDribble", 0.62, 0.5, 0.82, 0.5), ael("arrowMove", 0.27, 0.55, 0.83, 0.6, { curved: true, cx: 0.55, cy: 0.75 })],
   },
   {
     name: "Le chat du ballon : ne toucher que celui qui a un ballon", category: "technique", ...FA_F,
