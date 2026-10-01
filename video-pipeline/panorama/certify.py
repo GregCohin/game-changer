@@ -62,6 +62,24 @@ def window_around(tl, dmin, c, radius):
     return float(t[a]), float(t[b])
 
 
+def whole_track_windows(tl, dmin, radius):
+    """Intervalles continus (sans trou > GAP_S) et isolés (< radius aucun autre joueur) sur TOUTE la piste, sans vignette
+    d'ancrage : utilisé pour une piste qui hérite d'un numéro par chaîne (panorama.identify) plutôt que d'être elle-même
+    étiquetée — toute sa durée isolée est digne de confiance, pas seulement l'entourage d'un instant précis."""
+    t = tl.t
+    wins, n, a = [], len(t), 0
+    while a < n:
+        if dmin[a] < radius:
+            a += 1
+            continue
+        b = a
+        while b < n - 1 and t[b + 1] - t[b] <= GAP_S and dmin[b + 1] >= radius:
+            b += 1
+        wins.append((float(t[a]), float(t[b])))
+        a = b + 1
+    return merge(wins)
+
+
 def merge(wins, eps=0.05):
     out = []
     for a, b in sorted(wins):

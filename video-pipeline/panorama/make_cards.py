@@ -25,7 +25,7 @@ MIN_DUR = 8.0
 PER_TRACKLET = 3
 
 
-def registered_pairs(tl, shifts, by_t, offset):
+def registered_pairs(tl, shifts, by_t, offset, team=FOLLOWCAM_TEAM):
     by_frame = collections.defaultdict(list)
     for k, t in enumerate(tl):
         for i, ti in enumerate(np.round(t.t * 10).astype(int)):
@@ -33,8 +33,8 @@ def registered_pairs(tl, shifts, by_t, offset):
     pairs = collections.defaultdict(list)
     for k2, sh in shifts.items():
         conf = sh["matched"] / sh["total"]
-        for (key, team, X, Y, t) in by_t[k2]:
-            if team != FOLLOWCAM_TEAM:
+        for (key, tm, X, Y, t) in by_t[k2]:
+            if tm != team:
                 continue
             cand = by_frame.get(int(round((t + offset) * 10)))
             if not cand:
@@ -55,21 +55,30 @@ def spread(ps, n=PER_TRACKLET):
     return [max(ps[a:b], key=lambda p: p["conf"]) for a, b in zip(edges[:-1], edges[1:]) if b > a]
 
 
-def main(max_cards=250):
+def main(max_cards=250, team=None, out_name=None):
+    """team : étiquette du suivi de la vidéo suiveuse (FOLLOWCAM_TEAM par défaut, notre équipe) ; passer l'autre
+    étiquette ("A" si FOLLOWCAM_TEAM="B") pour fabriquer des cartes côté adversaire. Dans ce cas, les suggestions
+    pré-remplies (qui dépendent de notre roster connu) sont désactivées — aucun sens côté adversaire."""
+    team = team or FOLLOWCAM_TEAM
+    own_team = team == FOLLOWCAM_TEAM
+    out_name = out_name or "cards.json"
     tl = load_tracklets()
     horizon = max(t.t1 for t in tl)
     by_t, offset = R.followcam_by_time()
     pano = R.panorama_frames(tl)
     shifts = R.register(by_t, offset, pano, horizon)
     shifts = {k: s for k, s in shifts.items() if s["matched"] >= max(3, 0.6 * s["total"]) and s["matched"] - s["second"] >= 1}
-    pairs = registered_pairs(tl, shifts, by_t, offset)
+    pairs = registered_pairs(tl, shifts, by_t, offset, team)
     fc = pickle.load(open(T.OUT / "followcam.pkl", "rb"))
-    samples = {(tr["key"], round(t, 2)): (xw, yl) for tr in fc["traces"] if tr["team"] == FOLLOWCAM_TEAM for (t, xw, yl) in tr["samples"]}
+    samples = {(tr["key"], round(t, 2)): (xw, yl) for tr in fc["traces"] if tr["team"] == team for (t, xw, yl) in tr["samples"]}
     order = sorted((k for k in pairs if tl[k].t1 - tl[k].t0 >= MIN_DUR), key=lambda k: -(tl[k].t1 - tl[k].t0))[:max_cards]
-    print(f"horizon {horizon:.0f} s ; {len(shifts)} images recalées ; {len(order)} pistes candidates (≥{MIN_DUR:.0f} s avec au moins une vignette possible)", flush=True)
-    pts = [p for p in Lb.followcam_points() if p[0] <= horizon]
-    votes, *_ = Lb.vote(tl, pts)
-    names = {v["id"]: k for k, v in load_numbers().items()}
+    print(f"équipe '{team}' ({'nous' if own_team else 'adversaire'}) ; horizon {horizon:.0f} s ; {len(shifts)} images recalées ; {len(order)} pistes candidates (≥{MIN_DUR:.0f} s avec au moins une vignette possible)", flush=True)
+    if own_team:
+        pts = [p for p in Lb.followcam_points() if p[0] <= horizon]
+        votes, *_ = Lb.vote(tl, pts)
+        names = {v["id"]: k for k, v in load_numbers().items()}
+    else:
+        votes, names = {}, {}
     fcp = FrameCropper()
     cards, t0 = [], time.time()
     for n, k in enumerate(order):
@@ -98,10 +107,10 @@ def main(max_cards=250):
                           images=imgs, imgTimes=times, path=path, suggestion=sug))
         if (n + 1) % 10 == 0:
             print(f"  {n + 1}/{len(order)} pistes traitées, {len(cards)} cartes ({time.time() - t0:.0f} s)", flush=True)
-            json.dump(cards, open(T.OUT / "cards.json", "w"))
+            json.dump(cards, open(T.OUT / out_name, "w"))
     cards.sort(key=lambda c: -c["dur"])
-    json.dump(cards, open(T.OUT / "cards.json", "w"))
-    print(f"{len(cards)} cartes, durée totale {sum(c['dur'] for c in cards):.0f} s, {sum(len(c['images']) for c in cards)} vignettes, dont {sum(1 for c in cards if len(c['images']) >= 2)} cartes avec ≥2 vignettes ; suggestions : {sum(1 for c in cards if c['suggestion'])}")
+    json.dump(cards, open(T.OUT / out_name, "w"))
+    print(f"{len(cards)} cartes, durée totale {sum(c['dur'] for c in cards):.0f} s, {sum(len(c['images']) for c in cards)} vignettes, dont {sum(1 for c in cards if len(c['images']) >= 2)} cartes avec ≥2 vignettes ; suggestions : {sum(1 for c in cards if c['suggestion'])} -> {out_name}")
 
 
 if __name__ == "__main__":
