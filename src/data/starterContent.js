@@ -8016,7 +8016,13 @@ const STARTER_EXERCISES_FFF_GIFE_2026 = [
     variantes: "Alterner les éducatifs ; faire varier le contrôle imposé à chaque tour ; faire participer le gardien en prises de balle à la main.",
     intensite: "faible", theme: "Mobilité",
     source: "FFF, Guide interactif du football des enfants (GIFE) U10-U11, échauffement d'avant-match : atelier 1 ; GIFE U12-U13, échauffement d'avant-match : atelier 1 (même atelier)",
-    diagram: [zel(0.15, 0.3, 0.85, 0.7), ...pts("playerA", [[0.2, 0.4, 1], [0.2, 0.55, 2], [0.2, 0.7, 3]]), ...pts("playerB", [[0.8, 0.4, 1], [0.8, 0.55, 2], [0.8, 0.7, 3]]), pel("ball", 0.25, 0.4), ael("arrowPass", 0.25, 0.4, 0.78, 0.4), ael("arrowMove", 0.2, 0.42, 0.78, 0.55)],
+    // Ballon décalé de 0,25 à 0,3 (0,1 du joueur 1 et 0,102 du départ de sa flèche de course,
+    // au-delà du seuil de 0,08 de deriveArrowAnimation) : en dessous, "le ballon d'abord" lui
+    // aurait aussi volé la flèche de course, qui doit rester au joueur (il passe PUIS rejoint la
+    // colonne opposée en educatif — deux mobiles différents, ballon et joueur, pas le même trajet) —
+    // même mécanisme que "Presser le gardien en fermant la passe" (01/10/2026, sur demande de
+    // Gregory après la page "Flèches bloquées").
+    diagram: [zel(0.15, 0.3, 0.85, 0.7), ...pts("playerA", [[0.2, 0.4, 1], [0.2, 0.55, 2], [0.2, 0.7, 3]]), ...pts("playerB", [[0.8, 0.4, 1], [0.8, 0.55, 2], [0.8, 0.7, 3]]), pel("ball", 0.3, 0.4), ael("arrowPass", 0.3, 0.4, 0.78, 0.4), ael("arrowMove", 0.2, 0.42, 0.78, 0.55)],
   },
   {
     name: "Échauffement : conservation par équipe en deux touches minimum", category: "technique", ...FFF_U10_11,
