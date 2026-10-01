@@ -9319,7 +9319,15 @@ const STARTER_EXERCISES_FACR_U1213_2026 = [
     variantes: "La relance commence par le gardien, que n'importe quel joueur peut presser ou non : les joueurs apprennent à reconnaître quand déclencher le pressing, quand ne pas le faire et quand un autre joueur doit le faire.",
     intensite: "elevee", theme: "Pressing",
     source: "FAČR, Tréninková příručka pro kategorii mladších žáků (U12-U13), cvičení A10 « Presink brankáře 2:2 se zakrytím hráče »",
-    diagram: [zel(0.05, 0.15, 0.95, 0.85), pel("goal", 0.05, 0.5), pel("goal", 0.95, 0.5), pel("keeper", 0.09, 0.5), pel("keeper", 0.91, 0.5), pel("playerA", 0.3, 0.4), pel("playerB", 0.36, 0.45), pel("playerA", 0.3, 0.65), pel("playerB", 0.4, 0.62), pel("ball", 0.32, 0.42), ael("arrowPass", 0.32, 0.42, 0.13, 0.48), ael("arrowMove", 0.38, 0.45, 0.16, 0.42, { curved: true, cx: 0.22, cy: 0.28 })],
+    // Ballon décalé de la position du joueur rouge 1 (0,32/0,42 à l'origine, juste à ses pieds) vers
+    // 0,22/0,45, à 0,0943 du joueur ET à 0,16 du départ de la flèche de course du joueur bleu : les
+    // deux dépassent le seuil de 0,08 de deriveArrowAnimation. En dessous, le ballon aurait été pris
+    // deux fois — comme compagnon du joueur rouge (qui ne doit pas suivre sa propre passe) ET comme
+    // mobile de la flèche de course (qui doit rester au joueur bleu presseur, juste à côté du ballon
+    // au moment du pressing). La flèche de passe est recalée pour partir du nouveau ballon ; la
+    // flèche de course du joueur bleu est inchangée (01/10/2026, sur demande de Gregory après la
+    // page "Flèches bloquées").
+    diagram: [zel(0.05, 0.15, 0.95, 0.85), pel("goal", 0.05, 0.5), pel("goal", 0.95, 0.5), pel("keeper", 0.09, 0.5), pel("keeper", 0.91, 0.5), pel("playerA", 0.3, 0.4), pel("playerB", 0.36, 0.45), pel("playerA", 0.3, 0.65), pel("playerB", 0.4, 0.62), pel("ball", 0.22, 0.45), ael("arrowPass", 0.22, 0.45, 0.13, 0.48), ael("arrowMove", 0.38, 0.45, 0.16, 0.42, { curved: true, cx: 0.22, cy: 0.28 })],
   },
   {
     name: "Jeu en trois zones : les deux paires du milieu contre deux défenseurs", category: "tactique", ...CZ_U1213,
