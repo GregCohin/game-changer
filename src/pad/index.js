@@ -454,65 +454,134 @@ export function generateArrowPathAnimation(elements) {
   return { diagram: withoutArrow, diagramFrames: [frame2] };
 }
 
-// Animation générique, pour N'IMPORTE QUEL schéma de la bibliothèque qui contient une flèche de
-// mouvement (01/10/2026, chantier large demandé par Gregory après les 7 fonctions ci-dessus : 605
-// flèches arrowMove/arrowPass/arrowDribble au total dans toute la bibliothèque, la plupart dans des
-// schémas écrits à la main, jamais construits par une des fonctions genX()). Contrairement à
-// generateArrowPathAnimation (réservée à 3 générateurs connus, où le ballon est le SEUL choix
+// Animation générique, pour N'IMPORTE QUEL schéma de la bibliothèque qui contient une ou plusieurs
+// flèches de mouvement (01/10/2026, chantier large demandé par Gregory après les 7 fonctions
+// ci-dessus ; généralisée le jour même aux schémas à PLUSIEURS flèches sur sa demande explicite
+// « j'aimerais que l'ensemble avec schéma où il y a des mouvements annoncés le soit »). Contrairement
+// à generateArrowPathAnimation (réservée à 3 générateurs connus, où le ballon est le SEUL choix
 // possible, vérifié au cas par cas) : ici, sans rien savoir à l'avance de la forme du schéma, les
 // règles sont volontairement plus prudentes qu'ambitieuses — préférer ne rien animer plutôt
 // qu'animer le mauvais élément, cf. les cas réels ci-dessous, tous trouvés par un script d'analyse
-// jetable sur la bibliothèque réelle avant d'écrire cette fonction, pas après :
-//  1. Exactement UNE flèche dans le schéma. Avec 2 flèches ou plus (145 schémas à 2, 29 à 3, 4 à 4...
-//     — ex. "Le une-deux simple", qui a une passe ET une course de remise), impossible de savoir
-//     laquelle animer sans risquer d'en ignorer une autre tout aussi réelle : on n'anime aucune des
-//     deux plutôt que de deviner.
-//  2. Le ballon est préféré s'il est à proximité du départ de la flèche (même seuil 0,08) ; sinon, le
-//     joueur/gardien le plus proche à la même distance — un schéma sans ballon (course démarquée, ex.
-//     "Pliométrie, détente et puissance") a besoin qu'un JOUEUR bouge, pas seulement le ballon.
-//  3. Si le ballon est le mobile principal, un joueur à portée DU BALLON lui-même (pas du départ de
-//     la flèche) l'accompagne — mais seulement si UN SEUL joueur est dans ce cas ; si deux joueurs
-//     sont tous les deux à portée (ex. "Pivot, remise dos au jeu" : l'attaquant ET son adversaire
-//     direct sont tous les deux à moins de 0,08 du ballon à l'instant du contrôle), impossible de
-//     savoir lequel accompagne sans risquer d'animer l'adversaire plutôt que le porteur : le ballon
-//     avance seul plutôt que de deviner.
-//  4. Jamais de reconstruction de trajet à partir des plots environnants (contrairement au slalom) :
-//     un schéma avec des plots a souvent des plots-OBJECTIF (quilles de bowling dans "Le bowling des
-//     cônes", cage dans "La cage aux lions") plutôt que des plots-JALON à traverser dans l'ordre — les
-//     distinguer de façon fiable demanderait de comprendre l'exercice, pas seulement sa géométrie.
-//     Conséquence acceptée : un schéma où des plots forment un vrai circuit en zigzag (ex. "Circuit
-//     de coordination et discipline collective") n'anime que la flèche telle qu'elle est déjà
-//     dessinée (un trajet droit, pas le zigzag) — ni plus ni moins fidèle que le schéma statique
-//     d'origine, qui montrait déjà la même flèche droite à côté des mêmes plots.
-// Gère les flèches courbées (cx/cy, via moveCx/moveCy, un seul segment donc jamais de movePath) aussi
-// bien que droites. Jamais plusieurs joueurs à la fois au-delà du couple ballon+porteur (contrairement
-// à generateDribbleAnimation, pensée pour un schéma à un seul joueur). Renvoie null si rien
-// d'exploitable n'est trouvé : le schéma reste alors affiché tel quel, flèche comprise. N'est appelée
-// qu'à l'affichage (voir getExerciseDisplayFrames, App.jsx), jamais dans le formulaire d'édition : un
-// exercice qu'un coach anime lui-même à la main dans l'éditeur garde exactement ses propres images,
-// jamais recalculées par-dessus au moment de les modifier.
+// jetable sur la bibliothèque réelle avant d'écrire cette fonction, pas après.
+//
+// Chaque flèche a un « mobile indépendant » : le ballon s'il est à moins de 0,08 de son départ,
+// sinon le joueur/gardien le plus proche à la même distance (un schéma sans ballon, ex. "Pliométrie,
+// détente et puissance", a besoin qu'un JOUEUR bouge). Les flèches sont ensuite regroupées en
+// CHAÎNES : la flèche A s'enchaîne dans la flèche B si la fin de A touche le départ de B (à 0,08)
+// ET qu'aucun ballon dédié n'attend déjà à cet endroit — un ballon déjà présent au départ de B
+// signifie que B a son PROPRE mobile indépendant (deux mouvements simultanés, pas un seul qui
+// continue). Exemple réel qui a motivé cette distinction : "La traversée magique" a deux dribbles
+// qui se croisent en sens opposé, chacun avec son propre ballon déjà posé au départ de sa flèche —
+// leurs flèches se touchent par coïncidence au milieu du terrain, mais ce sont deux mouvements
+// indépendants, pas une chaîne ; alors que "Le troisième homme joué" (passe puis remise, un seul
+// ballon dans tout le schéma) n'a qu'un joueur RECEVEUR au départ de la 2e flèche, jamais de ballon
+// dédié : la bonne lecture est que le même ballon continue sa course. Chaque groupe (chaîne ou
+// flèche seule) anime le mobile indépendant de sa PREMIÈRE flèche sur tout le trajet du groupe
+// (movePath = la fin de chaque flèche sauf la dernière, qui devient la position finale) ; un
+// compagnon (ballon + un seul joueur/gardien à moins de 0,08 DU BALLON lui-même, même règle que pour
+// une flèche seule) suit le même trajet avec un décalage constant tout au long de la chaîne, jamais
+// recalé flèche par flèche. Courbes (cx/cy) gérées par segment, y compris au milieu d'une chaîne.
+//
+// Sécurité, dans l'ordre : (1) un groupe sans mobile indépendant (aucun ballon ni joueur à portée du
+// départ de sa première flèche) annule TOUT le schéma, pas seulement ce groupe — ex. "La fractale du
+// troisième homme", où une 4e flèche isolée n'a personne à proximité. (2) deux groupes qui
+// réclament le MÊME élément annulent aussi tout le schéma — ex. "Le une-deux simple" (un joueur sans
+// ballon dessiné est à la fois le départ d'une passe ET d'une course, deux actions divergentes,
+// impossible de savoir laquelle est la vraie) et "Passer les ponts" (même joueur au départ d'un
+// dribble ET d'une course en sens opposé — deux variantes alternatives illustrées côte à côte, pas
+// une seule action). (3) jamais de reconstruction de trajet à partir des plots environnants
+// (contrairement au slalom) : un schéma avec des plots a souvent des plots-OBJECTIF (quilles de
+// bowling, cage) plutôt que des plots-JALON, les distinguer demanderait de comprendre l'exercice, pas
+// seulement sa géométrie — un schéma au vrai zigzag non annoncé par une flèche n'anime donc que ce
+// que ses flèches décrivent réellement, ni plus ni moins fidèle que le schéma statique d'origine.
+// Renvoie null si rien d'exploitable n'est trouvé (aucune flèche, ou une des sécurités ci-dessus) :
+// le schéma reste alors affiché tel quel. N'est appelée qu'à l'affichage (voir
+// getExerciseDisplayFrames, App.jsx), jamais dans le formulaire d'édition : un exercice qu'un coach
+// anime lui-même à la main dans l'éditeur garde exactement ses propres images, jamais recalculées
+// par-dessus au moment de les modifier.
 export function deriveArrowAnimation(elements) {
-  const arrows = elements.filter((e) => e.type === "arrowMove" || e.type === "arrowPass" || e.type === "arrowDribble");
-  if (arrows.length !== 1) return null;
-  const arrow = arrows[0];
-  const nearArrowStart = (e) => e.x != null && Math.hypot(e.x - arrow.x1, e.y - arrow.y1) <= 0.08;
-  const ball = elements.find((e) => e.type === "ball" && nearArrowStart(e));
-  let primary = ball;
-  if (!primary) {
-    const players = elements.filter((e) => nearArrowStart(e) && e.type && (e.type.startsWith("player") || e.type === "keeper"));
-    primary = players.reduce((best, p) => (!best || Math.hypot(p.x - arrow.x1, p.y - arrow.y1) < Math.hypot(best.x - arrow.x1, best.y - arrow.y1) ? p : best), null);
+  const arrowTypes = new Set(["arrowMove", "arrowPass", "arrowDribble"]);
+  const arrows = elements.filter((e) => arrowTypes.has(e.type));
+  if (arrows.length === 0) return null;
+  const dist = (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2);
+
+  function independentMover(arrow) {
+    const ball = elements.find((e) => e.type === "ball" && e.x != null && dist(e.x, e.y, arrow.x1, arrow.y1) <= 0.08);
+    if (ball) return ball;
+    const players = elements.filter((e) => e.x != null && e.type && (e.type.startsWith("player") || e.type === "keeper") && dist(e.x, e.y, arrow.x1, arrow.y1) <= 0.08);
+    return players.reduce((best, p) => (!best || dist(p.x, p.y, arrow.x1, arrow.y1) < dist(best.x, best.y, arrow.x1, arrow.y1) ? p : best), null);
   }
-  if (!primary) return null;
-  const moverIds = new Set([primary.id]);
-  if (primary.type === "ball") {
-    const candidates = elements.filter((e) => e.id !== primary.id && e.x != null && e.type && (e.type.startsWith("player") || e.type === "keeper") && Math.hypot(e.x - primary.x, e.y - primary.y) <= 0.08);
-    if (candidates.length === 1) moverIds.add(candidates[0].id);
+  const movers = arrows.map(independentMover);
+
+  // Regroupement en chaînes : voir le commentaire au-dessus de la fonction pour la règle exacte.
+  const chainsTo = arrows.map((a, i) => {
+    for (let j = 0; j < arrows.length; j++) {
+      if (j === i || dist(a.x2, a.y2, arrows[j].x1, arrows[j].y1) > 0.08) continue;
+      const ballAtStart = elements.find((e) => e.type === "ball" && e.x != null && dist(e.x, e.y, arrows[j].x1, arrows[j].y1) <= 0.08);
+      if (ballAtStart) continue;
+      return j;
+    }
+    return -1;
+  });
+  const isChainTarget = new Array(arrows.length).fill(false);
+  chainsTo.forEach((j) => { if (j >= 0) isChainTarget[j] = true; });
+  const groups = [];
+  const visited = new Array(arrows.length).fill(false);
+  for (let i = 0; i < arrows.length; i++) {
+    if (isChainTarget[i] || visited[i]) continue;
+    const chain = [i]; visited[i] = true; let cur = i;
+    while (chainsTo[cur] >= 0 && !visited[chainsTo[cur]]) { cur = chainsTo[cur]; chain.push(cur); visited[cur] = true; }
+    groups.push(chain);
   }
-  const dx = arrow.x2 - arrow.x1, dy = arrow.y2 - arrow.y1;
-  const curved = !!arrow.curved && arrow.cx != null && arrow.cy != null;
-  const cdx = curved ? arrow.cx - arrow.x1 : 0, cdy = curved ? arrow.cy - arrow.y1 : 0;
-  const withoutArrow = elements.filter((e) => e.id !== arrow.id);
-  const frame1 = curved ? withoutArrow.map((e) => (moverIds.has(e.id) ? { ...e, moveCx: e.x + cdx, moveCy: e.y + cdy } : e)) : withoutArrow;
-  const frame2 = withoutArrow.map((e) => (moverIds.has(e.id) ? { ...e, x: e.x + dx, y: e.y + dy } : e));
+  for (let i = 0; i < arrows.length; i++) if (!visited[i]) groups.push([i]); // sécurité (cycle improbable)
+
+  const groupMovers = groups.map((g) => movers[g[0]]);
+  if (groupMovers.some((m) => !m)) return null;
+  const idCounts = new Map();
+  groupMovers.forEach((m) => idCounts.set(m.id, (idCounts.get(m.id) || 0) + 1));
+  if ([...idCounts.values()].some((c) => c > 1)) return null;
+
+  const frame1Patch = new Map();
+  const frame2Patch = new Map();
+  groups.forEach((group, gi) => {
+    const primary = groupMovers[gi];
+    const chainArrows = group.map((i) => arrows[i]);
+    // Vecteur cumulé de déplacement segment après segment, courbure incluse — toujours exprimé en
+    // RELATIF (par rapport au départ de son propre segment), jamais en absolu, pour rester juste
+    // quel que soit le mobile (principal ou compagnon, décalé du ballon) appliqué dessus ensuite.
+    let cumDx = 0, cumDy = 0;
+    const segments = chainArrows.map((a) => {
+      const seg = {
+        dx: a.x2 - a.x1, dy: a.y2 - a.y1,
+        curveDx: a.curved && a.cx != null ? a.cx - a.x1 : null,
+        curveDy: a.curved && a.cy != null ? a.cy - a.y1 : null,
+        cumDxBefore: cumDx, cumDyBefore: cumDy,
+      };
+      cumDx += seg.dx; cumDy += seg.dy;
+      return seg;
+    });
+    let companion = null;
+    if (primary.type === "ball") {
+      const candidates = elements.filter((e) => e.id !== primary.id && e.x != null && e.type && (e.type.startsWith("player") || e.type === "keeper") && dist(e.x, e.y, primary.x, primary.y) <= 0.08);
+      if (candidates.length === 1) companion = candidates[0];
+    }
+    (companion ? [primary, companion] : [primary]).forEach((mv) => {
+      const movePath = segments.slice(0, -1).map((seg) => {
+        const pt = { x: mv.x + seg.cumDxBefore + seg.dx, y: mv.y + seg.cumDyBefore + seg.dy };
+        if (seg.curveDx != null) { pt.cx = mv.x + seg.cumDxBefore + seg.curveDx; pt.cy = mv.y + seg.cumDyBefore + seg.curveDy; }
+        return pt;
+      });
+      const lastSeg = segments[segments.length - 1];
+      const patch1 = {};
+      if (movePath.length > 0) patch1.movePath = movePath;
+      if (lastSeg.curveDx != null) { patch1.moveCx = mv.x + lastSeg.cumDxBefore + lastSeg.curveDx; patch1.moveCy = mv.y + lastSeg.cumDyBefore + lastSeg.curveDy; }
+      frame1Patch.set(mv.id, patch1);
+      frame2Patch.set(mv.id, { x: mv.x + lastSeg.cumDxBefore + lastSeg.dx, y: mv.y + lastSeg.cumDyBefore + lastSeg.dy });
+    });
+  });
+
+  const withoutArrows = elements.filter((e) => !arrowTypes.has(e.type));
+  const frame1 = withoutArrows.map((e) => (frame1Patch.has(e.id) ? { ...e, ...frame1Patch.get(e.id) } : e));
+  const frame2 = withoutArrows.map((e) => (frame2Patch.has(e.id) ? { ...e, ...frame2Patch.get(e.id) } : e));
   return { diagram: frame1, diagramFrames: [frame2] };
 }
