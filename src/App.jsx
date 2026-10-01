@@ -11,7 +11,7 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
 import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
-import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames } from "./pad/index.js";
+import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames, deriveArrowAnimation } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
 import { CSS } from "./styles/css.js";
@@ -30972,6 +30972,20 @@ const EXERCISE_INTENSITIES = [{ key: "faible", label: "Faible" }, { key: "modere
 export function getExerciseFrames(ex) {
   return [ex && ex.diagram ? ex.diagram : [], ...((ex && ex.diagramFrames) || [])];
 }
+// Comme getExerciseFrames, mais pour l'AFFICHAGE seulement (ExerciseDetailModal) : si l'exercice n'a
+// pas déjà ses propres diagramFrames, tente de calculer une animation à la volée depuis la flèche de
+// son schéma (deriveArrowAnimation, 01/10/2026 — 605 flèches dans la bibliothèque, la plupart dans
+// des schémas écrits à la main que les 7 fonctions genX() de starterContent.js ne couvrent pas). Rien
+// n'est écrit nulle part : un exercice garde sa donnée d'origine ; seul ce qui est montré change.
+// Jamais utilisée pour l'édition (ExerciseFormPanel appelle directement getExerciseFrames(form)) :
+// un coach qui ouvre un exercice dans l'éditeur doit voir et modifier exactement ses propres images,
+// jamais une animation devinée à la volée qui n'existe dans aucune donnée réelle.
+export function getExerciseDisplayFrames(ex) {
+  if (ex && ex.diagramFrames && ex.diagramFrames.length > 0) return getExerciseFrames(ex);
+  const derived = ex && ex.diagram ? deriveArrowAnimation(ex.diagram) : null;
+  if (!derived) return getExerciseFrames(ex);
+  return [derived.diagram, ...derived.diagramFrames];
+}
 const GOALKEEPER_SKILLS = ["Plongeon", "Sortie aérienne", "Relance / jeu au pied", "Une-contre-un", "Placement", "Communication défensive"];
 const CURRICULUM_FEDERATIONS = [
   { key: "FFF", label: "France (FFF)" },
@@ -31837,7 +31851,7 @@ function ExerciseDetailModal({ exercise, onClose, onEdit, onDelete }) {
   if (!exercise) return null;
   const links = getExerciseGameplanLinks(exercise);
   const cat = EXERCISE_CATEGORIES.find((c) => c.key === (exercise.category || "tactique"));
-  const frames = getExerciseFrames(exercise);
+  const frames = getExerciseDisplayFrames(exercise);
   const ageFormatLabel = EXERCISE_AGE_FORMATS.find((f) => f.key === (exercise.ageFormat || "standard"))?.label;
   const federationLabel = CURRICULUM_FEDERATIONS.find((f) => f.key === exercise.curriculumFederation)?.label;
   const bracketLabel = CURRICULUM_BRACKETS.find((b) => b.key === exercise.fffBracket)?.label;
