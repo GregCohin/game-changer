@@ -24,17 +24,23 @@ COLS, ROWS = 6, 8
 HFRAC = 0.21                  # hauteur d'un joueur en px ~ HFRAC x (distance du pied à l'horizon)
 
 
-def sample(n, seed=7, subdir=None, n_candidates=None, box_px=6.0):
-    """Tire n_candidates pistes (n par défaut) et ne garde pour les planches que les n premières qui ont un
-    descripteur d'équipe propre (boîte détectée à box_px près de la projection) — une tolérance large « rattrape »
-    des pistes mais confond parfois la boîte d'une piste voisine, ce qui bruite l'étiquetage (vu sur ce match :
-    73 % d'exactitude sur l'entraînement à 25 px, 92 % à 6 px)."""
+def sample(n, seed=7, subdir=None, n_candidates=None, box_px=6.0, ids_override=None):
+    """Tire n_candidates pistes (n par défaut, pondérées par durée) et ne garde pour les planches que les n premières
+    qui ont un descripteur d'équipe propre (boîte détectée à box_px près de la projection) — une tolérance large
+    « rattrape » des pistes mais confond parfois la boîte d'une piste voisine, ce qui bruite l'étiquetage (vu sur ce
+    match : 73 % d'exactitude sur l'entraînement à 25 px, 92 % à 6 px).
+    ids_override : liste explicite de "chunk-id" à échantillonner à la place du tirage pondéré par durée — pour cibler
+    un lot de relecture (ex. pistes à la frontière de décision du classeur) plutôt qu'un tirage représentatif."""
     out = DIR if subdir is None else DIR / subdir
     rnd = random.Random(seed)
     tls = [t for t in load_tracklets(min_hits=20)]
-    w = np.array([t.t1 - t.t0 for t in tls], float)
     n_candidates = n_candidates or n
-    idx = list(np.random.default_rng(seed).choice(len(tls), size=min(n_candidates, len(tls)), replace=False, p=w / w.sum()))
+    if ids_override is not None:
+        by_id = {f"{t.id[0]}-{t.id[1]}": i for i, t in enumerate(tls)}
+        idx = [by_id[s] for s in ids_override if s in by_id]
+    else:
+        w = np.array([t.t1 - t.t0 for t in tls], float)
+        idx = list(np.random.default_rng(seed).choice(len(tls), size=min(n_candidates, len(tls)), replace=False, p=w / w.sum()))
     model = T.load_model()
     cap = open_panorama()
     candidates = []
