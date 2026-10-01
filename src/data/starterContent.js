@@ -11930,7 +11930,14 @@ const STARTER_EXERCISES_FSS_2026 = [
     variantes: "Travailler la version « appel dans le dos » puis la version « rotation » séparément, cinq minutes chaque sens ; les enchaîner dans la même séance.",
     intensite: "moderee", theme: "Passes",
     source: "FSS (Serbie), Škola fudbala FSS, tranche de base : thème III, séance VI, « Pas na trećeg igrača »",
-    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.5, { number: 2 }), pel("playerA", 0.8, 0.5, { number: 3 }), pel("ball", 0.23, 0.52), ael("arrowPass", 0.23, 0.5, 0.47, 0.5), ael("arrowMove", 0.23, 0.5, 0.4, 0.52), ael("arrowPass", 0.53, 0.5, 0.77, 0.5)],
+    // Ballon décalé de 0,23/0,52 à 0,33/0,5 : à 0,13 du joueur 1 et à 0,1 du départ de sa flèche de
+    // course, les deux au-delà du seuil de 0,08 — même mécanisme que les trois points précédents.
+    // La 1re passe (recalée pour partir du nouveau ballon) s'enchaîne dans la 2e (leur jonction,
+    // 0,06, est sous le seuil et sans ballon dédié à son départ) : le ballon anime la passe au
+    // troisième homme (joueur 1 → joueur 2 → joueur 3) en un seul mouvement, pendant que le joueur
+    // 1 s'anime séparément sur sa course pour se placer derrière le joueur 2 (01/10/2026, sur
+    // demande de Gregory après la page "Flèches bloquées").
+    diagram: [zel(0.1, 0.15, 0.9, 0.85), pel("playerA", 0.2, 0.5, { number: 1 }), pel("playerA", 0.5, 0.5, { number: 2 }), pel("playerA", 0.8, 0.5, { number: 3 }), pel("ball", 0.33, 0.5), ael("arrowPass", 0.33, 0.5, 0.47, 0.5), ael("arrowMove", 0.23, 0.5, 0.4, 0.52), ael("arrowPass", 0.53, 0.5, 0.77, 0.5)],
   },
   {
     name: "Jeu en espace défini avec appuis extérieurs : conserver puis servir en profondeur ou en largeur", category: "tactique", ...FSS_BASE,
