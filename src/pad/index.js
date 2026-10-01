@@ -482,20 +482,26 @@ export function generateArrowPathAnimation(elements) {
 // une flèche seule) suit le même trajet avec un décalage constant tout au long de la chaîne, jamais
 // recalé flèche par flèche. Courbes (cx/cy) gérées par segment, y compris au milieu d'une chaîne.
 //
-// Sécurité, dans l'ordre : (1) un groupe sans mobile indépendant (aucun ballon ni joueur à portée du
-// départ de sa première flèche) annule TOUT le schéma, pas seulement ce groupe — ex. "La fractale du
-// troisième homme", où une 4e flèche isolée n'a personne à proximité. (2) deux groupes qui
-// réclament le MÊME élément annulent aussi tout le schéma — ex. "Le une-deux simple" (un joueur sans
-// ballon dessiné est à la fois le départ d'une passe ET d'une course, deux actions divergentes,
-// impossible de savoir laquelle est la vraie) et "Passer les ponts" (même joueur au départ d'un
-// dribble ET d'une course en sens opposé — deux variantes alternatives illustrées côte à côte, pas
-// une seule action). (3) jamais de reconstruction de trajet à partir des plots environnants
-// (contrairement au slalom) : un schéma avec des plots a souvent des plots-OBJECTIF (quilles de
-// bowling, cage) plutôt que des plots-JALON, les distinguer demanderait de comprendre l'exercice, pas
-// seulement sa géométrie — un schéma au vrai zigzag non annoncé par une flèche n'anime donc que ce
-// que ses flèches décrivent réellement, ni plus ni moins fidèle que le schéma statique d'origine.
-// Renvoie null si rien d'exploitable n'est trouvé (aucune flèche, ou une des sécurités ci-dessus) :
-// le schéma reste alors affiché tel quel. N'est appelée qu'à l'affichage (voir
+// Sécurité « au mieux » (01/10/2026, affinée sur demande de Gregory de pousser plus loin que le
+// premier jet tout-ou-rien) : un groupe sans mobile indépendant, ou dont le mobile est réclamé par un
+// AUTRE groupe, n'annule plus tout le schéma — seul CE groupe est écarté (ses flèches restent
+// affichées telles quelles, exactement comme avant cette fonction), les autres groupes du même schéma
+// s'animent normalement. Exemples réels qui ont motivé ce passage au cas par cas plutôt que tout-ou-
+// rien : "La vallée des pingouins" a un dribble en aller qui part d'un ballon bien identifié (animé)
+// et un aller-retour de récupération sans personne à son départ (laissé statique) ; "Le triangle des
+// feintes" a une chaîne de 2 flèches avec ballon (animée) et une 3e flèche isolée sans personne à
+// proximité (laissée statique). Seul un schéma où AUCUN groupe n'est exploitable renvoie encore null
+// dans son ensemble — ex. "Le une-deux simple" (un joueur sans ballon dessiné est à la fois le départ
+// d'une passe ET d'une course, deux actions divergentes : les DEUX groupes se réclament du même
+// joueur, aucun des deux ne peut donc être retenu) et "Passer les ponts" (même joueur au départ d'un
+// dribble ET d'une course en sens opposé — deux variantes alternatives illustrées côte à côte, même
+// cas de figure). Jamais de reconstruction de trajet à partir des plots environnants (contrairement
+// au slalom) : un schéma avec des plots a souvent des plots-OBJECTIF (quilles de bowling, cage) plutôt
+// que des plots-JALON, les distinguer demanderait de comprendre l'exercice, pas seulement sa
+// géométrie — un schéma au vrai zigzag non annoncé par une flèche n'anime donc que ce que ses flèches
+// décrivent réellement, ni plus ni moins fidèle que le schéma statique d'origine. Renvoie null
+// seulement si rien du tout n'est exploitable (aucune flèche, ou aucun groupe ne passe les sécurités
+// ci-dessus) : le schéma reste alors affiché tel quel. N'est appelée qu'à l'affichage (voir
 // getExerciseDisplayFrames, App.jsx), jamais dans le formulaire d'édition : un exercice qu'un coach
 // anime lui-même à la main dans l'éditeur garde exactement ses propres images, jamais recalculées
 // par-dessus au moment de les modifier.
@@ -536,16 +542,22 @@ export function deriveArrowAnimation(elements) {
   for (let i = 0; i < arrows.length; i++) if (!visited[i]) groups.push([i]); // sécurité (cycle improbable)
 
   const groupMovers = groups.map((g) => movers[g[0]]);
-  if (groupMovers.some((m) => !m)) return null;
+  // Ne retient que les groupes utilisables : mobile trouvé ET pas réclamé par un autre groupe. Les
+  // groupes écartés gardent leurs flèches intactes (non supprimées, non animées) — voir le
+  // commentaire au-dessus de la fonction.
   const idCounts = new Map();
-  groupMovers.forEach((m) => idCounts.set(m.id, (idCounts.get(m.id) || 0) + 1));
-  if ([...idCounts.values()].some((c) => c > 1)) return null;
+  groupMovers.forEach((m) => { if (m) idCounts.set(m.id, (idCounts.get(m.id) || 0) + 1); });
+  const resolvedGroupIndices = groups.map((_, gi) => gi).filter((gi) => groupMovers[gi] && idCounts.get(groupMovers[gi].id) === 1);
+  if (resolvedGroupIndices.length === 0) return null;
 
   const frame1Patch = new Map();
   const frame2Patch = new Map();
-  groups.forEach((group, gi) => {
+  const resolvedArrowIds = new Set();
+  resolvedGroupIndices.forEach((gi) => {
+    const group = groups[gi];
     const primary = groupMovers[gi];
     const chainArrows = group.map((i) => arrows[i]);
+    chainArrows.forEach((a) => resolvedArrowIds.add(a.id));
     // Vecteur cumulé de déplacement segment après segment, courbure incluse — toujours exprimé en
     // RELATIF (par rapport au départ de son propre segment), jamais en absolu, pour rester juste
     // quel que soit le mobile (principal ou compagnon, décalé du ballon) appliqué dessus ensuite.
@@ -580,8 +592,10 @@ export function deriveArrowAnimation(elements) {
     });
   });
 
-  const withoutArrows = elements.filter((e) => !arrowTypes.has(e.type));
-  const frame1 = withoutArrows.map((e) => (frame1Patch.has(e.id) ? { ...e, ...frame1Patch.get(e.id) } : e));
-  const frame2 = withoutArrows.map((e) => (frame2Patch.has(e.id) ? { ...e, ...frame2Patch.get(e.id) } : e));
+  // Seules les flèches des groupes résolus disparaissent ; celles des groupes écartés restent
+  // affichées (jamais supprimées sans être, elles, réellement animées).
+  const kept = elements.filter((e) => !resolvedArrowIds.has(e.id));
+  const frame1 = kept.map((e) => (frame1Patch.has(e.id) ? { ...e, ...frame1Patch.get(e.id) } : e));
+  const frame2 = kept.map((e) => (frame2Patch.has(e.id) ? { ...e, ...frame2Patch.get(e.id) } : e));
   return { diagram: frame1, diagramFrames: [frame2] };
 }
