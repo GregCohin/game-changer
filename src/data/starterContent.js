@@ -2510,7 +2510,8 @@ const STARTER_EXERCISES_FIGC = [
     pointsCles: "Respecter les trois temps dans l'ordre — l'exploration libre prépare la forme organisée, pas l'inverse ; expliquer brièvement et efficacement ; valoriser l'imagination.",
     variantes: "Changer le thème imaginaire du parcours (forêt, banquise) pour renouveler la motivation ; version Piccoli Amici : dans la forme organisée, chacun fait autant de stations qu'il le souhaite avant de changer de rôle, et les cinq qui attendent leur tour le font aussi à l'intérieur du terrain ; dans le défi, on joue en équipes de paires.",
     source: "FIGC, Programma di sviluppo territoriale, Eserciziario per l'Attività di Base (v. 3 du 21/12/2019), Primi Calci : « Il guado »",
-    diagram: [zel(0.22, 0.2, 0.78, 0.8), ...pts("hoop", [[0.32, 0.34], [0.42, 0.34]]), ...pts("cone", [[0.56, 0.3], [0.64, 0.4]]), pel("hurdle", 0.36, 0.6), pel("ladder", 0.6, 0.64), ...pts("playerA", [[0.1, 0.3, 1], [0.1, 0.5, 2], [0.1, 0.7, 3], [0.9, 0.4, 4], [0.9, 0.6, 5]]), ...pts("playerC", [[0.4, 0.46], [0.5, 0.56], [0.68, 0.52]]), ael("arrowMove", 0.14, 0.4, 0.3, 0.42)],
+    // Joueur 1 avancé de (0.1,0.3) à (0.12,0.36), à portée de la flèche (0.14,0.4) : « le premier de chaque équipe entre » (défi) le désigne sans ambiguïté comme le meneur ; sans ce rapprochement, aucun joueur n'était à portée (0,108, juste au-dessus du seuil).
+    diagram: [zel(0.22, 0.2, 0.78, 0.8), ...pts("hoop", [[0.32, 0.34], [0.42, 0.34]]), ...pts("cone", [[0.56, 0.3], [0.64, 0.4]]), pel("hurdle", 0.36, 0.6), pel("ladder", 0.6, 0.64), ...pts("playerA", [[0.12, 0.36, 1], [0.1, 0.5, 2], [0.1, 0.7, 3], [0.9, 0.4, 4], [0.9, 0.6, 5]]), ...pts("playerC", [[0.4, 0.46], [0.5, 0.56], [0.68, 0.52]]), ael("arrowMove", 0.14, 0.4, 0.3, 0.42)],
   },
   {
     name: "Le zoo (technique)", category: "technique", ageFormat: "foot_a_5",
@@ -12137,7 +12138,8 @@ const STARTER_EXERCISES_FMF_2026 = [
     variantes: "Allonger la distance du marécage pour les plus grands ; combiner deux habiletés motrices sur une même traversée.",
     intensite: "moderee", theme: "Locomotion",
     source: "FMF (Mexique), Jugamos Todos, Manuel didactique, chapitre III.3.2.1, jeu « Cruza el pantano »",
-    diagram: [zel(0.3, 0.15, 0.7, 0.85, "#5B7FBF"), pel("cone", 0.3, 0.15), pel("cone", 0.7, 0.15), pel("cone", 0.3, 0.85), pel("cone", 0.7, 0.85), pel("playerA", 0.2, 0.15, { number: 1 }), pel("playerA", 0.2, 0.25, { number: 2 }), pel("playerA", 0.8, 0.85), ael("arrowMove", 0.3, 0.15, 0.7, 0.85, { curved: true, cx: 0.5, cy: 0.4 })],
+    // Joueur 1 avancé de (0.2,0.15) à (0.26,0.17), à portée du départ de la flèche (0.3,0.15) : « le premier joueur de la file la plus fournie traverse » le désigne sans ambiguïté ; sans ce rapprochement, aucun joueur n'était à portée (0,1, juste au-dessus du seuil).
+    diagram: [zel(0.3, 0.15, 0.7, 0.85, "#5B7FBF"), pel("cone", 0.3, 0.15), pel("cone", 0.7, 0.15), pel("cone", 0.3, 0.85), pel("cone", 0.7, 0.85), pel("playerA", 0.26, 0.17, { number: 1 }), pel("playerA", 0.2, 0.25, { number: 2 }), pel("playerA", 0.8, 0.85), ael("arrowMove", 0.3, 0.15, 0.7, 0.85, { curved: true, cx: 0.5, cy: 0.4 })],
   },
   {
     name: "La chasse au trésor par équipes, en habileté motrice imposée", category: "athletique", ageFormat: "foot_a_4", ...FMF_BASE,
