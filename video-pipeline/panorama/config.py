@@ -32,6 +32,10 @@ Ils ne sont jamais dans le dépôt (public) : vidéos de match, et export des nu
                        artificielles à vérité connue) : 8.0 -> 0 % de mauvais voisin (mais ne relie qu'environ la moitié des coupures réelles) ;
                        5.0 -> encore quasi 0 % mais relie davantage ; en dessous, le taux d'erreur redevient mesurable. Un héritage erroné reste
                        rattrapé par le contrôle de contradiction global de certify_run (fenêtres écartées, jamais gardées en cas de doute)
+  PANORAMA_DETECT_IMGSZ  taille d'image (côté) passée au détecteur YOLO ; défaut 1664 (1er match, et taille native de son recadrage).
+                       Doubler capte davantage de joueurs côté lointain (+28 à +33 % mesuré) mais ralentit la détection de 3 à 6x (mesuré
+                       moins stable qu'attendu : possible ralentissement thermique sur une série longue, prévoir une marge) — change les
+                       identifiants de piste d'un bout à l'autre du pipeline, donc toute carte de relecture déjà faite doit être refaite
   FOLLOWCAM_VIDEO     vidéo de la caméra suiveuse Veo (mp4)
   FOLLOWCAM_CHECKPOINT  checkpoint extract.py pour ce match (défaut : output/checkpoint_local_v4.pkl, capture du 1er match)
   FOLLOWCAM_ROSTER    roster certifié pour ce match, produit par la revue assistée (défaut : output/roster_v4.json,
@@ -63,6 +67,7 @@ PANORAMA_HALF_CUT_S = os.environ.get("PANORAMA_HALF_CUT_S", "")
 PANORAMA_NOIR_OWN_RIGHT_H1 = os.environ.get("PANORAMA_NOIR_OWN_RIGHT_H1", "")
 PANORAMA_TEAM_SHAPE_THR = os.environ.get("PANORAMA_TEAM_SHAPE_THR", "")
 PANORAMA_CHAIN_ISOLATION_M = os.environ.get("PANORAMA_CHAIN_ISOLATION_M", "")
+PANORAMA_DETECT_IMGSZ = int(os.environ.get("PANORAMA_DETECT_IMGSZ", "1664"))
 FOLLOWCAM_VIDEO = os.environ.get("FOLLOWCAM_VIDEO", "")
 FOLLOWCAM_CHECKPOINT = os.environ.get("FOLLOWCAM_CHECKPOINT", "")
 FOLLOWCAM_ROSTER = os.environ.get("FOLLOWCAM_ROSTER", "")

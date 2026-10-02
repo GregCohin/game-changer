@@ -12,7 +12,7 @@ import numpy as np
 from ultralytics import YOLO
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from panorama.config import PANORAMA_OUT, open_panorama, panorama_band
+from panorama.config import PANORAMA_DETECT_IMGSZ, PANORAMA_OUT, open_panorama, panorama_band
 
 ROOT = Path(__file__).parent.parent
 OUT = Path(PANORAMA_OUT) if PANORAMA_OUT else ROOT / "output" / "panorama"
@@ -41,7 +41,7 @@ def torso_color(band, b):
 
 def detect_frame(model, frame):
     band = frame[BAND_Y0:BAND_Y1, :]
-    r = model(band, imgsz=1664, conf=0.2, device="mps", verbose=False, classes=[1, 2, 3])[0]
+    r = model(band, imgsz=PANORAMA_DETECT_IMGSZ, conf=0.2, device="mps", verbose=False, classes=[1, 2, 3])[0]
     dets = []
     for b, c, cl in zip(r.boxes.xyxy.cpu().numpy(), r.boxes.conf.cpu().numpy(), r.boxes.cls.cpu().numpy().astype(int)):
         dets.append(dict(box=[float(b[0]), float(b[1] + BAND_Y0), float(b[2]), float(b[3] + BAND_Y0)],
