@@ -6013,7 +6013,8 @@ const STARTER_EXERCISES_FOOT4_2026 = [
     pointsCles: "Rythme libre, pas de compétition entre enfants sur la vitesse.",
     variantes: "Rivière plus large pour plus de challenge ; sauts d'un seul pied pour les plus grands du groupe.",
     intensite: "moderee", theme: "Agilité", newBatch: NEW_BATCH_TAG,
-    diagram: [ael("arrowMove", 0.3, 0.3, 0.3, 0.7), ael("arrowMove", 0.7, 0.3, 0.7, 0.7), pel("playerA", 0.5, 0.5, { number: 1 })],
+    // Les 2 flèches verticales d'origine sont les berges, pas le trajet (le texte décrit un saut horizontal) : jamais réutilisables telles quelles. Joueur avancé sur la berge gauche (0.5→0.3) et flèche horizontale ajoutée (berge à berge, 0.3→0.7 en x) pour représenter un aller — seule exception de ce chantier à "jamais fabriquer", sur accord explicite de Gregory.
+    diagram: [ael("arrowMove", 0.3, 0.3, 0.3, 0.7), ael("arrowMove", 0.7, 0.3, 0.7, 0.7), pel("playerA", 0.3, 0.5, { number: 1 }), ael("arrowMove", 0.3, 0.5, 0.7, 0.5)],
   },
   {
     name: "Le jeu des couleurs",
