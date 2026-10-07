@@ -17,10 +17,12 @@ import { MouvementsAnimesTab } from "./mannequin/index.jsx";
 import { CSS } from "./styles/css.js";
 import {
   signInStaff, getStaffUser, onStaffAuthChange,
-  publishPortalSnapshot, pullPortalUpdates,
+  publishPortalSnapshot, findUnreachableNewThreads, pullPortalUpdates,
   generateInvitationCode, listActiveCodesForPlayer, revokeInvitationCode,
   listPlayerLinks, revokeLink,
 } from "./lib/portalSync.js";
+import { assemblePortalSnapshot, describePublishedCounts, describeUnreachableThreads } from "./lib/portalSnapshot.js";
+import { mergePulledUpdates } from "./lib/portalPull.js";
 
 // Renvoie { ALL_STARTER_EXERCISES, STARTER_SESSIONS }, ou null (avec un message) si le chargement échoue.
 async function loadStarterContent() {
@@ -5915,78 +5917,50 @@ function BackupScreen() {
 }
 
 // Rassemble l'état local (localStorage + IndexedDB via readMatchFromCache) de l'équipe/saison
-// active dans la forme attendue par publishPortalSnapshot (src/lib/portalSync.js) — cette fonction
-// connaît les formes internes de l'app staff, portalSync.js ne connaît que du Postgres.
+// active et le passe à assemblePortalSnapshot (src/lib/portalSnapshot.js), qui le convertit au format
+// de la base, écarte ce qui est invalide ou hors cadre et dit pourquoi. Cette fonction ne fait que
+// CONNAÎTRE les formes internes de l'app staff ; les règles de publication vivent dans le module pur.
+// Renvoie { snapshot, blocking, problems, notices } (snapshot est null si blocking n'est pas vide).
 function buildPortalSnapshot(teamId, seasonId) {
-  const roster = JSON.parse(localStorage.getItem("tf_roster") || "[]");
-  const devPlans = JSON.parse(localStorage.getItem("tf_development_plans") || "{}");
-  const programs = JSON.parse(localStorage.getItem("tf_individual_programs") || "{}");
-  const injuriesRaw = JSON.parse(localStorage.getItem("tf_medical_injuries") || "[]");
-  const sessionsRaw = JSON.parse(localStorage.getItem("tf_sessions") || "[]");
-  const faqRaw = JSON.parse(localStorage.getItem("tf_club_faq") || "[]");
-  const clubEventsRaw = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
-  const carpoolRaw = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
-  const forumThreadsRaw = JSON.parse(localStorage.getItem("tf_forum_threads") || "[]");
-  const forumMessagesRaw = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
+  // Lecture tolérante : une clé absente ou corrompue donne la valeur de repli au lieu de faire échouer
+  // toute la publication avec « Unexpected token » (le staff ne saurait pas quelle clé est en cause).
+  const read = (key, fallback) => {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || "null");
+      return value == null ? fallback : value;
+    } catch (e) { return fallback; }
+  };
+
+  const roster = read("tf_roster", []);
+  const teams = read("tf_teams", []);
   const comp = loadCompetitionsData();
 
-  const matchIndex = JSON.parse(localStorage.getItem(MATCHES_INDEX_KEY) || "[]");
+  const matchIndex = read(MATCHES_INDEX_KEY, []);
   const allFullMatches = matchIndex.map((m) => readMatchFromCache(m.id)).filter((m) => m && m.closed);
-
-  const players = roster.map((p) => ({
-    id: p.id, team_id: teamId, season_id: seasonId,
-    first_name: p.firstName || p.name || "", last_name: p.lastName || "", position: p.position || null,
-  }));
-
-  const developmentGoals = roster.flatMap((p) =>
-    (devPlans[p.id] || []).map((g) => ({ id: g.id, player_id: p.id, team_id: teamId, season_id: seasonId, label: g.title, status: g.status || null }))
-  );
-  const individualPrograms = roster.flatMap((p) =>
-    (programs[p.id] || []).map((pr) => ({ id: pr.id, player_id: p.id, team_id: teamId, season_id: seasonId, title: pr.title, content: pr }))
-  );
-  // Vue restreinte volontaire : statut RTP seulement, jamais le diagnostic/type de blessure.
-  const injuries = injuriesRaw.map((i) => ({
-    id: i.id, player_id: i.playerId, team_id: teamId, season_id: seasonId, status: i.status, rtp_stage: i.rtpStage || null,
-  }));
-  const sessions = sessionsRaw.map((s) => ({ id: s.id, team_id: teamId, season_id: seasonId, date: s.date, label: s.name || null }));
-  const faq = faqRaw.map((f) => ({ id: f.id, team_id: teamId, season_id: seasonId, question: f.question, answer: f.answer }));
-  const clubEvents = clubEventsRaw.map((e) => ({ id: e.id, title: e.name, date: e.date, location: null }));
-  const carpoolOffers = carpoolRaw.map((o) => ({
-    id: o.id, team_id: teamId, season_id: seasonId, driver_name: o.driverName, event_label: o.eventTitle, date: o.eventDate, seats_total: o.seats,
-  }));
-
-  const competitions = comp.competitions.map((c) => ({ id: c.id, team_id: teamId, season_id: seasonId, name: c.name }));
-  const fixtures = comp.competitions.flatMap((c) =>
-    c.fixtures.map((f) => ({ id: f.id, competition_id: c.id, team_id: teamId, season_id: seasonId, date: f.date, opponent: f.opponent, location: f.venue || null }))
-  );
-
-  const matches = allFullMatches.map((m) => ({ id: m.id, team_id: teamId, season_id: seasonId, name: m.name, date: m.date, closed: true }));
   const matchStats = roster.flatMap((p) =>
     computePlayerMatchStats(p.id, allFullMatches).map((s) => ({
-      match_id: s.matchId, player_id: p.id, buts: s.buts, passes_decisives: s.passesDecisives, highlights: s.highlights,
+      matchId: s.matchId, playerId: p.id, buts: s.buts, passesDecisives: s.passesDecisives, highlights: s.highlights,
     }))
   );
 
-  const forumThreads = forumThreadsRaw.map((t) => ({
-    id: t.id, team_id: teamId, season_id: seasonId, title: t.title, type: t.type,
-    linked_event_title: t.linkedEventTitle || null, linked_event_date: t.linkedEventDate || null,
-    targetPlayerIds: t.type === "individuelle" ? (t.targetIndividuals || []) : undefined,
-  }));
-
-  // Tous les messages locaux, marqués « staff » : portalSync écarte ceux qui sont déjà connus côté
-  // Supabase comme messages de parents (ramenés par « Récupérer les nouveautés »). Les pièces
-  // jointes (exercices, clips) ne sont pas publiées.
-  const forumMessages = forumMessagesRaw
-    .filter((m) => m && m.threadId && m.content)
-    .map((m) => ({
-      id: m.id, thread_id: m.threadId, author_kind: "staff", author_name: m.authorName || "Staff",
-      parent_id: null, content: m.content, at: new Date(m.at || Date.now()).toISOString(),
-    }));
-
-  return {
-    teamId, seasonId, players, developmentGoals, individualPrograms, injuries, sessions, faq,
-    clubEvents, carpoolOffers, competitions, fixtures, matches, matchStats, forumThreads, forumMessages,
-  };
+  return assemblePortalSnapshot({
+    teamId, seasonId, teams, team: teams.find((t) => t.id === teamId) || null,
+    locations: read("tf_club_locations", []),
+    today: todayIso(),
+    roster,
+    devPlans: read("tf_development_plans", {}),
+    programs: read("tf_individual_programs", {}),
+    injuries: read("tf_medical_injuries", []),
+    sessions: read("tf_sessions", []),
+    faq: read("tf_club_faq", []),
+    clubEvents: read("tf_club_events", []),
+    carpool: read("tf_club_carpool", []),
+    competitions: comp.competitions,
+    matches: allFullMatches.map((m) => ({ id: m.id, name: m.name, date: m.date })),
+    matchStats,
+    forumThreads: read("tf_forum_threads", []),
+    forumMessages: read("tf_forum_messages", []),
+  });
 }
 
 function PortalBackendScreen() {
@@ -5996,7 +5970,9 @@ function PortalBackendScreen() {
   const [linkSent, setLinkSent] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [pulling, setPulling] = useState(false);
-  const [statusMsg, setStatusMsg] = useState("");
+  // Compte rendu de la dernière action : { tone: "ok" | "warn" | "error", title, headline, problems, warnings, notices }
+  const [report, setReport] = useState(null);
+  const [lastPublish, setLastPublish] = useState(null);
   const [roster, setRoster] = useState([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [codes, setCodes] = useState([]);
@@ -6006,6 +5982,7 @@ function PortalBackendScreen() {
     getStaffUser().then(setStaffUser);
     const unsub = onStaffAuthChange((session) => setStaffUser(session?.user || null));
     try { setRoster(JSON.parse(localStorage.getItem("tf_roster") || "[]")); } catch (e) {}
+    try { setLastPublish(localStorage.getItem("tf_portal_last_publish") || null); } catch (e) {}
     return unsub;
   }, []);
 
@@ -6027,54 +6004,95 @@ function PortalBackendScreen() {
     setSendingLink(false);
   }
 
+  // Fiches non publiées parce qu'invalides : « Séance « Entraînement » : date manquante. »
+  const describeProblems = (problems) => problems.map((p) => `${p.what} ${p.label} : ${p.reason} — non publiée.`);
+
   async function handlePublish() {
     setPublishing(true);
-    setStatusMsg("");
+    setReport(null);
+    let built = null;
     try {
-      const snapshot = buildPortalSnapshot(getActiveTeamId(), getActiveSeasonId());
-      await publishPortalSnapshot(snapshot);
+      built = buildPortalSnapshot(getActiveTeamId(), getActiveSeasonId());
+      if (!built.snapshot) {
+        setReport({ tone: "error", title: "Publication impossible", headline: built.blocking[0], problems: describeProblems(built.problems), warnings: [], notices: built.notices });
+        return;
+      }
+
+      // Avant d'envoyer : une conversation individuelle publiée sans parent lié ne sera lisible par
+      // personne, et ses participants ne peuvent plus être ajoutés ensuite. Autant laisser le choix.
+      let unreachable = [];
+      try { unreachable = await findUnreachableNewThreads(built.snapshot); } catch (e) { /* simple aide : si le serveur est injoignable, la publication le dira */ }
+      if (unreachable.length > 0) {
+        const names = unreachable.map((t) => `« ${t.title} »`).join(", ");
+        const proceed = confirm(
+          `Aucun parent n'est encore lié aux joueurs de ${unreachable.length > 1 ? "ces conversations individuelles" : "cette conversation individuelle"} : ${names}.\n\n` +
+          "Les parents ne sont rattachés qu'à la première publication d'un sujet : si tu publies maintenant, personne ne pourra le lire, et cela ne se rattrape pas.\n\n" +
+          "Publier quand même ? (Annuler pour lier d'abord les parents avec leurs codes d'invitation.)"
+        );
+        if (!proceed) {
+          setReport({ tone: "warn", title: "Publication annulée", headline: "Rien n'a été publié.", problems: [], warnings: [], notices: [] });
+          return;
+        }
+      }
+
+      const result = await publishPortalSnapshot(built.snapshot);
       const now = new Date().toISOString();
       localStorage.setItem("tf_portal_last_publish", now);
-      setStatusMsg("Publié le " + new Date(now).toLocaleString("fr-FR"));
+      setLastPublish(now);
+      const skippedByServer = Object.entries(result.skipped || {}).filter(([, n]) => n > 0);
+      const problems = describeProblems(built.problems);
+      const warnings = describeUnreachableThreads(result.individual_threads_without_parent);
+      const notices = [...built.notices];
+      if (skippedByServer.length > 0) notices.push(`Le serveur a écarté des lignes qui ne correspondent à aucun joueur ou sujet publié : ${skippedByServer.map(([table, n]) => `${n} (${table})`).join(", ")}.`);
+      setReport({
+        tone: problems.length + warnings.length > 0 ? "warn" : "ok",
+        title: "Publication terminée",
+        headline: `Publié le ${new Date(now).toLocaleString("fr-FR")} — ${describePublishedCounts(result.counts) || "rien à publier"}.`,
+        problems, warnings, notices,
+      });
     } catch (err) {
-      setStatusMsg("Échec de la publication : " + err.message);
+      setReport({
+        tone: "error", title: "Échec de la publication", headline: err.message,
+        problems: built ? describeProblems(built.problems) : [], warnings: [], notices: built ? built.notices : [],
+      });
+    } finally {
+      setPublishing(false);
     }
-    setPublishing(false);
   }
 
   async function handlePull() {
     setPulling(true);
-    setStatusMsg("");
+    setReport(null);
     try {
       const teamId = getActiveTeamId(), seasonId = getActiveSeasonId();
-      const since = localStorage.getItem("tf_portal_last_pull") || null;
-      const { journalEntries, carpoolPassengers, forumMessages, pulledAt } = await pullPortalUpdates(teamId, seasonId, since);
+      const cursor = localStorage.getItem("tf_portal_last_pull") || null;
+      const pulled = await pullPortalUpdates(teamId, seasonId, cursor);
 
-      if (journalEntries.length > 0) {
-        const journal = JSON.parse(localStorage.getItem("tf_player_journal") || "[]");
-        const existingIds = new Set(journal.map((j) => j.id));
-        localStorage.setItem("tf_player_journal", JSON.stringify([...journal, ...journalEntries.filter((j) => !existingIds.has(j.id))]));
-      }
-      if (carpoolPassengers.length > 0) {
-        const offers = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
-        carpoolPassengers.forEach(({ offerId, passengerName }) => {
-          const offer = offers.find((o) => o.id === offerId);
-          if (offer && !offer.passengers.includes(passengerName)) offer.passengers.push(passengerName);
-        });
-        localStorage.setItem("tf_club_carpool", JSON.stringify(offers));
-      }
-      if (forumMessages.length > 0) {
-        const messages = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
-        const existingIds = new Set(messages.map((m) => m.id));
-        localStorage.setItem("tf_forum_messages", JSON.stringify([...messages, ...forumMessages.filter((m) => !existingIds.has(m.id))]));
-      }
+      const readList = (key) => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } };
+      const merged = mergePulledUpdates(
+        { journal: readList("tf_player_journal"), carpoolOffers: readList("tf_club_carpool"), forumMessages: readList("tf_forum_messages") },
+        pulled
+      );
+      if (merged.added.journal > 0) localStorage.setItem("tf_player_journal", JSON.stringify(merged.journal));
+      if (merged.added.passengers > 0) localStorage.setItem("tf_club_carpool", JSON.stringify(merged.carpoolOffers));
+      if (merged.added.messages > 0) localStorage.setItem("tf_forum_messages", JSON.stringify(merged.forumMessages));
+      // Le curseur n'avance qu'une fois les données enregistrées : un échec d'écriture se rejoue
+      // à la récupération suivante (les doublons sont écartés par identifiant).
+      if (pulled.cursor) localStorage.setItem("tf_portal_last_pull", pulled.cursor);
 
-      localStorage.setItem("tf_portal_last_pull", pulledAt);
-      setStatusMsg(`Récupéré : ${journalEntries.length} note(s) de journal, ${carpoolPassengers.length} covoiturage(s), ${forumMessages.length} message(s) de forum.`);
+      const { journal, passengers, messages } = merged.added;
+      setReport({
+        tone: "ok", title: "Récupération terminée",
+        headline: journal + passengers + messages === 0
+          ? "Rien de nouveau depuis la dernière récupération."
+          : `Récupéré : ${journal} note(s) de journal, ${passengers} inscription(s) au covoiturage, ${messages} message(s) de forum.`,
+        problems: [], warnings: [], notices: [],
+      });
     } catch (err) {
-      setStatusMsg("Échec de la récupération : " + err.message);
+      setReport({ tone: "error", title: "Échec de la récupération", headline: err.message, problems: [], warnings: [], notices: [] });
+    } finally {
+      setPulling(false);
     }
-    setPulling(false);
   }
 
   async function handleGenerateCode() {
@@ -6138,7 +6156,21 @@ function PortalBackendScreen() {
           {pulling ? "Récupération…" : "Récupérer les nouveautés"}
         </button>
       </div>
-      {statusMsg && <p className="hint">{statusMsg}</p>}
+      <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+        {lastPublish ? `Dernière publication de cette équipe/saison : ${new Date(lastPublish).toLocaleString("fr-FR")}.` : "Rien n'a encore été publié pour cette équipe/saison."}
+        {" "}Les parents ne voient que ce que tu publies : pense à republier après un changement.
+      </p>
+      {report && (
+        <div className="signals-box" role="status" style={{ marginTop: 12 }}>
+          <div className="signals-box-title">{report.title}</div>
+          <div className={`signal-item ${report.tone === "ok" ? "positive" : report.tone === "error" ? "negative" : ""}`}>{report.headline}</div>
+          {report.warnings.map((line, i) => <div className="signal-item negative" key={`w${i}`}>⚠ {line}</div>)}
+          {report.problems.length > 0 && <div className="signals-box-title" style={{ marginTop: 6 }}>À corriger dans l'app, puis republier</div>}
+          {report.problems.map((line, i) => <div className="signal-item negative" key={`p${i}`}>{line}</div>)}
+          {report.notices.length > 0 && <div className="signals-box-title" style={{ marginTop: 6 }}>Pour information</div>}
+          {report.notices.map((line, i) => <div className="signal-item" key={`n${i}`}>{line}</div>)}
+        </div>
+      )}
 
       <div className="panel-heading" style={{ marginTop: 24 }}>Codes d'invitation par joueur</div>
       <select value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)} style={{ width: "100%", padding: 8, marginBottom: 12 }}>
