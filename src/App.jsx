@@ -10,6 +10,12 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 // sinon le bundle principal.
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
+import { writeScopedKeysAtomic, writeRawKey } from "./lib/storage.js";
+import { checkRoomForChars, formatChars } from "./lib/storageGauge.js";
+import { exportFullBackupFile, getLastBackup, backupAgeDays, describeBackupAge, REMINDER_AFTER_DAYS } from "./lib/fullBackup.js";
+import ErrorBoundary from "./lib/ErrorBoundary.jsx";
+import BackupCenter from "./lib/BackupPanels.jsx";
+import BackupReminderBanner from "./lib/BackupReminder.jsx";
 import { formatTime, formatDateFr, computeAge, todayIso, dateIsoLocal, addDaysIso, addMonthsIso, diffDaysIso, occurrenceDatesIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
 import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames, deriveArrowAnimation } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
@@ -823,21 +829,30 @@ function computeRatingSuggestions(match) {
 
 function QuickBackupButton({ compact }) {
   const [exporting, setExporting] = useState(false);
+  const [, setTick] = useState(0);
+  const last = getLastBackup();
+  const lastLabel = last ? `Dernière sauvegarde : ${describeBackupAge(last)}` : "Aucune sauvegarde enregistrée sur cet appareil";
+  const stale = !last || backupAgeDays(last, todayIso()) > REMINDER_AFTER_DAYS;
 
   async function handleClick() {
     setExporting(true);
     try {
-      await exportFullBackup();
+      const r = await exportFullBackupFile();
+      if (r.warnings && r.warnings.length > 0) alert(`Sauvegarde téléchargée, mais INCOMPLÈTE : les matchs tagués de ${r.warnings.length} équipe(s)/saison(s) n'ont pas pu être lus. Réessaie, ou utilise Administratif → Club → Sauvegarde.`);
     } catch (e) {
       alert("L'export a échoué : " + e.message);
     }
     setExporting(false);
+    setTick((n) => n + 1);
   }
 
   return (
-    <button className={compact ? "btn btn-ghost btn-small" : "sidebar-backup-btn"} onClick={handleClick} disabled={exporting} title="Télécharger une sauvegarde complète de toutes tes données">
-      <Download size={13} /> {exporting ? "Préparation…" : "Sauvegarder mes données"}
-    </button>
+    <>
+      <button className={compact ? "btn btn-ghost btn-small" : "sidebar-backup-btn"} onClick={handleClick} disabled={exporting} title={`Télécharger une sauvegarde complète de toutes tes données — ${lastLabel}`}>
+        <Download size={13} /> {exporting ? "Préparation…" : "Sauvegarder mes données"}
+      </button>
+      {compact && <div className="dashboard-card-meta" style={stale ? { color: "var(--crimson)" } : undefined}>{lastLabel}</div>}
+    </>
   );
 }
 
@@ -3942,38 +3957,53 @@ function ClubPlayerJourneyScreen({ teams }) {
     const copiedPlayer = isDual
       ? { ...player, linkedTeamRef: { teamId: sourceTeamId, teamName: sourceTeamName } }
       : player;
-    writeScopedKeyFor("tf_roster", targetTeamId, seasonId, JSON.stringify([...targetRoster, copiedPlayer]));
+
+    // Toutes les écritures partent en UN lot « tout ou rien » : si le stockage est plein, rien n'est
+    // modifié. Avant, l'échec de la copie vers l'équipe cible passait inaperçu, puis le joueur était
+    // retiré de l'équipe source — il disparaissait des deux équipes.
+    const writes = [{ baseKey: "tf_roster", teamId: targetTeamId, seasonId, value: JSON.stringify([...targetRoster, copiedPlayer]) }];
 
     const sourceDevPlans = JSON.parse(readScopedKeyFor("tf_development_plans", sourceTeamId, seasonId) || "{}");
     if (sourceDevPlans[player.id]) {
       const targetDevPlans = JSON.parse(readScopedKeyFor("tf_development_plans", targetTeamId, seasonId) || "{}");
       targetDevPlans[player.id] = sourceDevPlans[player.id];
-      writeScopedKeyFor("tf_development_plans", targetTeamId, seasonId, JSON.stringify(targetDevPlans));
+      writes.push({ baseKey: "tf_development_plans", teamId: targetTeamId, seasonId, value: JSON.stringify(targetDevPlans) });
     }
 
     const sourceHealthProfiles = JSON.parse(readScopedKeyFor("tf_medical_health_profiles", sourceTeamId, seasonId) || "{}");
     if (sourceHealthProfiles[player.id]) {
       const targetHealthProfiles = JSON.parse(readScopedKeyFor("tf_medical_health_profiles", targetTeamId, seasonId) || "{}");
       targetHealthProfiles[player.id] = sourceHealthProfiles[player.id];
-      writeScopedKeyFor("tf_medical_health_profiles", targetTeamId, seasonId, JSON.stringify(targetHealthProfiles));
+      writes.push({ baseKey: "tf_medical_health_profiles", teamId: targetTeamId, seasonId, value: JSON.stringify(targetHealthProfiles) });
     }
 
     const sourceInjuries = JSON.parse(readScopedKeyFor("tf_medical_injuries", sourceTeamId, seasonId) || "[]");
     const playerInjuries = sourceInjuries.filter((i) => i.playerId === player.id);
     if (playerInjuries.length > 0) {
       const targetInjuries = JSON.parse(readScopedKeyFor("tf_medical_injuries", targetTeamId, seasonId) || "[]");
-      writeScopedKeyFor("tf_medical_injuries", targetTeamId, seasonId, JSON.stringify([...targetInjuries, ...playerInjuries]));
+      writes.push({ baseKey: "tf_medical_injuries", teamId: targetTeamId, seasonId, value: JSON.stringify([...targetInjuries, ...playerInjuries]) });
+    }
+
+    // Fiche d'origine, en dernier : marquée comme liée à la nouvelle (dans les deux sens) ou retirée.
+    let updatedSourceRoster = null;
+    if (isDual) updatedSourceRoster = sourceRosterFull.map((p) => (p.id === player.id ? { ...p, linkedTeamRef: { teamId: targetTeamId, teamName: targetTeamName } } : p));
+    else if (mode === "move") updatedSourceRoster = sourceRosterFull.filter((p) => p.id !== player.id);
+    if (updatedSourceRoster) writes.push({ baseKey: "tf_roster", teamId: sourceTeamId, seasonId, value: JSON.stringify(updatedSourceRoster) });
+
+    const result = writeScopedKeysAtomic(writes, { silent: true });
+    if (!result.ok) {
+      alert(result.rolledBack
+        ? "Le transfert n'a pas pu être enregistré : le stockage de ce navigateur est plein. Rien n'a été modifié, ni dans l'équipe source ni dans l'équipe cible. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence."
+        : "ATTENTION : le transfert a échoué en cours de route (stockage plein) et n'a pas pu être entièrement annulé. Vérifie les effectifs des deux équipes et télécharge une sauvegarde (Administratif → Club → Sauvegarde).");
+      setBusy(false);
+      return;
     }
 
     if (isDual) {
-      // Marque aussi la fiche d'origine comme liée à la nouvelle, dans les deux sens.
-      const updatedSourceRoster = sourceRosterFull.map((p) => (p.id === player.id ? { ...p, linkedTeamRef: { teamId: targetTeamId, teamName: targetTeamName } } : p));
-      writeScopedKeyFor("tf_roster", sourceTeamId, seasonId, JSON.stringify(updatedSourceRoster));
       setSourceRoster(updatedSourceRoster);
       alert(`${playerFullName(player)} est maintenant actif dans ${sourceTeamName} et ${targetTeamName}. Les deux fiches sont indépendantes une fois copiées — une modification future dans l'une ne se répercute pas automatiquement dans l'autre, mais chaque fiche indique où retrouver l'autre.`);
     } else if (mode === "move") {
-      writeScopedKeyFor("tf_roster", sourceTeamId, seasonId, JSON.stringify(sourceRosterFull.filter((p) => p.id !== player.id)));
-      setSourceRoster(sourceRosterFull.filter((p) => p.id !== player.id));
+      setSourceRoster(updatedSourceRoster);
       alert("Transfert effectué.");
     } else {
       alert(`${playerFullName(player)} copié vers ${targetTeamName}, resté également présent dans ${sourceTeamName}.`);
@@ -5672,164 +5702,12 @@ function clubGroupForSubTab(subTab) {
   return g ? g.id : "club";
 }
 
-function inventoryLocalStorage(teams, seasons) {
-  const allKeys = [];
-  for (let i = 0; i < window.localStorage.length; i++) allKeys.push(window.localStorage.key(i));
-  const tfKeys = allKeys.filter((k) => k && k.startsWith("tf_"));
-
-  const clubData = {};
-  const teamData = {};
-  function ensureScope(scopeKey) {
-    if (!teamData[scopeKey]) teamData[scopeKey] = {};
-    return teamData[scopeKey];
-  }
-
-  tfKeys.forEach((key) => {
-    if (UNSCOPED_STORAGE_KEYS.has(key)) {
-      clubData[key] = rawStorage.getItem.call(window.localStorage, key);
-      return;
-    }
-    let matchedScope = null, matchedBaseKey = null;
-    teams.forEach((team) => {
-      seasons.forEach((season) => {
-        if (team.id === DEFAULT_TEAM_ID && season.id === DEFAULT_SEASON_ID) return;
-        const suffix = `__${team.id}__${season.id}`;
-        if (key.endsWith(suffix)) {
-          matchedScope = `${team.id}::${season.id}`;
-          matchedBaseKey = key.slice(0, key.length - suffix.length);
-        }
-      });
-    });
-    if (matchedScope) {
-      ensureScope(matchedScope)[matchedBaseKey] = rawStorage.getItem.call(window.localStorage, key);
-    } else {
-      ensureScope(`${DEFAULT_TEAM_ID}::${DEFAULT_SEASON_ID}`)[key] = rawStorage.getItem.call(window.localStorage, key);
-    }
-  });
-
-  return { clubData, teamData };
-}
-
-function readAllMatchesFromDb(teamId, seasonId) {
-  return new Promise((resolve) => {
-    try {
-      const req = indexedDB.open(matchesDbNameFor(teamId, seasonId), 2);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(MATCHES_STORE)) db.createObjectStore(MATCHES_STORE, { keyPath: "id" });
-        if (!db.objectStoreNames.contains(OBS_STORE)) db.createObjectStore(OBS_STORE, { keyPath: "id" });
-      };
-      req.onsuccess = () => {
-        const db = req.result;
-        try {
-          const tx = db.transaction([MATCHES_STORE, OBS_STORE], "readonly");
-          let matches = null, obs = null;
-          const done = () => { if (matches != null && obs != null) resolve({ matches, obs }); };
-          const mReq = tx.objectStore(MATCHES_STORE).getAll();
-          mReq.onsuccess = () => { matches = mReq.result || []; done(); };
-          mReq.onerror = () => { matches = []; done(); };
-          const oReq = tx.objectStore(OBS_STORE).getAll();
-          oReq.onsuccess = () => { obs = oReq.result || []; done(); };
-          oReq.onerror = () => { obs = []; done(); };
-        } catch (e) { resolve({ matches: [], obs: [] }); }
-      };
-      req.onerror = () => resolve({ matches: [], obs: [] });
-    } catch (e) { resolve({ matches: [], obs: [] }); }
-  });
-}
-
-function restoreMatchesToDb(teamId, seasonId, matches, obs) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(matchesDbNameFor(teamId, seasonId), 2);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(MATCHES_STORE)) db.createObjectStore(MATCHES_STORE, { keyPath: "id" });
-      if (!db.objectStoreNames.contains(OBS_STORE)) db.createObjectStore(OBS_STORE, { keyPath: "id" });
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      try {
-        const tx = db.transaction([MATCHES_STORE, OBS_STORE], "readwrite");
-        (matches || []).forEach((m) => tx.objectStore(MATCHES_STORE).put(m));
-        (obs || []).forEach((m) => tx.objectStore(OBS_STORE).put(m));
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject(tx.error);
-      } catch (e) { reject(e); }
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function exportFullBackup(onProgress) {
-  let teams = [], seasons = [];
-  try { teams = JSON.parse(rawStorage.getItem.call(window.localStorage, "tf_teams") || "[]"); } catch (e) {}
-  try { seasons = JSON.parse(rawStorage.getItem.call(window.localStorage, "tf_seasons") || "[]"); } catch (e) {}
-  if (teams.length === 0) teams = [{ id: DEFAULT_TEAM_ID, name: "Équipe" }];
-  if (seasons.length === 0) seasons = [{ id: DEFAULT_SEASON_ID, label: "Saison" }];
-
-  const { clubData, teamData } = inventoryLocalStorage(teams, seasons);
-
-  let done = 0;
-  const total = teams.length * seasons.length;
-  for (const team of teams) {
-    for (const season of seasons) {
-      const scopeKey = `${team.id}::${season.id}`;
-      const { matches, obs } = await readAllMatchesFromDb(team.id, season.id);
-      if (matches.length > 0 || obs.length > 0) {
-        if (!teamData[scopeKey]) teamData[scopeKey] = {};
-        teamData[scopeKey]._studioMatches = matches;
-        teamData[scopeKey]._obsMatches = obs;
-      }
-      done++;
-      if (onProgress) onProgress(done, total);
-    }
-  }
-
-  const backup = { exportedAt: new Date().toISOString(), version: 1, teams, seasons, clubData, teamData };
-  const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `game-changer-sauvegarde-${todayIso()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-async function importFullBackup(file, onProgress) {
-  const text = await file.text();
-  const backup = JSON.parse(text);
-  if (!backup.teams || !backup.teamData) throw new Error("Format de sauvegarde non reconnu.");
-
-  rawStorage.setItem.call(window.localStorage, "tf_teams", JSON.stringify(backup.teams));
-  rawStorage.setItem.call(window.localStorage, "tf_seasons", JSON.stringify(backup.seasons || []));
-
-  Object.entries(backup.clubData || {}).forEach(([key, value]) => {
-    rawStorage.setItem.call(window.localStorage, key, value);
-  });
-
-  const entries = Object.entries(backup.teamData);
-  let done = 0;
-  for (const [scopeKey, data] of entries) {
-    const [teamId, seasonId] = scopeKey.split("::");
-    for (const [baseKey, value] of Object.entries(data)) {
-      if (baseKey === "_studioMatches" || baseKey === "_obsMatches") continue;
-      writeScopedKeyFor(baseKey, teamId, seasonId, value);
-    }
-    if (data._studioMatches || data._obsMatches) {
-      await restoreMatchesToDb(teamId, seasonId, data._studioMatches || [], data._obsMatches || []);
-    }
-    done++;
-    if (onProgress) onProgress(done, entries.length);
-  }
-}
+// L'export, la restauration (aperçu, instantané automatique, retour arrière), le chiffrement optionnel
+// et la jauge de stockage vivent dans src/lib/ (fullBackup.js, backupCrypto.js, storageGauge.js,
+// BackupPanels.jsx) : le bouton « Télécharger une sauvegarde » de l'écran d'erreur doit marcher
+// même quand l'app a planté, et ces fonctions se testent sous Node.
 
 function BackupScreen() {
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState(null);
-  const fileInputRef = useRef(null);
   const [currentPin, setCurrentPin] = useState("");
   const [pinDraft, setPinDraft] = useState("");
   const [pinLoaded, setPinLoaded] = useState(false);
@@ -5849,33 +5727,6 @@ function BackupScreen() {
     setTimeout(() => setPinSaved(false), 2500);
   }
 
-  async function handleExport() {
-    setExporting(true);
-    setProgress({ done: 0, total: 1 });
-    try {
-      await exportFullBackup((done, total) => setProgress({ done, total }));
-    } catch (e) {
-      alert("L'export a échoué : " + e.message);
-    }
-    setExporting(false);
-    setProgress(null);
-  }
-
-  async function handleImportFile(file) {
-    if (!confirm("Restaurer cette sauvegarde ? Les données existantes portant les mêmes identifiants seront écrasées — les autres resteront intactes. La page se rechargera à la fin.")) return;
-    setImporting(true);
-    setProgress({ done: 0, total: 1 });
-    try {
-      await importFullBackup(file, (done, total) => setProgress({ done, total }));
-      alert("Sauvegarde restaurée avec succès.");
-      window.location.reload();
-    } catch (e) {
-      alert("La restauration a échoué : " + e.message);
-      setImporting(false);
-      setProgress(null);
-    }
-  }
-
   return (
     <div className="stats-screen">
       <div className="stats-screen-header">
@@ -5885,21 +5736,7 @@ function BackupScreen() {
       <p className="radar-note">Exporte l'intégralité de tes données — toutes les équipes, toutes les saisons, toutes les données de club — dans un seul fichier que tu peux garder de côté. Sans ça, tout ce que tu as construit ne vit que dans ce navigateur, sans filet.</p>
       <p className="hint" style={{ marginTop: 0 }}>Ce que couvre la sauvegarde : effectifs, compétitions, projets de jeu, séances, exercices, causeries, suivi médical, discipline, développement, scouting, toutes les données Club, et les matchs Studio/Observation tagués (scores, tags, possession). Ce qu'elle ne couvre pas : les clips vidéo compilés dans Vidéothèque (trop volumineux pour un fichier de sauvegarde) — mais comme tous les tags sont sauvegardés, ils restent régénérables depuis tes vidéos originales.</p>
 
-      <div className="new-match-card">
-        <div className="panel-heading" style={{ marginTop: 0 }}>Exporter</div>
-        <button className="btn btn-primary" onClick={handleExport} disabled={exporting || importing}>
-          {exporting ? `Préparation… ${progress ? `${progress.done}/${progress.total}` : ""}` : "Télécharger une sauvegarde complète"}
-        </button>
-      </div>
-
-      <div className="new-match-card" style={{ marginTop: 16 }}>
-        <div className="panel-heading" style={{ marginTop: 0 }}>Restaurer</div>
-        <p className="hint" style={{ marginTop: 0 }}>À utiliser sur un navigateur neuf (nouvel ordinateur, cache vidé) ou pour revenir à un état antérieur.</p>
-        <button className="btn btn-ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} disabled={exporting || importing}>
-          {importing ? `Restauration… ${progress ? `${progress.done}/${progress.total}` : ""}` : "Choisir un fichier de sauvegarde"}
-        </button>
-        <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]); e.target.value = ""; }} />
-      </div>
+      <BackupCenter />
       <div className="new-match-card" style={{ marginTop: 16 }}>
         <div className="panel-heading" style={{ marginTop: 0 }}>Verrou par code</div>
         <p className="hint" style={{ marginTop: 0 }}>Protège Suivi médical, Trésorier, Sécurité & éthique et Protection de l'enfance par un code — un frein simple contre le coup d'œil sur un appareil partagé, pas un vrai chiffrement (le code reste en clair dans le stockage local). Le déverrouillage ne dure qu'une session : recharger la page redemande le code.</p>
@@ -6436,13 +6273,15 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
     if (!confirm("Supprimer ce véhicule ?")) return;
     persistVehicles(vehicles.filter((v) => v.id !== id));
   }
+  // Renvoient false si l'écriture a échoué (stockage plein) : la création d'une équipe ou d'une saison
+  // n'annonce un succès qu'après avoir vérifié ce retour.
   function persistTeams(next) {
     setTeams(next);
-    try { window.localStorage.setItem("tf_teams", JSON.stringify(next)); } catch (e) {}
+    try { window.localStorage.setItem("tf_teams", JSON.stringify(next)); return true; } catch (e) { return false; }
   }
   function persistSeasons(next) {
     setSeasons(next);
-    try { window.localStorage.setItem("tf_seasons", JSON.stringify(next)); } catch (e) {}
+    try { window.localStorage.setItem("tf_seasons", JSON.stringify(next)); return true; } catch (e) { return false; }
   }
   function addTeam() {
     if (!newTeamName.trim()) { alert("Donne un nom à cette équipe."); return; }
@@ -6459,48 +6298,80 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
     if (!name.trim()) { alert("Donne un nom à la nouvelle équipe."); return; }
     const seasonId = getActiveSeasonId();
     const newTeam = { id: newId(), name: name.trim(), category: sourceTeam.category || "" };
-    persistTeams([...teams, newTeam]);
 
-    const STRUCTURAL_KEYS = ["tf_gameplan", "tf_exercices", "tf_training_cycles", "tf_active_cycle_id"];
-    STRUCTURAL_KEYS.forEach((key) => {
-      const raw = readScopedKeyFor(key, sourceTeam.id, seasonId);
-      if (raw != null) writeScopedKeyFor(key, newTeam.id, seasonId, raw);
-    });
-    alert(`"${newTeam.name}" créée avec le Projet de jeu, les exercices et les cycles d'entraînement de "${sourceTeam.name}" comme point de départ — modifiable librement ensuite. L'effectif, les matchs et le reste démarrent vides.`);
+    // Ce qui sera copié, avec le nom affiché si une copie échoue. Les exercices pèsent lourd (la banque
+    // de départ ≈ 2,4 millions de caractères) : on vérifie la place AVANT de créer quoi que ce soit.
+    const STRUCTURAL_KEYS = [["tf_gameplan", "le Projet de jeu"], ["tf_exercices", "les exercices"], ["tf_training_cycles", "les cycles d'entraînement"], ["tf_active_cycle_id", "le cycle actif"]];
+    const copies = STRUCTURAL_KEYS.map(([key, label]) => ({ key, label, raw: readScopedKeyFor(key, sourceTeam.id, seasonId) })).filter((c) => c.raw != null);
+    const room = checkRoomForChars(copies.reduce((n, c) => n + c.key.length + c.raw.length, 0) + 200);
+    if (!room.ok && !confirm(`Le stockage de ce navigateur est presque plein : la copie demande environ ${formatChars(room.neededChars)} et il en reste environ ${formatChars(room.freeChars)}. Créer quand même "${newTeam.name}", en copiant ce qui rentre ? (Annuler : rien n'est créé — libère d'abord de la place dans Club → Sauvegarde → « Place disponible ».)`)) return;
+
+    if (!persistTeams([...teams, newTeam])) {
+      alert("L'équipe n'a pas pu être créée : le stockage de ce navigateur est plein. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence.");
+      return;
+    }
+    const failed = copies.filter((c) => !writeScopedKeyFor(c.key, newTeam.id, seasonId, c.raw, { silent: true }));
+    if (failed.length === 0) {
+      alert(`"${newTeam.name}" créée avec le Projet de jeu, les exercices et les cycles d'entraînement de "${sourceTeam.name}" comme point de départ — modifiable librement ensuite. L'effectif, les matchs et le reste démarrent vides.`);
+    } else {
+      alert(`"${newTeam.name}" est créée, mais le stockage de ce navigateur est plein : ${failed.map((c) => c.label).join(", ")} n'ont PAS été copiés. Le reste a bien été copié. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recopie-les à la main (Séance → Création d'exercices : exporter puis importer tes exercices).`);
+    }
   }
   function renameTeam(id, field, value) {
     persistTeams(teams.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
   }
   function deleteTeam(id) {
     if (id === DEFAULT_TEAM_ID) { alert("L'équipe par défaut ne peut pas être supprimée — elle contient tes données déjà existantes."); return; }
-    if (!confirm("Supprimer cette équipe ? Ses données (effectif, matchs, etc.) resteront stockées mais ne seront plus accessibles depuis un sélecteur.")) return;
+    if (!confirm("Supprimer cette équipe ? Ses données (effectif, matchs, etc.) resteront stockées mais ne seront plus accessibles depuis un sélecteur — elles continueront d'occuper de la place dans le navigateur ; tu pourras les supprimer pour de bon depuis Club → Sauvegarde → « Place disponible ».")) return;
     persistTeams(teams.filter((t) => t.id !== id));
     if (getActiveTeamId() === id) switchTeamAndSeason(DEFAULT_TEAM_ID, getActiveSeasonId());
   }
   function addSeason() {
     if (!newSeasonLabel.trim()) { alert("Donne un nom à cette saison (ex. 2026-2027)."); return; }
     const newSeason = { id: newId(), label: newSeasonLabel.trim(), startDate: "", endDate: "" };
-    persistSeasons([...seasons, newSeason]);
+
+    // Ce qui serait reconduit. Les exercices pèsent lourd (≈ 2,4 millions de caractères pour la banque
+    // de départ, recopiés pour CHAQUE équipe) : on vérifie la place AVANT de créer la saison, pour ne
+    // pas la laisser vide sans moyen de reconduire ensuite.
+    const sourceSeasonId = getActiveSeasonId();
+    const CARRY_FORWARD_KEYS = [["tf_roster", "l'effectif"], ["tf_gameplan", "le Projet de jeu"], ["tf_exercices", "les exercices"], ["tf_training_cycles", "les cycles d'entraînement"], ["tf_active_cycle_id", "le cycle actif"]];
+    const copies = [];
+    teams.forEach((t) => {
+      CARRY_FORWARD_KEYS.forEach(([key, label]) => {
+        const raw = readScopedKeyFor(key, t.id, sourceSeasonId);
+        if (raw != null) copies.push({ team: t, key, label, raw });
+      });
+    });
+    let canCarry = teams.length > 0;
+    const room = checkRoomForChars(copies.reduce((n, c) => n + c.key.length + c.raw.length, 0) + 200);
+    if (canCarry && !room.ok) {
+      if (!confirm(`Le stockage de ce navigateur est presque plein : reconduire demande environ ${formatChars(room.neededChars)} et il en reste environ ${formatChars(room.freeChars)}.\n\nOK : créer la saison "${newSeason.label}" SANS reconduction (vide).\nAnnuler : ne rien créer, le temps de libérer de la place (Club → Sauvegarde → « Place disponible »).`)) return;
+      canCarry = false;
+    }
+
+    if (!persistSeasons([...seasons, newSeason])) {
+      alert("La saison n'a pas pu être créée : le stockage de ce navigateur est plein. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence.");
+      return;
+    }
     setNewSeasonLabel("");
 
     if (teams.length === 0) return;
+    if (!canCarry) { alert(`Saison "${newSeason.label}" créée vide : rien n'a été reconduit (stockage presque plein).`); return; }
     if (!confirm(`Reconduire l'effectif (et le Projet de jeu, les exercices, les cycles d'entraînement) de tes ${teams.length} équipe${teams.length > 1 ? "s" : ""} vers "${newSeason.label}" ? Les matchs, séances, blessures et suivis restent sur la saison d'origine — seule la base de départ est copiée, librement modifiable ensuite (joueur parti, nouvelle recrue...).`)) return;
-    const sourceSeasonId = getActiveSeasonId();
-    const CARRY_FORWARD_KEYS = ["tf_roster", "tf_gameplan", "tf_exercices", "tf_training_cycles", "tf_active_cycle_id"];
-    teams.forEach((t) => {
-      CARRY_FORWARD_KEYS.forEach((key) => {
-        const raw = readScopedKeyFor(key, t.id, sourceSeasonId);
-        if (raw != null) writeScopedKeyFor(key, t.id, newSeason.id, raw);
-      });
-    });
-    alert(`Effectif et structure reconduits vers "${newSeason.label}" pour ${teams.length} équipe${teams.length > 1 ? "s" : ""}.`);
+    const failed = copies.filter((c) => !writeScopedKeyFor(c.key, c.team.id, newSeason.id, c.raw, { silent: true }));
+    if (failed.length === 0) {
+      alert(`Effectif et structure reconduits vers "${newSeason.label}" pour ${teams.length} équipe${teams.length > 1 ? "s" : ""}.`);
+    } else {
+      const lines = [...new Set(failed.map((c) => c.label))].map((label) => `${label} (${failed.filter((c) => c.label === label).map((c) => c.team.name).join(", ")})`);
+      alert(`Reconduction INCOMPLÈTE vers "${newSeason.label}" : le stockage de ce navigateur est plein. Non reconduit : ${lines.join(" ; ")}. Le reste a bien été reconduit, et rien n'est perdu sur la saison d'origine. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recopie ces éléments à la main.`);
+    }
   }
   function renameSeason(id, field, value) {
     persistSeasons(seasons.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }
   function deleteSeason(id) {
     if (id === DEFAULT_SEASON_ID) { alert("La saison par défaut ne peut pas être supprimée — elle contient tes données déjà existantes."); return; }
-    if (!confirm("Supprimer cette saison ? Ses données resteront stockées mais ne seront plus accessibles depuis un sélecteur.")) return;
+    if (!confirm("Supprimer cette saison ? Ses données resteront stockées mais ne seront plus accessibles depuis un sélecteur — elles continueront d'occuper de la place dans le navigateur ; tu pourras les supprimer pour de bon depuis Club → Sauvegarde → « Place disponible ».")) return;
     persistSeasons(seasons.filter((s) => s.id !== id));
     if (getActiveSeasonId() === id) switchTeamAndSeason(getActiveTeamId(), DEFAULT_SEASON_ID);
   }
@@ -6520,7 +6391,7 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
           <button key={g.id} className={`tab ${clubGroup === g.id ? "active" : ""}`} onClick={() => { setClubGroup(g.id); setClubSubTab(g.subTabs[0].id); }}>{g.label}</button>
         ))}
       </div>
-      <div className="tabs" style={{ marginTop: -6 }}>
+      <div className="tabs" style={{ marginTop: -6, flexWrap: "wrap" }}>
         {CLUB_GROUPS.find((g) => g.id === clubGroup).subTabs.map((st) => (
           <button key={st.id} className={`tab ${clubSubTab === st.id ? "active" : ""}`} onClick={() => setClubSubTab(st.id)}>{st.label}</button>
         ))}
@@ -19956,6 +19827,8 @@ function AccueilScreen({ matches, roster, setSection, QuickBackupButton }) {
         <p className="subtitle">Ton calendrier du mois et l'essentiel de chaque onglet, en un coup d'œil.</p>
       </div>
 
+      <BackupReminderBanner />
+
       <WeekAgenda events={events} setSection={setSection} />
 
       <div className="panel-heading" style={{ marginTop: 28 }}>Calendrier</div>
@@ -20495,6 +20368,9 @@ export default function App() {
         </>
       )}
 
+      {/* Zone de contenu : une erreur d'affichage ne remplace que cette zone — le menu reste utilisable
+          (lib/ErrorBoundary.jsx ; l'écran change => l'erreur est effacée). */}
+      <ErrorBoundary scope="section" resetKey={section} rescue={() => exportFullBackupFile()} onReset={section === "accueil" ? undefined : () => setSection("accueil")}>
       {section === "accueil" && <AccueilScreen matches={matches} roster={roster} setSection={setSection} QuickBackupButton={QuickBackupButton} />}
       {section === "club" && <ClubScreen unlockedSections={unlockedSections} setUnlockedSections={setUnlockedSections} />}
       {section === "academie" && <AcademyScreen />}
@@ -20603,6 +20479,7 @@ export default function App() {
       )}
         </>
       )}
+      </ErrorBoundary>
     </div>
   );
 }
@@ -31511,7 +31388,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
     const existingNames = new Set(exercises.map((e) => e.name));
     const toAdd = ALL_STARTER_EXERCISES.filter((ex) => !existingNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     if (toAdd.length === 0) { alert("Tous les exercices de démarrage sont déjà présents dans ta banque — utilise \"Mettre à jour les schémas\" si tu les avais ajoutés avant qu'ils existent."); return; }
-    setExercises((prev) => [...prev, ...toAdd]);
+    if (setExercises([...exercises, ...toAdd]) === false) return;
     alert(`${toAdd.length} exercice${toAdd.length > 1 ? "s" : ""} ajouté${toAdd.length > 1 ? "s" : ""} — les exercices tactiques (un par thème du Projet de jeu), plus une première base d'exercices technique et athlétique, à ajuster librement.`);
   }
 
@@ -31528,7 +31405,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       return ex;
     });
     if (updated === 0) { alert("Rien à mettre à jour — tes exercices de démarrage ont déjà un schéma, ou aucun ne correspond aux noms de la banque de départ."); return; }
-    setExercises(next);
+    if (setExercises(next) === false) return;
     alert(`Schéma ajouté sur ${updated} exercice${updated > 1 ? "s" : ""} déjà présent${updated > 1 ? "s" : ""} dans ta banque, sans toucher au reste de leurs informations.`);
   }
 
@@ -31545,7 +31422,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       return ex;
     });
     if (updated === 0) { alert("Rien à mettre à jour — tes exercices de démarrage ont déjà un thème (ou un thème que tu as toi-même choisi), ou aucun ne correspond à la banque de départ."); return; }
-    setExercises(next);
+    if (setExercises(next) === false) return;
     alert(`Thème ajouté sur ${updated} exercice${updated > 1 ? "s" : ""} — n'écrase jamais un thème que tu as déjà choisi toi-même, seulement ceux qui n'en avaient aucun.`);
   }
 
@@ -33006,16 +32883,37 @@ function SessionsScreen({ roster }) {
     setLoaded(true);
   }, []);
 
+  // Forme directe (un tableau, pas une fonction) : l'écriture a lieu tout de suite et le résultat
+  // (true/false) revient à l'appelant — les imports de la banque de départ ne doivent annoncer « N
+  // exercices ajoutés » qu'après avoir vérifié ce retour (≈ 2,4 millions de caractères : c'est ce qui
+  // sature le stockage). En cas d'échec l'état n'est pas modifié : l'écran ne montre jamais des
+  // données qui disparaîtraient au rechargement.
   function persistExercises(updater) {
+    if (typeof updater !== "function") {
+      if (!writeRawKey(scopedStorageKey("tf_exercices"), JSON.stringify(updater), { silent: true })) {
+        alert("Le stockage de ce navigateur est plein : les exercices n'ont PAS été enregistrés (rien n'a été ajouté). Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »).");
+        return false;
+      }
+      setExercises(updater);
+      return true;
+    }
     setExercises((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = updater(prev);
       try { localStorage.setItem("tf_exercices", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
       return next;
     });
   }
   function persistSessions(updater) {
+    if (typeof updater !== "function") {
+      if (!writeRawKey(scopedStorageKey("tf_sessions"), JSON.stringify(updater), { silent: true })) {
+        alert("Le stockage de ce navigateur est plein : les séances n'ont PAS été enregistrées (rien n'a été ajouté). Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »).");
+        return false;
+      }
+      setSessions(updater);
+      return true;
+    }
     setSessions((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = updater(prev);
       try { localStorage.setItem("tf_sessions", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
       return next;
     });
@@ -33033,7 +32931,7 @@ function SessionsScreen({ roster }) {
     const existingExNames = new Set(exercises.map((e) => e.name));
     const newExercises = ALL_STARTER_EXERCISES.filter((ex) => !existingExNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     const allExercises = [...exercises, ...newExercises];
-    if (newExercises.length > 0) persistExercises(allExercises);
+    if (newExercises.length > 0 && persistExercises(allExercises) === false) return;
 
     const existingSessionNames = new Set(sessions.map((s) => s.name));
     const toAdd = STARTER_SESSIONS.filter((s) => !existingSessionNames.has(s.name));
@@ -33049,7 +32947,7 @@ function SessionsScreen({ roster }) {
       }).filter(Boolean);
       return { ...emptySessionForm(), id: newId(), name: s.name, date: sessionDate, blocks };
     });
-    persistSessions([...sessions, ...newSessions]);
+    if (persistSessions([...sessions, ...newSessions]) === false) return;
     alert(`${newSessions.length} séance${newSessions.length > 1 ? "s" : ""} de démarrage ajoutée${newSessions.length > 1 ? "s" : ""} — dates à ajuster librement dans le calendrier.`);
   }
 
