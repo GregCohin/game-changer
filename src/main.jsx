@@ -1,6 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App, { loadMatchCacheOnce, loadObsMatchCacheOnce } from './App.jsx'
+import ErrorBoundary from './lib/ErrorBoundary.jsx'
+import StorageWarning from './lib/StorageWarning.jsx'
+import { exportFullBackupFile } from './lib/fullBackup.js'
+import { requestPersistence } from './lib/storageGauge.js'
+
+// Sauvegarde de secours, indépendante de l'arbre React : utilisée par l'écran d'erreur (si l'app plante)
+// et par le bandeau « stockage plein ».
+const rescue = () => exportFullBackupFile()
 
 // Précharge les caches de matchs (IndexedDB) avant le premier rendu : plusieurs écrans lisent ces
 // caches de façon synchrone dans leur propre effet de montage, sans attendre la fin du chargement
@@ -9,7 +17,14 @@ import App, { loadMatchCacheOnce, loadObsMatchCacheOnce } from './App.jsx'
 Promise.allSettled([loadMatchCacheOnce(), loadObsMatchCacheOnce()]).finally(() => {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-      <App />
+      <ErrorBoundary rescue={rescue}>
+        <App />
+      </ErrorBoundary>
+      <StorageWarning rescue={rescue} />
     </React.StrictMode>,
   )
+  // Demande au navigateur de ne pas effacer les données du site quand l'appareil manque de place.
+  // Silencieux sur Chrome et Safari ; sur Firefox (qui afficherait une demande de permission sans
+  // contexte) elle n'est faite que depuis le bouton de Club → Sauvegarde.
+  requestPersistence().catch(() => {})
 })
