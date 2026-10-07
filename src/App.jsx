@@ -20,6 +20,8 @@ import { formatTime, formatDateFr, computeAge, todayIso, dateIsoLocal, addDaysIs
 import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames, deriveArrowAnimation } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
+import { removePortalForumMessage, removePortalForumThread } from "./lib/portalModeration.js";
+import { NouveauxLiensParents } from "./portail/NouveauxLiensParents.jsx";
 import { CSS } from "./styles/css.js";
 import {
   signInStaff, getStaffUser, onStaffAuthChange,
@@ -5983,6 +5985,8 @@ function PortalBackendScreen() {
         <h1>Portail parent (backend)</h1>
         <p className="subtitle">Connecté comme {staffUser.email}. Publie les données de l'équipe/saison active vers le portail parent, et gère les codes d'invitation par joueur.</p>
       </div>
+
+      <NouveauxLiensParents />
 
       <div className="panel-heading">Synchronisation</div>
       <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
@@ -17962,8 +17966,18 @@ function ForumScreen() {
     openThread(threadForm.id);
     setThreadForm(emptyForumThread());
   }
-  function removeThread(id) {
-    if (!confirm("Supprimer ce sujet et tous ses messages ?")) return;
+  // Modération : ce que le staff supprime ici doit aussi disparaître du portail parent, sinon les familles
+  // continuent de le lire. Renvoie true quand la suppression sur cet appareil peut suivre : le portail est à
+  // jour (ou n'a jamais eu cet élément), ou le staff accepte de ne le supprimer que d'ici.
+  async function removeFromPortal(request, what) {
+    const r = await request;
+    if (r.status === "signed_out") return confirm(`Tu n'es pas connecté au portail parent : si ${what} y a déjà été publié, les familles le verront encore. Le supprimer quand même de cet appareil ? (Pour le retirer aussi du portail, connecte-toi dans Portail parent (backend), puis recommence.)`);
+    if (r.status === "error") return confirm(`Le portail parent n'a pas pu retirer ${what} : ${r.message}. Le supprimer quand même de cet appareil ?`);
+    return true;
+  }
+  async function removeThread(id) {
+    if (!confirm("Supprimer ce sujet et tous ses messages ? S'il a été publié sur le portail parent, les familles ne le verront plus.")) return;
+    if (!(await removeFromPortal(removePortalForumThread(id), "ce sujet"))) return;
     persistThreads(threads.filter((t) => t.id !== id));
     persistMessages(messages.filter((m) => m.threadId !== id));
     if (openThreadId === id) setOpenThreadId(null);
@@ -17989,8 +18003,9 @@ function ForumScreen() {
     persistMessages([...messages, msg]);
     setComposeText(""); setAttachType(""); setAttachId("");
   }
-  function removeMessage(id) {
-    if (!confirm("Supprimer ce message ?")) return;
+  async function removeMessage(id) {
+    if (!confirm("Supprimer ce message ? S'il a été publié sur le portail parent (ou écrit par un parent), les familles ne le verront plus.")) return;
+    if (!(await removeFromPortal(removePortalForumMessage(id), "ce message"))) return;
     persistMessages(messages.filter((m) => m.id !== id));
   }
 

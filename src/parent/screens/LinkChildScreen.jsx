@@ -54,7 +54,9 @@ export function LinkChildScreen({ onLinked, onCancel, onSignOut }) {
             required
             autoComplete="off"
             autoCapitalize="characters"
-            placeholder="ex. A3F9K2"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="ex. K7M2QX9PRT"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             style={{ ...ui.input, textTransform: "uppercase" }}

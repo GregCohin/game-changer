@@ -7,6 +7,7 @@ import {
   upcomingCarpoolOffers, upcomingEvents, upcomingFixtures, upcomingSessions,
 } from "../lib/portalView";
 import { ErrorNotice, Field, ui, useAsyncAction } from "../ui";
+import { DeleteOwnButton } from "../components/DeleteOwnButton";
 
 // Libellés du retour au jeu : mêmes que RTP_STAGES dans src/App.jsx, recopiés ici parce que l'app
 // parent n'importe jamais App.jsx (35 000 lignes) pour rester légère. Une étape inconnue n'est
@@ -194,7 +195,10 @@ function JournalSection({ player, entries, onChanged }) {
       </form>
       <ErrorNotice error={error} />
       {entries.map((j) => (
-        <div key={j.id} style={ui.card}>{dash(formatDateFr(j.date), j.content)}</div>
+        <div key={j.id} style={ui.card}>
+          {dash(formatDateFr(j.date), j.content)}
+          <DeleteOwnButton kind="note" id={j.id} ownerId={j.parent_id} onDeleted={onChanged} />
+        </div>
       ))}
     </Section>
   );

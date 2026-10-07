@@ -1,6 +1,7 @@
 import { supabaseStaff } from "./supabaseClient";
 import { classifyError } from "./supabaseErrors";
 import { fetchAllPages, latestTimestamp, pullLowerBound } from "./portalPull";
+import { randomInvitationCode } from "./invitationCode.js";
 
 // Toute la logique réseau du chantier "backend Portail parent" est concentrée ici, sur le même
 // principe async-ready que getAllReferees/saveReferee (src/App.jsx:924-965) : les écrans staff
@@ -190,11 +191,11 @@ export async function pullPortalUpdates(teamId, seasonId, cursor) {
 
 // ---- Codes d'invitation et gestion des liens parent<->enfant ----
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans caractères ambigus (0/O, 1/I)
-
+// Code de 10 caractères tiré avec le générateur cryptographique du navigateur (lib/invitationCode.js). La base
+// impose le format et fixe l'expiration par défaut (14 jours) ; elle refuse un code qui ne respecterait pas le motif.
 export async function generateInvitationCode(playerId, teamId, seasonId) {
   await requireStaff();
-  const code = Array.from({ length: 6 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join("");
+  const code = randomInvitationCode();
   const { error } = await supabaseStaff
     .from("player_invitation_codes")
     .insert({ code, player_id: playerId, team_id: teamId, season_id: seasonId });
@@ -204,11 +205,14 @@ export async function generateInvitationCode(playerId, teamId, seasonId) {
 
 export async function listActiveCodesForPlayer(playerId) {
   await requireStaff();
+  // Un code expiré n'est plus « actif » : il ne se liste plus (la base le refuse de toute façon).
+  const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const { data, error } = await supabaseStaff
     .from("player_invitation_codes")
     .select("*")
     .eq("player_id", playerId)
-    .eq("revoked", false);
+    .eq("revoked", false)
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`);
   if (error) throw error;
   return data || [];
 }
