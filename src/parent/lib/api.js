@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient";
+import { todayIso } from "../../lib/utils";
 
 // Toute la logique réseau du portail parent est concentrée ici — les écrans n'appellent que ces
 // fonctions, jamais `supabase` directement, pour garder un seul endroit à faire évoluer si le
@@ -58,7 +59,7 @@ export async function addJournalEntry(playerId, content) {
     id: crypto.randomUUID(),
     player_id: playerId,
     parent_id: userData.user.id,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayIso(), // date locale : toISOString() donnerait la veille entre minuit et 1 h/2 h du matin
     content,
   });
   if (error) throw error;

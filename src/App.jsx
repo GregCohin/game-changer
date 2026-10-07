@@ -10,7 +10,7 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 // sinon le bundle principal.
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
-import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
+import { formatTime, formatDateFr, computeAge, todayIso, dateIsoLocal, addDaysIso, addMonthsIso, diffDaysIso, occurrenceDatesIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
 import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames, deriveArrowAnimation } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
@@ -2198,9 +2198,8 @@ function CompteRenduArbitrageScreen() {
 
       {(() => {
         const reportedKeys = new Set(reports.map((r) => r.fixtureKey));
-        const cutoff = new Date(todayIso());
-        cutoff.setDate(cutoff.getDate() - 30);
-        const missing = fixtures.filter((f) => !reportedKeys.has(f.key) && new Date(f.date) >= cutoff);
+        const cutoff = addDaysIso(todayIso(), -30);
+        const missing = fixtures.filter((f) => !reportedKeys.has(f.key) && f.date >= cutoff);
         if (missing.length === 0) return null;
         return (
           <div className="empty-state" style={{ borderColor: "#E3B23C", marginBottom: 14 }}>
@@ -3638,7 +3637,7 @@ function ClubExerciseLibraryScreen({ teams }) {
                   <ExerciseCard
                     key={ex.id}
                     ex={ex}
-                    metaExtra={ex.updatedAt ? `mis à jour le ${formatDateFr(new Date(ex.updatedAt).toISOString().slice(0, 10))}` : undefined}
+                    metaExtra={ex.updatedAt ? `mis à jour le ${formatDateFr(dateIsoLocal(new Date(ex.updatedAt)))}` : undefined}
                     actions={<>
                       <button className="btn btn-ghost btn-small" onClick={() => copyToActiveTeam(ex)}>Copier vers mon équipe</button>
                       <button className="btn btn-ghost btn-small" onClick={() => openEdit(ex)}>Modifier</button>
@@ -5419,21 +5418,11 @@ function emptyClubEvent() {
   };
 }
 // Construit la liste des dates d'occurrence pour un événement (une seule si pas de récurrence).
-// Garde-fou à 104 occurrences (~2 ans en hebdo) pour éviter une boucle infinie sur une date mal saisie.
+// Le calcul (et son garde-fou à 104 occurrences) vit dans lib/utils.js : arithmétique en UTC pur,
+// pour qu'un changement d'heure ne décale jamais une occurrence d'un jour.
 function buildEventOccurrenceDates(form) {
   if (!form.recurrence || !form.recurrence.enabled || !form.recurrence.until) return [form.date];
-  const dates = [];
-  let current = new Date(form.date);
-  const until = new Date(form.recurrence.until);
-  if (isNaN(current.getTime()) || isNaN(until.getTime()) || until < current) return [form.date];
-  let guard = 0;
-  while (current <= until && guard < 104) {
-    dates.push(current.toISOString().slice(0, 10));
-    if (form.recurrence.frequency === "monthly") current.setMonth(current.getMonth() + 1);
-    else current.setDate(current.getDate() + 7);
-    guard++;
-  }
-  return dates.length > 0 ? dates : [form.date];
+  return occurrenceDatesIso(form.date, form.recurrence.until, form.recurrence.frequency);
 }
 
 function ClubEventsScreen({ teams, categories }) {
@@ -7015,9 +7004,8 @@ function JournalDecisionsScreen() {
   // jeu déclarée dans le Projet de jeu — un rappel, pas un jugement.
   const FATIGUE_WINDOW_DAYS = 14;
   const FATIGUE_THRESHOLD = 3;
-  const cutoff = new Date(todayIso());
-  cutoff.setDate(cutoff.getDate() - FATIGUE_WINDOW_DAYS);
-  const recentSystemChanges = decisions.filter((d) => d.category === "Système/formation" && new Date(d.date) > cutoff);
+  const cutoff = addDaysIso(todayIso(), -FATIGUE_WINDOW_DAYS);
+  const recentSystemChanges = decisions.filter((d) => d.category === "Système/formation" && d.date > cutoff);
   const showFatigueSignal = recentSystemChanges.length >= FATIGUE_THRESHOLD;
 
   return (
@@ -12943,7 +12931,7 @@ function AdminAssistantScreen() {
             <div className="scouting-list">
               {[...filteredHistory].reverse().map((h) => (
                 <div className="scouting-card" key={h.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
-                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(new Date(h.at).toISOString().slice(0, 10))}</div>
+                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(dateIsoLocal(new Date(h.at)))}</div>
                   <div className="scouting-name">{h.question}</div>
                   <div className="scouting-meta" style={{ marginTop: 4 }}>{h.answer}</div>
                 </div>
@@ -16384,7 +16372,7 @@ function TableauPerformanceScreen({ roster }) {
       const comp = loadCompetitionsData();
       const sess = JSON.parse(localStorage.getItem("tf_sessions") || "[]");
       const clubEvents = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
-      const next7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+      const next7 = addDaysIso(todayIso(), 7);
       setAllEvents(buildAccueilEvents(comp, sess, clubEvents).filter((e) => e.date >= todayIso() && e.date <= next7).sort((a, b) => new Date(a.date) - new Date(b.date)));
     } catch (e) { setAllEvents([]); }
     setLoaded(true);
@@ -18353,7 +18341,7 @@ function exportAssistantHistory(history, filenamePrefix) {
   const lines = [`Historique — exporté le ${formatDateFr(todayIso())}`, ""];
   sorted.forEach((h) => {
     const d = new Date(h.at);
-    lines.push(`[${formatDateFr(d.toISOString().slice(0, 10))} ${d.toTimeString().slice(0, 5)}]`);
+    lines.push(`[${formatDateFr(dateIsoLocal(d))} ${d.toTimeString().slice(0, 5)}]`);
     lines.push(`Q : ${h.question}`);
     lines.push(`R : ${h.answer}`);
     lines.push("");
@@ -18500,10 +18488,8 @@ function findLibraryLinkFor(theme, libraryEntries) {
 }
 
 function answerWeeklyDigest(ctx) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 7);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
   const todayS = todayIso();
+  const cutoffStr = addDaysIso(todayS, -7);
 
   const weekMatches = ctx.allFullMatches.filter((m) => m.date >= cutoffStr && m.date <= todayS);
   const weekSessions = ctx.sessions.filter((s) => s.date >= cutoffStr && s.date <= todayS);
@@ -18716,8 +18702,8 @@ function answerAssistantQuestion(question, ctx) {
 
   if (/programme de la semaine|séances prévues|planning de la semaine|prochaines séances/.test(q)) {
     const todayS = todayIso();
-    const in7 = new Date(); in7.setDate(in7.getDate() + 7);
-    const upcoming = ctx.sessions.filter((s) => s.date >= todayS && s.date <= in7.toISOString().slice(0, 10)).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const in7 = addDaysIso(todayS, 7);
+    const upcoming = ctx.sessions.filter((s) => s.date >= todayS && s.date <= in7).sort((a, b) => new Date(a.date) - new Date(b.date));
     if (upcoming.length === 0) return "Aucune séance programmée dans les 7 prochains jours, à priori.";
     return `Séances à venir cette semaine : ${upcoming.map((s) => `${s.name} (${formatDateFr(s.date)})`).join(", ")}.`;
   }
@@ -18730,8 +18716,8 @@ function answerAssistantQuestion(question, ctx) {
 
   if (/charge.*gardien|gardien.*charge|plongeon|séances.*gardien/.test(q)) {
     if (ctx.goalkeeperLoad.length === 0) return "Aucune charge gardien enregistrée pour l'instant — Vestiaire → Suivi médical → Gardien.";
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
-    const recent = ctx.goalkeeperLoad.filter((l) => l.date >= cutoff.toISOString().slice(0, 10));
+    const cutoff = addDaysIso(todayIso(), -7);
+    const recent = ctx.goalkeeperLoad.filter((l) => l.date >= cutoff);
     const totalPlongeons = recent.reduce((s, l) => s + (Number(l.plongeons) || 0), 0);
     const totalSauts = recent.reduce((s, l) => s + (Number(l.sauts) || 0), 0);
     return `Charge gardien (7 derniers jours) : ${totalPlongeons} plongeon${totalPlongeons > 1 ? "s" : ""}, ${totalSauts} saut${totalSauts > 1 ? "s" : ""} au total.`;
@@ -18768,9 +18754,7 @@ const GENERIC_JOURNAL_PROMPTS = [
 
 function generateJournalPrompts(recentMatches, causeries) {
   const prompts = [];
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 3);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -3);
 
   recentMatches.filter((m) => m.date >= cutoffStr && m.date <= todayIso()).forEach((m) => {
     prompts.push(`Qu'est-ce que tu retiens du match contre ${m.opponent || "cet adversaire"} (${formatDateFr(m.date)}) ?`);
@@ -19015,7 +18999,7 @@ function AssistantScreen({ roster, matches }) {
             <div className="scouting-list">
               {[...filteredHistory].reverse().map((h) => (
                 <div key={h.id} className="new-match-card" style={{ marginBottom: 10 }}>
-                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(new Date(h.at).toISOString().slice(0, 10))}</div>
+                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(dateIsoLocal(new Date(h.at)))}</div>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>{h.question}</div>
                   <div className="hint" style={{ marginTop: 0, marginBottom: 8 }}>{h.answer}</div>
                   <button className="btn btn-ghost btn-small" onClick={() => addToJournalFromDiscussion(h)}>+ Ajouter au journal</button>
@@ -19173,12 +19157,8 @@ function HelpAssistantScreen() {
 
 function WeekAgenda({ events, setSection }) {
   const days = [];
-  const today = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  const todayStr = todayIso();
+  for (let i = 0; i < 7; i++) days.push(addDaysIso(todayStr, i));
   const byDate = {};
   events.forEach((ev) => { (byDate[ev.date] || (byDate[ev.date] = [])).push(ev); });
   const hasAny = days.some((d) => byDate[d] && byDate[d].length > 0);
@@ -19647,9 +19627,8 @@ function renderAccueilWidget(id, ctx) {
       // élargit la fenêtre à 21 jours et à TOUS les matchs à venir dans cette fenêtre, pas
       // seulement le suivant, pour repérer un manque d'observation avant qu'il ne devienne urgent.
       const todayS2 = todayIso();
-      const cutoff = new Date(todayS2);
-      cutoff.setDate(cutoff.getDate() + 21);
-      const upcomingInWindow = ctx.allFixtures.filter((f) => !fixtureIsPlayed(f) && new Date(f.date) >= new Date(todayS2) && new Date(f.date) <= cutoff);
+      const cutoff = addDaysIso(todayS2, 21);
+      const upcomingInWindow = ctx.allFixtures.filter((f) => !fixtureIsPlayed(f) && f.date >= todayS2 && f.date <= cutoff);
       const seenOpponents = new Set();
       const notObserved = [];
       upcomingInWindow.forEach((f) => {
@@ -19922,9 +19901,12 @@ function AccueilScreen({ matches, roster, setSection, QuickBackupButton }) {
   // Jours où la disponibilité est réduite (blessure ou suspension en cours), pour le calendrier
   const reducedAvailabilityDays = new Set();
   injuries.filter((i) => i.status === "en cours").forEach((i) => {
-    const start = new Date(i.dateDebut);
-    const end = new Date(start); end.setDate(start.getDate() + (Number(i.dureeEstimeeJours) || 0));
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) reducedAvailabilityDays.add(d.toISOString().slice(0, 10));
+    const duration = Math.min(Number(i.dureeEstimeeJours) || 0, 3660); // plafond : une durée saisie à tort ne doit pas boucler des millions de fois
+    for (let k = 0; k <= duration; k++) {
+      const day = addDaysIso(i.dateDebut, k);
+      if (!day) break;
+      reducedAvailabilityDays.add(day);
+    }
   });
 
   const allStudioRaw = matches.map((m) => readMatchFromCache(m.id)).filter((m) => m);
@@ -22753,9 +22735,7 @@ function CauserieScreen({ roster, matches }) {
 // boucle de rendu des widgets — dupliquer l'enveloppe créerait un double encadré et un titre
 // répété "Joueur du mois" / "Joueur du mois (suggestion)").
 function computePlayerOfTheMonth(roster, allFullMatches) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -30);
   const recentMatches = allFullMatches.filter((m) => m.source !== "observation" && m.date >= cutoffStr);
 
   const candidates = roster.map((p) => {
@@ -26162,7 +26142,7 @@ function computeSeasonBilan(dateStart, dateEnd, allFullMatches, roster, injuries
 
 function SeasonBilanScreen({ allFullMatches, roster }) {
   const today = todayIso();
-  const oneYearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })();
+  const oneYearAgo = addMonthsIso(todayIso(), -12);
   const [dateStart, setDateStart] = useState(oneYearAgo);
   const [dateEnd, setDateEnd] = useState(today);
   const [injuries, setInjuries] = useState([]);
@@ -32717,7 +32697,7 @@ function MicrocycleScreen({ sessions, roster }) {
     for (let offset = -6; offset <= 0; offset++) {
       const d = new Date(matchDate);
       d.setDate(d.getDate() + offset);
-      weekDays.push({ date: d, offset, dateStr: d.toISOString().slice(0, 10) });
+      weekDays.push({ date: d, offset, dateStr: addDaysIso(upcomingFixture.date, offset) });
     }
   }
 
@@ -33027,16 +33007,15 @@ function SessionsScreen({ roster }) {
     const toAdd = STARTER_SESSIONS.filter((s) => !existingSessionNames.has(s.name));
     if (toAdd.length === 0) { alert("Les séances de démarrage sont déjà présentes."); return; }
 
-    const today = new Date();
+    const todayStr = todayIso();
     const newSessions = toAdd.map((s, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + (i + 1) * 2); // espacées de 2 jours, à ajuster librement
+      const sessionDate = addDaysIso(todayStr, (i + 1) * 2); // espacées de 2 jours, à ajuster librement
       const blocks = s.plan.map((item) => {
         const ex = allExercises.find((e) => e.name === item.exerciseName);
         if (!ex) return null;
         return { id: newId(), exerciseId: ex.id, exerciseName: ex.name, duree: ex.duree, phase: item.phase };
       }).filter(Boolean);
-      return { ...emptySessionForm(), id: newId(), name: s.name, date: d.toISOString().slice(0, 10), blocks };
+      return { ...emptySessionForm(), id: newId(), name: s.name, date: sessionDate, blocks };
     });
     persistSessions([...sessions, ...newSessions]);
     alert(`${newSessions.length} séance${newSessions.length > 1 ? "s" : ""} de démarrage ajoutée${newSessions.length > 1 ? "s" : ""} — dates à ajuster librement dans le calendrier.`);
@@ -33124,17 +33103,6 @@ function hooperLevel(total) {
   return { label: "Alerte", cls: "grade-f" };
 }
 
-function addMonths(dateStr, months) {
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 // Fil médical unique : croise le bien-être (Hooper, saisi au fil de l'eau) et les blessures pour un
 // joueur, sur une seule frise — pour repérer un décrochage du bien-être avant une blessure, ou son
 // retour à la normale après, plutôt que de croiser Bien-être et Blessures séparément.
@@ -33148,7 +33116,7 @@ function buildMedicalFeedData(playerId, wellness, injuries) {
     .map((i) => ({
       id: i.id, type: i.type || i.category || "Blessure", status: i.status,
       start: i.dateDebut,
-      end: i.dateFinReelle || (i.status === "en cours" ? todayIso() : addDays(i.dateDebut, Number(i.dureeEstimeeJours) || 14).toISOString().slice(0, 10)),
+      end: i.dateFinReelle || (i.status === "en cours" ? todayIso() : addDaysIso(i.dateDebut, Number(i.dureeEstimeeJours) || 14)),
     }))
     .filter((p) => p.start)
     .sort((a, b) => new Date(b.start) - new Date(a.start));
@@ -33163,16 +33131,16 @@ function detectYellowCardSuspensions(cardDates) {
   const triggers = [];
   let i = 0;
   while (i < sorted.length) {
-    const windowEnd = addMonths(sorted[i], 3);
+    const windowEnd = addMonthsIso(sorted[i], 3);
     let j = i;
-    while (j < sorted.length && new Date(sorted[j]) <= windowEnd) j++;
+    while (j < sorted.length && sorted[j] <= windowEnd) j++;
     const countInWindow = j - i;
     if (countInWindow >= 3) {
       const thirdCardDate = sorted[i + 2];
       triggers.push({
         cardDates: [sorted[i], sorted[i + 1], sorted[i + 2]],
         thirdCardDate,
-        suspensionStart: addDays(thirdCardDate, 15).toISOString().slice(0, 10),
+        suspensionStart: addDaysIso(thirdCardDate, 15),
       });
       i += 3;
     } else {
@@ -33215,9 +33183,7 @@ function gatherRosterCardDates(allFullMatches, eventKey) {
 
 function detectFatigueRisk(roster, wellness, rpeLog, windowDays) {
   const days = windowDays || 7;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -days);
 
   return roster.map((p) => {
     const recentWellness = wellness.filter((w) => w.playerId === p.id && w.date >= cutoffStr);
@@ -33265,11 +33231,8 @@ function detectPhysicalAnomalies(roster) {
 
 function CollectiveWellnessDashboard({ wellness, rpeLog, roster }) {
   const days = [];
-  for (let i = 27; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  const todayStr = todayIso();
+  for (let i = 27; i >= 0; i--) days.push(addDaysIso(todayStr, -i));
   const chartData = days.map((d) => {
     const dayWellness = wellness.filter((w) => w.date === d);
     const dayRpe = rpeLog.filter((r) => r.date === d);
@@ -33327,10 +33290,10 @@ function CollectiveWellnessDashboard({ wellness, rpeLog, roster }) {
 // séance) est une simplification assumée — pas la formule complète "sRPE load" — faute de durée
 // de séance rattachée à chaque entrée aujourd'hui.
 function dailyAverageLoad(playerId, rpeLog, asOfDate, windowDays) {
-  const asOf = new Date(asOfDate);
-  const cutoff = new Date(asOf);
-  cutoff.setDate(cutoff.getDate() - windowDays);
-  const entries = rpeLog.filter((r) => r.playerId === playerId && new Date(r.date) > cutoff && new Date(r.date) <= asOf);
+  // Dates AAAA-MM-JJ comparées telles quelles (asOfDate en est une, toujours todayIso() à l'appel) :
+  // un changement d'heure ne décale pas le bord de la fenêtre.
+  const cutoff = addDaysIso(asOfDate, -windowDays);
+  const entries = rpeLog.filter((r) => r.playerId === playerId && r.date > cutoff && r.date <= asOfDate);
   if (entries.length === 0) return null;
   const byDate = {};
   entries.forEach((r) => { (byDate[r.date] || (byDate[r.date] = [])).push(Number(r.rpe) || 0); });
@@ -33360,23 +33323,18 @@ const ACWR_ZONE_LABELS = { risque_eleve: "en risque élevé", risque_accru: "en 
 // l'autre : un total plus élevé simplement parce que plus de joueurs ont saisi leur RPE ne
 // signifierait pas une semaine plus dense.
 function computeWeeklyCollectiveLoad(rpeLog, asOfDate, weeksBack) {
-  const asOf = new Date(asOfDate);
   const weeks = [];
   for (let w = weeksBack - 1; w >= 0; w--) {
-    const weekEnd = new Date(asOf);
-    weekEnd.setDate(weekEnd.getDate() - w * 7);
-    const weekStart = new Date(weekEnd);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const entries = rpeLog.filter((r) => {
-      const d = new Date(r.date);
-      return d >= weekStart && d <= weekEnd;
-    });
+    // Bornes en dates AAAA-MM-JJ (asOfDate en est une) : comparées telles quelles, un changement
+    // d'heure ne fait ni perdre une journée de saisie ni décaler les libellés de la semaine.
+    const weekEnd = addDaysIso(asOfDate, -w * 7);
+    const weekStart = addDaysIso(weekEnd, -6);
+    const entries = rpeLog.filter((r) => r.date >= weekStart && r.date <= weekEnd);
     const playersInvolved = new Set(entries.map((r) => r.playerId));
     const totalLoad = entries.reduce((s, r) => s + (Number(r.rpe) || 0), 0);
     const avgLoadPerPlayer = playersInvolved.size > 0 ? Math.round((totalLoad / playersInvolved.size) * 10) / 10 : 0;
     weeks.push({
-      weekStart: weekStart.toISOString().slice(0, 10),
-      weekEnd: weekEnd.toISOString().slice(0, 10),
+      weekStart, weekEnd,
       totalLoad, playersInvolved: playersInvolved.size, avgLoadPerPlayer,
     });
   }
@@ -33756,10 +33714,11 @@ function emptyInjuryForm() {
 }
 
 function daysRemaining(injury) {
-  const end = new Date(injury.dateDebut);
-  end.setDate(end.getDate() + Number(injury.dureeEstimeeJours || 0));
-  const diff = Math.ceil((end - new Date(todayIso())) / (1000 * 60 * 60 * 24));
-  return diff;
+  // Écart en jours ENTIERS entre deux dates AAAA-MM-JJ : l'ancien `Math.ceil` sur des millisecondes
+  // affichait un jour de trop (« 10 jours » au lieu de 9) pour une blessure à cheval sur le
+  // passage à l'heure d'hiver.
+  const end = addDaysIso(injury.dateDebut, Number(injury.dureeEstimeeJours || 0));
+  return diffDaysIso(end, todayIso());
 }
 
 function computeAutoPhaseProgress(injury) {
@@ -35247,8 +35206,8 @@ function PlayerProgressionTab({ roster, rawFullMatches }) {
 
 function PeriodComparisonTab({ rawFullMatches }) {
   const today = todayIso();
-  const oneYearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })();
-  const twoYearsAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 2); return d.toISOString().slice(0, 10); })();
+  const oneYearAgo = addMonthsIso(todayIso(), -12);
+  const twoYearsAgo = addMonthsIso(todayIso(), -24);
 
   const [periodA, setPeriodA] = useState({ start: oneYearAgo, end: today });
   const [periodB, setPeriodB] = useState({ start: twoYearsAgo, end: oneYearAgo });
