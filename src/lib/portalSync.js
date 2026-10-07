@@ -1,20 +1,52 @@
 import { supabaseStaff } from "./supabaseClient";
+import { classifyError } from "./supabaseErrors";
+import { fetchAllPages, latestTimestamp, pullLowerBound } from "./portalPull";
 
 // Toute la logique réseau du chantier "backend Portail parent" est concentrée ici, sur le même
 // principe async-ready que getAllReferees/saveReferee (src/App.jsx:924-965) : les écrans staff
 // n'appellent que ces fonctions, jamais `supabaseStaff` directement.
 //
-// Point de conception important sur publishPortalSnapshot : certaines tables miroir ont des
-// enfants COLLABORATIFS (écrits par les parents) via une contrainte "on delete cascade" —
-// players -> player_journal_entries, carpool_offers -> carpool_passengers, forum_threads ->
-// forum_messages/forum_thread_participants. Un delete-then-insert naïf sur ces tables miroir
-// effacerait le travail des parents à chaque republication. Ces quatre tables sont donc upsert
-// SEULEMENT (jamais de delete) ; les autres tables miroir, sans enfant collaboratif, peuvent être
-// remplacées en bloc sans risque.
+// Point de conception important sur la publication : tout est écrit par UNE fonction SQL
+// (`publish_snapshot`, supabase/migrations/20261007100000_publish_snapshot_atomique.sql), donc en une
+// seule transaction — tout est publié, ou rien ne change (avant, ~20 requêtes séparées laissaient le
+// portail à moitié vidé au premier échec). C'est cette fonction qui porte les règles : certaines tables
+// miroir ont des enfants COLLABORATIFS (écrits par les parents) via "on delete cascade" — players ->
+// player_journal_entries, carpool_offers -> carpool_passengers, forum_threads -> forum_messages — et
+// restent donc en upsert seulement ; les autres sont remplacées en bloc.
+
+// Erreur lisible pour le staff (le message de supabase-js, lui, parle de base de données). `kind` est
+// conservé sur l'erreur pour les appelants qui voudraient réagir selon la famille.
+function friendlyError(error, action = "publish") {
+  const kind = classifyError(error);
+  const retryAdvice = action === "publish"
+    ? "Une publication est toujours complète ou sans effet, jamais à moitié faite : tu peux la relancer sans risque."
+    : "Rien n'est perdu : tu peux relancer.";
+  let message;
+  if (kind === "network") message = "Impossible de joindre le serveur Supabase. Vérifie ta connexion ; si elle est bonne, le projet est peut-être en pause (tableau de bord Supabase → « Restore project »). " + retryAdvice;
+  else if (kind === "missing_function") message = "La fonction de publication n'existe pas encore sur le serveur : la migration « publish_snapshot » n'a pas été appliquée (npx supabase db push). Rien n'a été modifié.";
+  else if (kind === "auth") message = "Ta session a expiré : reconnecte-toi avec le lien de connexion. Rien n'a été modifié.";
+  else if (kind === "forbidden") message = "Refusé : ce compte n'est pas reconnu comme staff (ou sa session a expiré). Rien n'a été modifié.";
+  else if (kind === "server") message = "Le serveur a rencontré une erreur" + (error && error.message ? ` (${error.message})` : "") + ". " + retryAdvice;
+  else {
+    // Message de la fonction SQL (« Publication annulée (rien n'a été modifié), étape « sessions » : … »)
+    // ou d'une autre erreur de base : repris tel quel, avec ses détails.
+    message = (error && error.message) || String(error);
+    if (error && error.details) message += ` — ${error.details}`;
+    if (error && error.hint) message += ` (${error.hint})`;
+  }
+  const e = new Error(message);
+  e.kind = kind;
+  e.cause = error;
+  return e;
+}
 
 async function requireStaff() {
-  const { data } = await supabaseStaff.auth.getUser();
-  if (!data.user) throw new Error("Connecte-toi d'abord avec ton compte staff.");
+  const { data, error } = await supabaseStaff.auth.getUser();
+  if (!data || !data.user) {
+    // Hors ligne ou serveur injoignable : ce n'est pas « tu n'es pas connecté ».
+    if (error && classifyError(error) === "network") throw friendlyError(error, "check");
+    throw new Error("Connecte-toi d'abord avec ton compte staff.");
+  }
   return data.user;
 }
 
@@ -29,8 +61,16 @@ export async function signInStaff(email) {
 }
 
 export async function getStaffUser() {
-  const { data } = await supabaseStaff.auth.getUser();
-  return data.user || null;
+  const { data, error } = await supabaseStaff.auth.getUser();
+  if (data && data.user) return data.user;
+  // Serveur injoignable : la session enregistrée sur cet appareil suffit à afficher l'écran (les
+  // actions, elles, diront clairement « impossible de joindre le serveur »), plutôt qu'un formulaire de
+  // connexion qui laisserait croire que le compte est perdu.
+  if (error && classifyError(error) === "network") {
+    const { data: stored } = await supabaseStaff.auth.getSession();
+    return (stored && stored.session && stored.session.user) || null;
+  }
+  return null;
 }
 
 export async function signOutStaff() {
@@ -44,159 +84,107 @@ export function onStaffAuthChange(callback) {
 
 // ---- Publication ----
 
-async function replaceScoped(table, teamId, seasonId, rows) {
-  const { error: delErr } = await supabaseStaff.from(table).delete().eq("team_id", teamId).eq("season_id", seasonId);
-  if (delErr) throw delErr;
-  if (rows.length > 0) {
-    const { error } = await supabaseStaff.from(table).insert(rows);
-    if (error) throw error;
-  }
-}
-
-async function replaceUnscoped(table, rows) {
-  const { data: existing, error: selErr } = await supabaseStaff.from(table).select("id");
-  if (selErr) throw selErr;
-  if ((existing || []).length > 0) {
-    const { error: delErr } = await supabaseStaff.from(table).delete().in("id", existing.map((r) => r.id));
-    if (delErr) throw delErr;
-  }
-  if (rows.length > 0) {
-    const { error } = await supabaseStaff.from(table).insert(rows);
-    if (error) throw error;
-  }
-}
-
-function chunk(array, size) {
-  const out = [];
-  for (let i = 0; i < array.length; i += size) out.push(array.slice(i, i + size));
-  return out;
-}
-
-async function upsertOnly(table, rows, onConflict = "id") {
-  if (rows.length === 0) return;
-  const { error } = await supabaseStaff.from(table).upsert(rows, { onConflict });
-  if (error) throw error;
-}
-
 /**
- * @param {object} snapshot - déjà mappé aux noms de colonnes Postgres par l'appelant (PortalBackendScreen,
- * qui a accès aux formes internes de l'app staff). Voir chaque champ ci-dessous pour la forme attendue.
+ * Publie l'instantané construit par assemblePortalSnapshot (src/lib/portalSnapshot.js) : un seul appel,
+ * une seule transaction côté serveur. Lève une erreur au message lisible (réseau, migration absente,
+ * session expirée, ou l'étape qui a échoué avec ses détails) ; en cas d'échec, rien n'a changé.
+ * @returns {Promise<{ published_at: string, counts: object, skipped: object, individual_threads_without_parent: {id:string,title:string}[] }>}
  */
 export async function publishPortalSnapshot(snapshot) {
   await requireStaff();
-  const { teamId, seasonId } = snapshot;
+  const { data, error } = await supabaseStaff.rpc("publish_snapshot", { p_snapshot: snapshot });
+  if (error) throw friendlyError(error);
+  return data;
+}
 
-  // players et matches d'abord : development_goals/individual_programs/injuries/match_stats
-  // référencent player_id par clé étrangère, matches est référencé par match_stats — les insérer
-  // après provoquerait une violation de contrainte sur une base vide ou partiellement republiée.
-  await upsertOnly("players", snapshot.players);
-  await upsertOnly("matches", snapshot.matches);
+/**
+ * Avant de publier : parmi les conversations « individuelles » qui seraient publiées pour la PREMIÈRE
+ * fois, lesquelles ne visent aucun joueur ayant un parent lié ? Leurs participants sont figés à cette
+ * première publication : sans parent lié maintenant, personne ne pourra jamais les lire. Le staff doit
+ * pouvoir renoncer avant (lier les parents d'abord).
+ * @returns {Promise<{ id: string, title: string }[]>}
+ */
+export async function findUnreachableNewThreads(snapshot) {
+  await requireStaff();
+  const individual = (snapshot.forum_threads || []).filter((t) => t.type === "individuelle");
+  if (individual.length === 0) return [];
 
-  // Tables sans enfant collaboratif : remplacement en bloc sûr.
-  await replaceScoped("development_goals", teamId, seasonId, snapshot.developmentGoals);
-  await replaceScoped("individual_programs", teamId, seasonId, snapshot.individualPrograms);
-  await replaceScoped("injuries", teamId, seasonId, snapshot.injuries);
-  await replaceScoped("sessions", teamId, seasonId, snapshot.sessions);
-  await replaceScoped("club_faq", teamId, seasonId, snapshot.faq);
-  await replaceScoped("competitions", teamId, seasonId, snapshot.competitions);
-  await replaceScoped("fixtures", teamId, seasonId, snapshot.fixtures); // après competitions (cascade)
-  await replaceUnscoped("club_events", snapshot.clubEvents);
+  const { data: known, error } = await supabaseStaff.from("forum_threads").select("id").in("id", individual.map((t) => t.id));
+  if (error) throw friendlyError(error, "check");
+  const knownIds = new Set((known || []).map((r) => r.id));
+  const fresh = individual.filter((t) => !knownIds.has(t.id));
+  if (fresh.length === 0) return [];
 
-  // Tables avec enfant collaboratif : upsert uniquement, jamais de delete.
-  await upsertOnly("match_stats", snapshot.matchStats, "match_id,player_id");
-  await upsertOnly("carpool_offers", snapshot.carpoolOffers);
-
-  const threadRows = snapshot.forumThreads.map(({ targetPlayerIds, ...t }) => t);
-  const { data: existingThreads, error: threadSelErr } = await supabaseStaff
-    .from("forum_threads")
-    .select("id")
-    .eq("team_id", teamId)
-    .eq("season_id", seasonId);
-  if (threadSelErr) throw threadSelErr;
-  const existingIds = new Set((existingThreads || []).map((t) => t.id));
-  await upsertOnly("forum_threads", threadRows);
-
-  // Snapshot FIGÉ des participants, uniquement pour les threads "individuelle" nouvellement
-  // publiés — jamais réévalué pour un thread déjà existant, sinon un parent lié après coup
-  // remonterait dans l'historique de conversations privées créées avant sa liaison.
-  const newIndividuelleThreads = snapshot.forumThreads.filter(
-    (t) => t.type === "individuelle" && !existingIds.has(t.id) && t.targetPlayerIds?.length
-  );
-  for (const thread of newIndividuelleThreads) {
-    const { data: links, error: linksErr } = await supabaseStaff
-      .from("parent_player_links")
-      .select("parent_id")
-      .in("player_id", thread.targetPlayerIds);
-    if (linksErr) throw linksErr;
-    const parentIds = [...new Set((links || []).map((l) => l.parent_id))];
-    if (parentIds.length > 0) {
-      await upsertOnly(
-        "forum_thread_participants",
-        parentIds.map((parent_id) => ({ thread_id: thread.id, parent_id })),
-        "thread_id,parent_id"
-      );
-    }
-  }
-
-  // Messages écrits par le staff. Le tableau local tf_forum_messages mélange messages du staff et
-  // messages de parents ramenés par pullPortalUpdates : on écarte tout identifiant déjà connu comme
-  // message de PARENT (la base refuserait de toute façon d'en changer l'auteur, mais autant ne pas
-  // faire échouer toute la publication pour ça).
-  const threadIds = new Set(snapshot.forumThreads.map((t) => t.id));
-  const staffMessages = (snapshot.forumMessages || []).filter((m) => threadIds.has(m.thread_id));
-  const parentAuthoredIds = new Set();
-  for (const ids of chunk(staffMessages.map((m) => m.id), 50)) {
-    const { data, error } = await supabaseStaff.from("forum_messages").select("id").eq("author_kind", "parent").in("id", ids);
-    if (error) throw error;
-    (data || []).forEach((row) => parentAuthoredIds.add(row.id));
-  }
-  for (const rows of chunk(staffMessages.filter((m) => !parentAuthoredIds.has(m.id)), 200)) {
-    await upsertOnly("forum_messages", rows);
-  }
-
-  return { publishedAt: new Date().toISOString() };
+  const playerIds = [...new Set(fresh.flatMap((t) => t.target_player_ids || []))];
+  const { data: links, error: linksError } = playerIds.length > 0
+    ? await supabaseStaff.from("parent_player_links").select("player_id").in("player_id", playerIds)
+    : { data: [], error: null };
+  if (linksError) throw friendlyError(linksError, "check");
+  const linked = new Set((links || []).map((l) => l.player_id));
+  return fresh
+    .filter((t) => !(t.target_player_ids || []).some((id) => linked.has(id)))
+    .map((t) => ({ id: t.id, title: t.title }));
 }
 
 // ---- Récupération des écritures des parents ----
 
-export async function pullPortalUpdates(teamId, seasonId, sinceIso) {
+/**
+ * @param {string|null} cursor - curseur renvoyé par la récupération précédente (voir portalPull.js) ; null la première fois
+ * @returns {Promise<{ journalEntries, carpoolPassengers, forumMessages, cursor }>} `cursor` = plus grand horodatage reçu
+ *   (inchangé s'il n'y a rien de nouveau) : à conserver pour la prochaine fois.
+ */
+export async function pullPortalUpdates(teamId, seasonId, cursor) {
   await requireStaff();
+  const since = pullLowerBound(cursor);
 
+  // Tri par horodatage puis identifiant : l'ordre doit être stable d'une page à l'autre.
   const [journal, passengers, messages] = await Promise.all([
-    supabaseStaff
+    fetchAllPages((from, to) => supabaseStaff
       .from("player_journal_entries")
       .select("*, players!inner(team_id, season_id)")
       .eq("players.team_id", teamId)
       .eq("players.season_id", seasonId)
-      .gt("created_at", sinceIso || "1970-01-01"),
-    supabaseStaff
+      .gt("created_at", since)
+      .order("created_at", { ascending: true }).order("id", { ascending: true })
+      .range(from, to)),
+    fetchAllPages((from, to) => supabaseStaff
       .from("carpool_passengers")
       .select("*, carpool_offers!inner(team_id, season_id)")
       .eq("carpool_offers.team_id", teamId)
       .eq("carpool_offers.season_id", seasonId)
-      .gt("created_at", sinceIso || "1970-01-01"),
-    supabaseStaff
+      .gt("created_at", since)
+      .order("created_at", { ascending: true }).order("id", { ascending: true })
+      .range(from, to)),
+    fetchAllPages((from, to) => supabaseStaff
       .from("forum_messages")
       .select("*, forum_threads!inner(team_id, season_id)")
       .eq("forum_threads.team_id", teamId)
       .eq("forum_threads.season_id", seasonId)
       .eq("author_kind", "parent")
-      .gt("at", sinceIso || "1970-01-01"),
-  ]);
-  for (const r of [journal, passengers, messages]) if (r.error) throw r.error;
+      .gt("at", since)
+      .order("at", { ascending: true }).order("id", { ascending: true })
+      .range(from, to)),
+  ]).catch((error) => { throw friendlyError(error, "pull"); });
+
+  let next = cursor || null; // jamais d'avance sans données : une règle d'accès cassée ne « consomme » rien
+  next = latestTimestamp(journal, "created_at", next);
+  next = latestTimestamp(passengers, "created_at", next);
+  next = latestTimestamp(messages, "at", next);
 
   return {
-    journalEntries: (journal.data || []).map((j) => ({ id: j.id, playerId: j.player_id, date: j.date, content: j.content })),
-    carpoolPassengers: (passengers.data || []).map((p) => ({ offerId: p.offer_id, passengerName: p.passenger_name })),
-    forumMessages: (messages.data || []).map((m) => ({
+    journalEntries: journal.map((j) => ({ id: j.id, playerId: j.player_id, date: j.date, content: j.content })),
+    carpoolPassengers: passengers.map((p) => ({ id: p.id, offerId: p.offer_id, passengerName: p.passenger_name })),
+    // `fromPortal` : ce message vient d'un parent. La publication ne le renverra jamais comme message du staff.
+    forumMessages: messages.map((m) => ({
       id: m.id,
       threadId: m.thread_id,
       authorName: m.author_name,
       content: m.content,
       at: new Date(m.at).getTime(),
       attachment: null,
+      fromPortal: true,
     })),
-    pulledAt: new Date().toISOString(),
+    cursor: next,
   };
 }
 
