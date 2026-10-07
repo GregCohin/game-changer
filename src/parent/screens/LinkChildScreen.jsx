@@ -1,22 +1,31 @@
 import { useState } from "react";
 import { redeemInvitationCode } from "../lib/api";
+import { describeError } from "../lib/errors";
+import { ErrorNotice, Field, ui } from "../ui";
 
-export function LinkChildScreen({ onLinked }) {
+// `onCancel` : présent quand le parent a déjà un enfant lié et en ajoute un autre — il doit pouvoir
+// revenir au portail. `onSignOut` : toujours proposé, pour qu'un parent connecté avec la mauvaise adresse
+// ne reste pas bloqué sur cet écran.
+export function LinkChildScreen({ onLinked, onCancel, onSignOut }) {
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [linkedPlayer, setLinkedPlayer] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    if (confirming) return;
+    setError(null);
     setConfirming(true);
     try {
       const player = await redeemInvitationCode(code.trim().toUpperCase());
       if (!player) throw new Error("Code invalide ou expiré.");
       setLinkedPlayer(player);
     } catch (err) {
-      setError(err.message);
+      // Une erreur de la base sur un code (« Code invalide ou expiré ») est déjà écrite pour le parent ;
+      // une coupure réseau, elle, ne doit pas se faire passer pour un mauvais code.
+      const described = describeError(err);
+      setError(described.kind === "unknown" ? { ...described, title: "Code non accepté", text: err.message || "Code invalide ou expiré.", detail: "" } : described);
     }
     setConfirming(false);
   }
@@ -28,7 +37,7 @@ export function LinkChildScreen({ onLinked }) {
         <p>
           Ton compte est maintenant lié à <strong>{linkedPlayer.first_name} {linkedPlayer.last_name}</strong>.
         </p>
-        <button style={styles.button} onClick={onLinked}>Continuer</button>
+        <button type="button" style={styles.button} onClick={onLinked}>Continuer</button>
       </div>
     );
   }
@@ -38,19 +47,26 @@ export function LinkChildScreen({ onLinked }) {
       <h1 style={styles.title}>Code d'invitation</h1>
       <p>Le staff du club t'a remis un code pour lier ton compte à ton enfant. Saisis-le ci-dessous.</p>
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          required
-          placeholder="ex. A3F9K2"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          style={styles.input}
-        />
+        <Field id="invitation-code" label="Code d'invitation">
+          <input
+            id="invitation-code"
+            type="text"
+            required
+            autoComplete="off"
+            autoCapitalize="characters"
+            placeholder="ex. A3F9K2"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            style={{ ...ui.input, textTransform: "uppercase" }}
+          />
+        </Field>
         <button type="submit" disabled={confirming} style={styles.button}>
           {confirming ? "Vérification…" : "Valider le code"}
         </button>
       </form>
-      {error && <p style={styles.error}>{error}</p>}
+      <ErrorNotice error={error} />
+      {onCancel && <button type="button" style={styles.secondary} onClick={onCancel}>Annuler</button>}
+      {onSignOut && <button type="button" style={ui.linkButton} onClick={onSignOut}>Se déconnecter</button>}
     </div>
   );
 }
@@ -58,7 +74,6 @@ export function LinkChildScreen({ onLinked }) {
 const styles = {
   card: { maxWidth: 400, margin: "40px auto", padding: 24, color: "#EDEFEE", fontFamily: "sans-serif" },
   title: { fontSize: 22, marginBottom: 12 },
-  input: { width: "100%", padding: 10, marginBottom: 12, borderRadius: 6, border: "1px solid #444", boxSizing: "border-box", textTransform: "uppercase" },
-  button: { width: "100%", padding: 10, borderRadius: 6, border: "none", background: "#8a4fff", color: "white", cursor: "pointer" },
-  error: { color: "#ff6b6b", marginTop: 12 },
+  button: { width: "100%", padding: 10, borderRadius: 6, border: "none", background: "#8a4fff", color: "white", cursor: "pointer", marginTop: 4 },
+  secondary: { width: "100%", padding: 10, borderRadius: 6, border: "1px solid #555", background: "none", color: "#EDEFEE", cursor: "pointer", marginTop: 10 },
 };
