@@ -1,0 +1,59 @@
+# Empêche Supabase de mettre le projet en pause.
+#
+# L'offre gratuite met en pause un projet qui reçoit trop peu d'activité sur 7 jours : son adresse
+# disparaît (constaté le 07/10/2026, restauré à la main le 08/10) et le portail parent tombe. Tant
+# que les familles ne s'en servent pas tous les jours — vacances d'été comprises —, cette tâche fait
+# une petite lecture de la base tous les deux jours.
+#
+# Elle sert aussi de sonnette d'alarme : si le projet ne répond plus (en pause, supprimé, adresse
+# changée), l'exécution échoue et GitHub envoie un e-mail à la personne qui a modifié ce fichier en
+# dernier.
+#
+# À FAIRE UNE FOIS (GitHub → Settings → Secrets and variables → Actions → onglet « Variables »,
+# pas « Secrets » : ces deux valeurs sont publiques, elles figurent déjà dans le site en ligne) :
+#   SUPABASE_URL       https://<référence du projet>.supabase.co
+#   SUPABASE_ANON_KEY  la clé publique « sb_publishable_… » (celle de VITE_SUPABASE_ANON_KEY)
+# Puis l'essayer à la main : onglet Actions → « Maintien du projet Supabase » → Run workflow.
+#
+# Devenu inutile le jour où le portail sert tous les jours ou si le projet passe en offre Pro.
+name: Maintien du projet Supabase
+
+on:
+  schedule:
+    # Tous les deux jours à 06 h 17 UTC (une minute « creuse » : GitHub retarde les tâches de l'heure pile).
+    - cron: "17 6 */2 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Lecture légère de la base
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Interroger l'API du projet
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Variables SUPABASE_URL et SUPABASE_ANON_KEY absentes (Settings > Secrets and variables > Actions > Variables)."
+            exit 1
+          fi
+          # Une lecture d'une ligne sur une table du portail : elle passe par la base elle-même.
+          # 200 = lecture permise (aujourd'hui, la RLS renvoie une liste vide à un anonyme) ;
+          # 401/403 = droit refusé à l'anonyme (voulu une fois la migration de sécurité appliquée) :
+          # dans les deux cas le projet est réveillé et répond. Tout le reste est anormal.
+          if ! code=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
+                --max-time 30 --retry 3 --retry-delay 10 --retry-connrefused \
+                --header "apikey: $SUPABASE_ANON_KEY" \
+                "$SUPABASE_URL/rest/v1/players?select=id&limit=1"); then
+            echo "::error::Le projet Supabase ne répond pas (en pause ? supprimé ? adresse changée ?). Tableau de bord Supabase > Restore project."
+            exit 1
+          fi
+          echo "Réponse de l'API : HTTP $code"
+          case "$code" in
+            200|401|403) echo "Projet réveillé." ;;
+            *) echo "::error::Réponse inattendue de l'API (HTTP $code)."; exit 1 ;;
+          esac
