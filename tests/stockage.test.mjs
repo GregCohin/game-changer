@@ -173,6 +173,32 @@ test("les clés propres au navigateur ne sont jamais cloisonnées ni exportées"
   assert.ok(backup.DEVICE_LOCAL_KEYS.has("tf_last_backup"));
 });
 
+test("portail parent : le journal des invitations reste sur l'appareil, l'adresse du portail suit le club", () => {
+  // Journal (compteur d'e-mails de connexion) : propre à CE navigateur — jamais exporté, jamais restauré (une
+  // vieille sauvegarde ne doit ni remettre le compteur à zéro ni le faire avancer).
+  assert.ok(backup.DEVICE_LOCAL_KEYS.has("tf_portal_invitations_log"));
+  assert.ok(storage.UNSCOPED_STORAGE_KEYS.has("tf_portal_invitations_log"));
+  // Adresse publique du portail : une donnée du club, commune à toutes les équipes et saisons, sauvegardée et restaurée.
+  assert.ok(storage.UNSCOPED_STORAGE_KEYS.has("tf_portal_public_url"));
+  assert.ok(!backup.DEVICE_LOCAL_KEYS.has("tf_portal_public_url"));
+  assert.equal(storage.scopedStorageKey("tf_portal_public_url"), "tf_portal_public_url");
+  assert.equal(storage.scopedStorageKey("tf_portal_invitations_log"), "tf_portal_invitations_log");
+
+  reset();
+  seedBrowser();
+  ls._m.set("tf_portal_invitations_log", json([{ at: 1, id: "a", channel: "copy" }]));
+  ls._m.set("tf_portal_public_url", "https://football-analysis-ten.vercel.app/parent.html");
+  const { clubData, teamData } = backup.inventoryLocalStorage(JSON.parse(raw("tf_teams")), JSON.parse(raw("tf_seasons")));
+  assert.ok(!("tf_portal_invitations_log" in clubData), "journal des invitations : pas dans la sauvegarde");
+  assert.ok(!JSON.stringify(teamData).includes("tf_portal_invitations_log"));
+  assert.equal(clubData.tf_portal_public_url, "https://football-analysis-ten.vercel.app/parent.html");
+
+  const plan = backup.planRestore(backup.validateBackup(goodBackup({ clubData: { tf_portal_invitations_log: json([{ at: 9, id: "z", channel: "copy" }]), tf_portal_public_url: "https://autre.exemple/parent.html" } })));
+  const keys = plan.writes.map((w) => w.rawKey);
+  assert.ok(!keys.includes("tf_portal_invitations_log"), "une restauration ne touche pas au compteur");
+  assert.ok(keys.includes("tf_portal_public_url"));
+});
+
 test("les noms de bases IndexedDB de lib/fullBackup.js n'ont pas dérivé de ceux d'App.jsx", () => {
   const src = fs.readFileSync(path.join(ROOT, "src/App.jsx"), "utf8");
   assert.match(src, /const MATCHES_STORE = "matches";/);

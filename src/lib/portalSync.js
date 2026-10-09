@@ -2,6 +2,7 @@ import { supabaseStaff } from "./supabaseClient";
 import { classifyError } from "./supabaseErrors";
 import { fetchAllPages, latestTimestamp, pullLowerBound } from "./portalPull";
 import { randomInvitationCode } from "./invitationCode.js";
+import { verifyEmailCode, confirmTokenHash, rateLimitWaitSeconds } from "./emailLogin.js";
 
 // Toute la logique réseau du chantier "backend Portail parent" est concentrée ici, sur le même
 // principe async-ready que getAllReferees/saveReferee (src/App.jsx:924-965) : les écrans staff
@@ -21,13 +22,23 @@ function friendlyError(error, action = "publish") {
   const kind = classifyError(error);
   const retryAdvice = action === "publish"
     ? "Une publication est toujours complète ou sans effet, jamais à moitié faite : tu peux la relancer sans risque."
-    : "Rien n'est perdu : tu peux relancer.";
+    : action === "login"
+      ? "Tu peux réessayer."
+      : "Rien n'est perdu : tu peux relancer.";
   let message;
   if (kind === "network") message = "Impossible de joindre le serveur Supabase. Vérifie ta connexion ; si elle est bonne, le projet est peut-être en pause (tableau de bord Supabase → « Restore project »). " + retryAdvice;
   else if (kind === "missing_function") message = "La fonction de publication n'existe pas encore sur le serveur : la migration « publish_snapshot » n'a pas été appliquée (npx supabase db push). Rien n'a été modifié.";
   else if (kind === "auth") message = "Ta session a expiré : reconnecte-toi avec le lien de connexion. Rien n'a été modifié.";
   else if (kind === "forbidden") message = "Refusé : ce compte n'est pas reconnu comme staff (ou sa session a expiré). Rien n'a été modifié.";
   else if (kind === "server") message = "Le serveur a rencontré une erreur" + (error && error.message ? ` (${error.message})` : "") + ". " + retryAdvice;
+  else if (kind === "otp") message = "Ce code ou ce lien n'est plus valable : il a expiré, ou il a déjà été utilisé (une messagerie peut ouvrir un lien avant toi). Redemande un e-mail de connexion, puis saisis le code du DERNIER e-mail reçu : les anciens ne fonctionnent plus.";
+  else if (kind === "code_format") message = (error && error.message) || "Code incomplet : saisis les 6 chiffres reçus par e-mail.";
+  else if (kind === "rate_limit" && action === "login") {
+    const wait = rateLimitWaitSeconds(error);
+    message = wait !== null
+      ? `Un e-mail vient déjà d'être envoyé à cette adresse : saisis son code. Tu pourras en redemander un dans ${Math.max(1, wait)} s.`
+      : "Trop de demandes : l'envoi d'e-mails de connexion est limité (une demande par minute et par adresse, et un plafond par heure pour tout le projet). Réessaie dans un moment.";
+  }
   else {
     // Message de la fonction SQL (« Publication annulée (rien n'a été modifié), étape « sessions » : … »)
     // ou d'une autre erreur de base : repris tel quel, avec ses détails.
@@ -53,12 +64,37 @@ async function requireStaff() {
 
 // ---- Authentification staff (même mécanisme que côté parent : lien magique) ----
 
+// Envoie l'e-mail de connexion (code à 6 chiffres + lien, selon le modèle d'e-mail réglé dans Supabase : voir
+// docs/connexion-parent.md). Les erreurs sont celles de friendlyError (message lisible, `kind` et `cause` conservés).
 export async function signInStaff(email) {
   const { error } = await supabaseStaff.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin + window.location.pathname },
   });
-  if (error) throw error;
+  if (error) throw friendlyError(error, "login");
+}
+
+// Connexion par le code à 6 chiffres reçu par e-mail.
+export async function verifyStaffCode(email, code) {
+  try {
+    await verifyEmailCode(supabaseStaff, email, code);
+  } catch (error) {
+    throw friendlyError(error, "login");
+  }
+}
+
+// Connexion par le lien de l'e-mail, après un appui sur le bouton de la page de confirmation (portail/StaffConfirmation.jsx).
+export async function confirmStaffLink(tokenHash, type) {
+  try {
+    await confirmTokenHash(supabaseStaff, tokenHash, type);
+  } catch (error) {
+    throw friendlyError(error, "login");
+  }
+}
+
+// Message lisible pour une erreur de connexion déjà en main (ex. l'erreur d'un ancien lien lue dans l'adresse).
+export function describeStaffLoginError(error) {
+  return friendlyError(error, "login").message;
 }
 
 export async function getStaffUser() {
