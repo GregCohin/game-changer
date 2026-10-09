@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getForumThreads, getThreadMessages, postForumMessage } from "../lib/api";
 import { describeError } from "../lib/errors";
 import { ErrorNotice, Field, ui, useAsyncAction } from "../ui";
+import { DeleteOwnButton } from "../components/DeleteOwnButton";
 
 // Nom affiché sous les messages d'un parent. Jamais l'email : dans un sujet d'équipe, tous les
 // parents lisent les messages des autres. Seul le prénom de l'enfant concerné, comme dans un groupe
@@ -92,6 +93,7 @@ function ThreadView({ thread, player, onBack }) {
           <strong>{m.author_name}</strong>
           {m.author_kind === "staff" && <span style={styles.badge}>Staff</span>}
           <p>{m.content}</p>
+          <DeleteOwnButton kind="message" id={m.id} ownerId={m.parent_id} onDeleted={() => setReloadKey((k) => k + 1)} />
         </div>
       ))}
       <form onSubmit={handleReply}>
