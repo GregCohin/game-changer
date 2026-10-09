@@ -22,9 +22,11 @@ import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/biblioth
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
 import { removePortalForumMessage, removePortalForumThread } from "./lib/portalModeration.js";
 import { NouveauxLiensParents } from "./portail/NouveauxLiensParents.jsx";
+import { StaffLogin } from "./portail/StaffLogin.jsx";
+import { InvitationMessage, InvitationBudgetNotice } from "./portail/InvitationMessage.jsx";
 import { CSS } from "./styles/css.js";
 import {
-  signInStaff, getStaffUser, onStaffAuthChange,
+  getStaffUser, onStaffAuthChange,
   publishPortalSnapshot, findUnreachableNewThreads, pullPortalUpdates,
   generateInvitationCode, listActiveCodesForPlayer, revokeInvitationCode,
   listPlayerLinks, revokeLink,
@@ -5804,9 +5806,6 @@ function buildPortalSnapshot(teamId, seasonId) {
 
 function PortalBackendScreen() {
   const [staffUser, setStaffUser] = useState(undefined); // undefined = pas encore su
-  const [email, setEmail] = useState("");
-  const [sendingLink, setSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [pulling, setPulling] = useState(false);
   // Compte rendu de la dernière action : { tone: "ok" | "warn" | "error", title, headline, problems, warnings, notices }
@@ -5816,6 +5815,7 @@ function PortalBackendScreen() {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [codes, setCodes] = useState([]);
   const [links, setLinks] = useState([]);
+  const [inviting, setInviting] = useState(null); // code d'invitation dont on prépare le message
 
   useEffect(() => {
     getStaffUser().then(setStaffUser);
@@ -5826,22 +5826,11 @@ function PortalBackendScreen() {
   }, []);
 
   useEffect(() => {
+    setInviting(null);
     if (!staffUser || !selectedPlayerId) { setCodes([]); setLinks([]); return; }
     listActiveCodesForPlayer(selectedPlayerId).then(setCodes).catch(() => setCodes([]));
     listPlayerLinks(selectedPlayerId).then(setLinks).catch(() => setLinks([]));
   }, [staffUser, selectedPlayerId]);
-
-  async function handleSendLink(e) {
-    e.preventDefault();
-    setSendingLink(true);
-    try {
-      await signInStaff(email.trim());
-      setLinkSent(true);
-    } catch (err) {
-      alert("Échec de l'envoi : " + err.message);
-    }
-    setSendingLink(false);
-  }
 
   // Fiches non publiées parce qu'invalides : « Séance « Entraînement » : date manquante. »
   const describeProblems = (problems) => problems.map((p) => `${p.what} ${p.label} : ${p.reason} — non publiée.`);
@@ -5937,8 +5926,10 @@ function PortalBackendScreen() {
   async function handleGenerateCode() {
     try {
       const code = await generateInvitationCode(selectedPlayerId, getActiveTeamId(), getActiveSeasonId());
-      setCodes(await listActiveCodesForPlayer(selectedPlayerId));
-      alert("Code généré : " + code);
+      const refreshed = await listActiveCodesForPlayer(selectedPlayerId);
+      setCodes(refreshed);
+      // Le message à envoyer à la famille s'ouvre tout de suite (avant : une alerte avec le code, à recopier à la main).
+      setInviting(refreshed.find((c) => c.code === code) || { code, expires_at: null });
     } catch (err) {
       alert("Échec : " + err.message);
     }
@@ -5947,6 +5938,7 @@ function PortalBackendScreen() {
   async function handleRevokeCode(code) {
     if (!confirm("Révoquer ce code ?")) return;
     await revokeInvitationCode(code);
+    setInviting((current) => (current && current.code === code ? null : current));
     setCodes(await listActiveCodesForPlayer(selectedPlayerId));
   }
 
@@ -5966,14 +5958,7 @@ function PortalBackendScreen() {
           <h1>Portail parent (backend)</h1>
           <p className="subtitle">Connecte-toi avec ton compte staff pour publier des données vers le portail parent et gérer les codes d'invitation.</p>
         </div>
-        {linkSent ? (
-          <p>Lien de connexion envoyé à {email}. Vérifie ta boîte mail.</p>
-        ) : (
-          <form onSubmit={handleSendLink}>
-            <input type="email" required placeholder="ton.email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 10 }} />
-            <button className="btn btn-primary" disabled={sendingLink} type="submit">{sendingLink ? "Envoi…" : "Recevoir un lien de connexion"}</button>
-          </form>
-        )}
+        <StaffLogin />
       </div>
     );
   }
@@ -6014,6 +5999,7 @@ function PortalBackendScreen() {
       )}
 
       <div className="panel-heading" style={{ marginTop: 24 }}>Codes d'invitation par joueur</div>
+      <InvitationBudgetNotice />
       <select value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)} style={{ width: "100%", padding: 8, marginBottom: 12 }}>
         <option value="">— Choisir un joueur —</option>
         {roster.map((p) => <option key={p.id} value={p.id}>{p.firstName || p.name} {p.lastName || ""}</option>)}
@@ -6026,16 +6012,22 @@ function PortalBackendScreen() {
           {codes.length > 0 && (
             <div className="scouting-list" style={{ marginBottom: 16 }}>
               {codes.map((c) => (
-                <div className="scouting-card" key={c.code}>
-                  <div className="scouting-info">
+                // flexWrap + largeur minimale du code : sur téléphone, les deux boutons passent sous le code au lieu de le recouvrir
+                <div className="scouting-card" key={c.code} style={{ flexWrap: "wrap" }}>
+                  <div className="scouting-info" style={{ minWidth: 140 }}>
                     <div className="scouting-name">{c.code}</div>
                     <div className="scouting-meta">{c.use_count}/{c.max_uses} utilisation(s)</div>
                   </div>
-                  <button className="btn btn-ghost btn-small" onClick={() => handleRevokeCode(c.code)}>Révoquer</button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-primary btn-small" onClick={() => setInviting(c)}>Préparer l'invitation</button>
+                    <button className="btn btn-ghost btn-small" onClick={() => handleRevokeCode(c.code)}>Révoquer</button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+
+          {inviting && <InvitationMessage key={inviting.code} code={inviting.code} expiresAt={inviting.expires_at || null} onClose={() => setInviting(null)} />}
 
           <div className="panel-heading">Parents liés</div>
           {links.length === 0 && <div className="empty-state">Aucun parent lié pour l'instant.</div>}

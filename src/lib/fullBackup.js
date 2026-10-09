@@ -32,7 +32,7 @@ export const SNOOZE_DAYS = 3;
 
 // Clés qui décrivent CE navigateur et non les données du club : ni exportées, ni restaurées
 // (restaurer une vieille sauvegarde ne doit pas faire reculer la « date de dernière sauvegarde »).
-export const DEVICE_LOCAL_KEYS = new Set(["tf_last_backup", "tf_backup_snooze_until"]);
+export const DEVICE_LOCAL_KEYS = new Set(["tf_last_backup", "tf_backup_snooze_until", "tf_portal_invitations_log"]);
 // État de l'interface : exporté (un navigateur neuf retrouve la même équipe active) mais, à la
 // restauration, jamais appliqué par-dessus un choix déjà fait dans ce navigateur.
 const UI_STATE_KEYS = new Set(["tf_active_team", "tf_active_season", "tf_category_filter"]);

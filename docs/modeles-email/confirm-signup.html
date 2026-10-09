@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bienvenue sur Game Changer</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f6;">
+<div style="max-width:480px;margin:0 auto;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;color:#1f1f24;line-height:1.5;">
+  <p style="margin:0 0 16px;font-size:18px;font-weight:bold;">Game Changer</p>
+  <div style="background:#ffffff;border-radius:8px;padding:24px;">
+    <p style="margin:0 0 12px;">Bonjour et bienvenue&nbsp;!</p>
+    <p style="margin:0 0 12px;">Voici ton code pour confirmer ton adresse et te connecter au portail&nbsp;:</p>
+    <p style="margin:0 0 16px;font-size:32px;letter-spacing:8px;font-weight:bold;text-align:center;font-family:'Courier New',Courier,monospace;">{{ .Token }}</p>
+    <p style="margin:0 0 16px;">Saisis-le sur la page de connexion, puis valide. Il ne fonctionne qu&rsquo;une fois, et pendant un temps limit&eacute;.</p>
+    <p style="margin:0 0 12px;">Tu peux aussi te connecter en un clic&nbsp;:</p>
+    <p style="margin:0 0 16px;text-align:center;"><a href="{{ .RedirectTo }}#confirmation?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;background:#8a4fff;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">Me connecter</a></p>
+    <p style="margin:0;font-size:13px;color:#5b5b66;">Tu n&rsquo;as rien demand&eacute;&nbsp;? Ignore simplement cet e-mail&nbsp;: personne ne peut se connecter sans ce code.</p>
+  </div>
+  <p style="margin:16px 0 0;font-size:12px;color:#8a8a94;">Cet e-mail a &eacute;t&eacute; envoy&eacute; &agrave; {{ .Email }}. Si tu ne le vois pas dans ta bo&icirc;te principale, regarde dans les ind&eacute;sirables (spam).</p>
+</div>
+</body>
+</html>

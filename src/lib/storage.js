@@ -14,10 +14,14 @@ export const UNSCOPED_STORAGE_KEYS = new Set([
   "tf_club_categories", "tf_club_locations", "tf_club_training_project", "tf_bibliotheque", "tf_assistant_history", "tf_journal_entries",
   "tf_club_vehicles",
   "tf_club_talent_watchlist",
+  // Adresse publique du portail parent (celle que les familles ouvrent) : une seule pour tout le club.
+  "tf_portal_public_url",
   // État propre à CE navigateur, pas une donnée du club : date de la dernière sauvegarde complète et
-  // report du rappel. Jamais cloisonnés (le rappel vaut pour tout le navigateur) et jamais exportés
-  // ni restaurés (voir DEVICE_LOCAL_KEYS dans lib/fullBackup.js).
-  "tf_last_backup", "tf_backup_snooze_until",
+  // report du rappel, et journal des invitations préparées (compteur d'e-mails de connexion). Jamais
+  // cloisonnés (ils valent pour tout le navigateur) et jamais exportés ni restaurés (voir
+  // DEVICE_LOCAL_KEYS dans lib/fullBackup.js : restaurer une vieille sauvegarde ne doit pas remettre le
+  // compteur à zéro, ni le faire avancer).
+  "tf_last_backup", "tf_backup_snooze_until", "tf_portal_invitations_log",
 ]);
 
 export function getActiveTeamId() {
