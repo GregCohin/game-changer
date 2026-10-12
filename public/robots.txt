@@ -1,0 +1,3 @@
+# Outil privé du club (site de travail du staff et portail des familles) : rien à référencer.
+User-agent: *
+Disallow: /

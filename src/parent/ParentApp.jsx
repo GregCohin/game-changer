@@ -1,21 +1,36 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { getLinkedPlayers } from "./lib/api";
+import { describeError } from "./lib/errors";
 import { supabase } from "./supabaseClient";
 import { LoginScreen } from "./screens/LoginScreen";
 import { LinkChildScreen } from "./screens/LinkChildScreen";
 import { PortailScreen } from "./screens/PortailScreen";
 import { ForumScreen } from "./screens/ForumScreen";
+import { ErrorNotice, ui } from "./ui";
 
 export function ParentApp() {
   const { session, signOut } = useAuth();
   const [players, setPlayers] = useState(null); // null = pas encore chargé
+  const [loadError, setLoadError] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [tab, setTab] = useState("portail");
+  const [linking, setLinking] = useState(false); // le parent ajoute un enfant de plus
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (session === undefined || session === null) return;
+    if (session === undefined) return undefined;
+    if (session === null) {
+      // Déconnexion : rien de l'enfant précédent ne doit rester à l'écran pour le prochain parent
+      // (tablette familiale partagée).
+      setPlayers(null);
+      setSelectedPlayerId(null);
+      setLoadError(null);
+      setLinking(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadError(null);
     // Nom affichable pour que le staff puisse identifier les parents liés (écran "parents liés à
     // ce joueur") sans jamais avoir besoin d'accéder à auth.users, non exposé par l'API publique.
     // Le .then() est indispensable : un builder supabase-js n'envoie sa requête qu'à l'await/then.
@@ -25,10 +40,14 @@ export function ParentApp() {
       .then(({ error }) => { if (error) console.error("Profil parent non enregistré", error); });
     getLinkedPlayers()
       .then((list) => {
+        if (cancelled) return;
         setPlayers(list);
         if (list.length > 0) setSelectedPlayerId((prev) => prev || list[0].id);
       })
-      .catch(() => setPlayers([]));
+      // Une erreur de chargement n'est PAS « aucun enfant lié » : avant, tout échec (serveur injoignable,
+      // session expirée…) renvoyait le parent sur l'écran du code d'invitation.
+      .catch((e) => { if (!cancelled) setLoadError(describeError(e)); });
+    return () => { cancelled = true; };
   }, [session, refreshKey]);
 
   if (session === undefined) {
@@ -41,13 +60,25 @@ export function ParentApp() {
       </div>
     );
   }
+  if (loadError) {
+    return (
+      <div style={styles.page}>
+        <ErrorNotice error={loadError} onRetry={() => setRefreshKey((k) => k + 1)} />
+        <button type="button" style={ui.linkButton} onClick={signOut}>Se déconnecter</button>
+      </div>
+    );
+  }
   if (players === null) {
     return <div style={styles.page}>Chargement…</div>;
   }
-  if (players.length === 0) {
+  if (players.length === 0 || linking) {
     return (
       <div style={styles.page}>
-        <LinkChildScreen onLinked={() => setRefreshKey((k) => k + 1)} />
+        <LinkChildScreen
+          onLinked={() => { setLinking(false); setRefreshKey((k) => k + 1); }}
+          onCancel={players.length > 0 ? () => setLinking(false) : undefined}
+          onSignOut={signOut}
+        />
       </div>
     );
   }
@@ -61,15 +92,16 @@ export function ParentApp() {
           <strong>Game Changer</strong> — Portail parent
         </div>
         <div style={styles.actions}>
-          <button style={styles.headerButton} onClick={() => setPlayers([])}>
+          <button type="button" style={styles.headerButton} onClick={() => setLinking(true)}>
             + Lier un autre enfant
           </button>
-          <button style={styles.headerButton} onClick={signOut}>Se déconnecter</button>
+          <button type="button" style={styles.headerButton} onClick={signOut}>Se déconnecter</button>
         </div>
       </header>
 
       {players.length > 1 && (
         <select
+          aria-label="Enfant"
           value={selectedPlayer.id}
           onChange={(e) => setSelectedPlayerId(e.target.value)}
           style={styles.select}
@@ -81,8 +113,8 @@ export function ParentApp() {
       )}
 
       <nav style={styles.tabs}>
-        <button style={tab === "portail" ? styles.tabActive : styles.tab} onClick={() => setTab("portail")}>Portail</button>
-        <button style={tab === "forum" ? styles.tabActive : styles.tab} onClick={() => setTab("forum")}>Forum</button>
+        <button type="button" style={tab === "portail" ? styles.tabActive : styles.tab} onClick={() => setTab("portail")}>Portail</button>
+        <button type="button" style={tab === "forum" ? styles.tabActive : styles.tab} onClick={() => setTab("forum")}>Forum</button>
       </nav>
 
       {tab === "portail" && <PortailScreen player={selectedPlayer} />}

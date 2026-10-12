@@ -10,17 +10,29 @@ import { Play, Pause, ArrowLeft, X, Download, Video as VideoIcon, Film, Menu, Ho
 // sinon le bundle principal.
 import { FORMATION_LAYOUTS } from "./data/formations.js";
 import { DEFAULT_TEAM_ID, DEFAULT_SEASON_ID, UNSCOPED_STORAGE_KEYS, getActiveTeamId, getActiveSeasonId, getScopeSuffix, scopedStorageKey, rawStorage, scopeSuffixFor, readScopedKeyFor, writeScopedKeyFor } from "./lib/storage.js";
-import { formatTime, formatDateFr, computeAge, todayIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
-import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames } from "./pad/index.js";
+import { writeScopedKeysAtomic, writeRawKey } from "./lib/storage.js";
+import { checkRoomForChars, formatChars } from "./lib/storageGauge.js";
+import { exportFullBackupFile, getLastBackup, backupAgeDays, describeBackupAge, REMINDER_AFTER_DAYS } from "./lib/fullBackup.js";
+import ErrorBoundary from "./lib/ErrorBoundary.jsx";
+import BackupCenter from "./lib/BackupPanels.jsx";
+import BackupReminderBanner from "./lib/BackupReminder.jsx";
+import { formatTime, formatDateFr, computeAge, todayIso, dateIsoLocal, addDaysIso, addMonthsIso, diffDaysIso, occurrenceDatesIso, newId, playerFullName, staffFullName } from "./lib/utils.js";
+import { PAD_ELEMENT_TYPES, drawArrowHeadOnly, drawArrowHead, quadPoint, drawWavyArrow, drawPadElement, findNearestRotatable, findNearestElement, lerpAngle, interpolatePadElement, interpolateFrames, deriveArrowAnimation } from "./pad/index.js";
 import { BibliothequeScreen, daysSinceStatusChange } from "./ressources/bibliotheque.jsx";
 import { MouvementsAnimesTab } from "./mannequin/index.jsx";
+import { removePortalForumMessage, removePortalForumThread } from "./lib/portalModeration.js";
+import { NouveauxLiensParents } from "./portail/NouveauxLiensParents.jsx";
+import { StaffLogin } from "./portail/StaffLogin.jsx";
+import { InvitationMessage, InvitationBudgetNotice } from "./portail/InvitationMessage.jsx";
 import { CSS } from "./styles/css.js";
 import {
-  signInStaff, getStaffUser, onStaffAuthChange,
-  publishPortalSnapshot, pullPortalUpdates,
+  getStaffUser, onStaffAuthChange,
+  publishPortalSnapshot, findUnreachableNewThreads, pullPortalUpdates,
   generateInvitationCode, listActiveCodesForPlayer, revokeInvitationCode,
   listPlayerLinks, revokeLink,
 } from "./lib/portalSync.js";
+import { assemblePortalSnapshot, describePublishedCounts, describeUnreachableThreads } from "./lib/portalSnapshot.js";
+import { mergePulledUpdates } from "./lib/portalPull.js";
 
 // Renvoie { ALL_STARTER_EXERCISES, STARTER_SESSIONS }, ou null (avec un message) si le chargement échoue.
 async function loadStarterContent() {
@@ -821,21 +833,30 @@ function computeRatingSuggestions(match) {
 
 function QuickBackupButton({ compact }) {
   const [exporting, setExporting] = useState(false);
+  const [, setTick] = useState(0);
+  const last = getLastBackup();
+  const lastLabel = last ? `Dernière sauvegarde : ${describeBackupAge(last)}` : "Aucune sauvegarde enregistrée sur cet appareil";
+  const stale = !last || backupAgeDays(last, todayIso()) > REMINDER_AFTER_DAYS;
 
   async function handleClick() {
     setExporting(true);
     try {
-      await exportFullBackup();
+      const r = await exportFullBackupFile();
+      if (r.warnings && r.warnings.length > 0) alert(`Sauvegarde téléchargée, mais INCOMPLÈTE : les matchs tagués de ${r.warnings.length} équipe(s)/saison(s) n'ont pas pu être lus. Réessaie, ou utilise Administratif → Club → Sauvegarde.`);
     } catch (e) {
       alert("L'export a échoué : " + e.message);
     }
     setExporting(false);
+    setTick((n) => n + 1);
   }
 
   return (
-    <button className={compact ? "btn btn-ghost btn-small" : "sidebar-backup-btn"} onClick={handleClick} disabled={exporting} title="Télécharger une sauvegarde complète de toutes tes données">
-      <Download size={13} /> {exporting ? "Préparation…" : "Sauvegarder mes données"}
-    </button>
+    <>
+      <button className={compact ? "btn btn-ghost btn-small" : "sidebar-backup-btn"} onClick={handleClick} disabled={exporting} title={`Télécharger une sauvegarde complète de toutes tes données — ${lastLabel}`}>
+        <Download size={13} /> {exporting ? "Préparation…" : "Sauvegarder mes données"}
+      </button>
+      {compact && <div className="dashboard-card-meta" style={stale ? { color: "var(--crimson)" } : undefined}>{lastLabel}</div>}
+    </>
   );
 }
 
@@ -2198,9 +2219,8 @@ function CompteRenduArbitrageScreen() {
 
       {(() => {
         const reportedKeys = new Set(reports.map((r) => r.fixtureKey));
-        const cutoff = new Date(todayIso());
-        cutoff.setDate(cutoff.getDate() - 30);
-        const missing = fixtures.filter((f) => !reportedKeys.has(f.key) && new Date(f.date) >= cutoff);
+        const cutoff = addDaysIso(todayIso(), -30);
+        const missing = fixtures.filter((f) => !reportedKeys.has(f.key) && f.date >= cutoff);
         if (missing.length === 0) return null;
         return (
           <div className="empty-state" style={{ borderColor: "#E3B23C", marginBottom: 14 }}>
@@ -3638,7 +3658,7 @@ function ClubExerciseLibraryScreen({ teams }) {
                   <ExerciseCard
                     key={ex.id}
                     ex={ex}
-                    metaExtra={ex.updatedAt ? `mis à jour le ${formatDateFr(new Date(ex.updatedAt).toISOString().slice(0, 10))}` : undefined}
+                    metaExtra={ex.updatedAt ? `mis à jour le ${formatDateFr(dateIsoLocal(new Date(ex.updatedAt)))}` : undefined}
                     actions={<>
                       <button className="btn btn-ghost btn-small" onClick={() => copyToActiveTeam(ex)}>Copier vers mon équipe</button>
                       <button className="btn btn-ghost btn-small" onClick={() => openEdit(ex)}>Modifier</button>
@@ -3941,38 +3961,53 @@ function ClubPlayerJourneyScreen({ teams }) {
     const copiedPlayer = isDual
       ? { ...player, linkedTeamRef: { teamId: sourceTeamId, teamName: sourceTeamName } }
       : player;
-    writeScopedKeyFor("tf_roster", targetTeamId, seasonId, JSON.stringify([...targetRoster, copiedPlayer]));
+
+    // Toutes les écritures partent en UN lot « tout ou rien » : si le stockage est plein, rien n'est
+    // modifié. Avant, l'échec de la copie vers l'équipe cible passait inaperçu, puis le joueur était
+    // retiré de l'équipe source — il disparaissait des deux équipes.
+    const writes = [{ baseKey: "tf_roster", teamId: targetTeamId, seasonId, value: JSON.stringify([...targetRoster, copiedPlayer]) }];
 
     const sourceDevPlans = JSON.parse(readScopedKeyFor("tf_development_plans", sourceTeamId, seasonId) || "{}");
     if (sourceDevPlans[player.id]) {
       const targetDevPlans = JSON.parse(readScopedKeyFor("tf_development_plans", targetTeamId, seasonId) || "{}");
       targetDevPlans[player.id] = sourceDevPlans[player.id];
-      writeScopedKeyFor("tf_development_plans", targetTeamId, seasonId, JSON.stringify(targetDevPlans));
+      writes.push({ baseKey: "tf_development_plans", teamId: targetTeamId, seasonId, value: JSON.stringify(targetDevPlans) });
     }
 
     const sourceHealthProfiles = JSON.parse(readScopedKeyFor("tf_medical_health_profiles", sourceTeamId, seasonId) || "{}");
     if (sourceHealthProfiles[player.id]) {
       const targetHealthProfiles = JSON.parse(readScopedKeyFor("tf_medical_health_profiles", targetTeamId, seasonId) || "{}");
       targetHealthProfiles[player.id] = sourceHealthProfiles[player.id];
-      writeScopedKeyFor("tf_medical_health_profiles", targetTeamId, seasonId, JSON.stringify(targetHealthProfiles));
+      writes.push({ baseKey: "tf_medical_health_profiles", teamId: targetTeamId, seasonId, value: JSON.stringify(targetHealthProfiles) });
     }
 
     const sourceInjuries = JSON.parse(readScopedKeyFor("tf_medical_injuries", sourceTeamId, seasonId) || "[]");
     const playerInjuries = sourceInjuries.filter((i) => i.playerId === player.id);
     if (playerInjuries.length > 0) {
       const targetInjuries = JSON.parse(readScopedKeyFor("tf_medical_injuries", targetTeamId, seasonId) || "[]");
-      writeScopedKeyFor("tf_medical_injuries", targetTeamId, seasonId, JSON.stringify([...targetInjuries, ...playerInjuries]));
+      writes.push({ baseKey: "tf_medical_injuries", teamId: targetTeamId, seasonId, value: JSON.stringify([...targetInjuries, ...playerInjuries]) });
+    }
+
+    // Fiche d'origine, en dernier : marquée comme liée à la nouvelle (dans les deux sens) ou retirée.
+    let updatedSourceRoster = null;
+    if (isDual) updatedSourceRoster = sourceRosterFull.map((p) => (p.id === player.id ? { ...p, linkedTeamRef: { teamId: targetTeamId, teamName: targetTeamName } } : p));
+    else if (mode === "move") updatedSourceRoster = sourceRosterFull.filter((p) => p.id !== player.id);
+    if (updatedSourceRoster) writes.push({ baseKey: "tf_roster", teamId: sourceTeamId, seasonId, value: JSON.stringify(updatedSourceRoster) });
+
+    const result = writeScopedKeysAtomic(writes, { silent: true });
+    if (!result.ok) {
+      alert(result.rolledBack
+        ? "Le transfert n'a pas pu être enregistré : le stockage de ce navigateur est plein. Rien n'a été modifié, ni dans l'équipe source ni dans l'équipe cible. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence."
+        : "ATTENTION : le transfert a échoué en cours de route (stockage plein) et n'a pas pu être entièrement annulé. Vérifie les effectifs des deux équipes et télécharge une sauvegarde (Administratif → Club → Sauvegarde).");
+      setBusy(false);
+      return;
     }
 
     if (isDual) {
-      // Marque aussi la fiche d'origine comme liée à la nouvelle, dans les deux sens.
-      const updatedSourceRoster = sourceRosterFull.map((p) => (p.id === player.id ? { ...p, linkedTeamRef: { teamId: targetTeamId, teamName: targetTeamName } } : p));
-      writeScopedKeyFor("tf_roster", sourceTeamId, seasonId, JSON.stringify(updatedSourceRoster));
       setSourceRoster(updatedSourceRoster);
       alert(`${playerFullName(player)} est maintenant actif dans ${sourceTeamName} et ${targetTeamName}. Les deux fiches sont indépendantes une fois copiées — une modification future dans l'une ne se répercute pas automatiquement dans l'autre, mais chaque fiche indique où retrouver l'autre.`);
     } else if (mode === "move") {
-      writeScopedKeyFor("tf_roster", sourceTeamId, seasonId, JSON.stringify(sourceRosterFull.filter((p) => p.id !== player.id)));
-      setSourceRoster(sourceRosterFull.filter((p) => p.id !== player.id));
+      setSourceRoster(updatedSourceRoster);
       alert("Transfert effectué.");
     } else {
       alert(`${playerFullName(player)} copié vers ${targetTeamName}, resté également présent dans ${sourceTeamName}.`);
@@ -5419,21 +5454,11 @@ function emptyClubEvent() {
   };
 }
 // Construit la liste des dates d'occurrence pour un événement (une seule si pas de récurrence).
-// Garde-fou à 104 occurrences (~2 ans en hebdo) pour éviter une boucle infinie sur une date mal saisie.
+// Le calcul (et son garde-fou à 104 occurrences) vit dans lib/utils.js : arithmétique en UTC pur,
+// pour qu'un changement d'heure ne décale jamais une occurrence d'un jour.
 function buildEventOccurrenceDates(form) {
   if (!form.recurrence || !form.recurrence.enabled || !form.recurrence.until) return [form.date];
-  const dates = [];
-  let current = new Date(form.date);
-  const until = new Date(form.recurrence.until);
-  if (isNaN(current.getTime()) || isNaN(until.getTime()) || until < current) return [form.date];
-  let guard = 0;
-  while (current <= until && guard < 104) {
-    dates.push(current.toISOString().slice(0, 10));
-    if (form.recurrence.frequency === "monthly") current.setMonth(current.getMonth() + 1);
-    else current.setDate(current.getDate() + 7);
-    guard++;
-  }
-  return dates.length > 0 ? dates : [form.date];
+  return occurrenceDatesIso(form.date, form.recurrence.until, form.recurrence.frequency);
 }
 
 function ClubEventsScreen({ teams, categories }) {
@@ -5681,164 +5706,12 @@ function clubGroupForSubTab(subTab) {
   return g ? g.id : "club";
 }
 
-function inventoryLocalStorage(teams, seasons) {
-  const allKeys = [];
-  for (let i = 0; i < window.localStorage.length; i++) allKeys.push(window.localStorage.key(i));
-  const tfKeys = allKeys.filter((k) => k && k.startsWith("tf_"));
-
-  const clubData = {};
-  const teamData = {};
-  function ensureScope(scopeKey) {
-    if (!teamData[scopeKey]) teamData[scopeKey] = {};
-    return teamData[scopeKey];
-  }
-
-  tfKeys.forEach((key) => {
-    if (UNSCOPED_STORAGE_KEYS.has(key)) {
-      clubData[key] = rawStorage.getItem.call(window.localStorage, key);
-      return;
-    }
-    let matchedScope = null, matchedBaseKey = null;
-    teams.forEach((team) => {
-      seasons.forEach((season) => {
-        if (team.id === DEFAULT_TEAM_ID && season.id === DEFAULT_SEASON_ID) return;
-        const suffix = `__${team.id}__${season.id}`;
-        if (key.endsWith(suffix)) {
-          matchedScope = `${team.id}::${season.id}`;
-          matchedBaseKey = key.slice(0, key.length - suffix.length);
-        }
-      });
-    });
-    if (matchedScope) {
-      ensureScope(matchedScope)[matchedBaseKey] = rawStorage.getItem.call(window.localStorage, key);
-    } else {
-      ensureScope(`${DEFAULT_TEAM_ID}::${DEFAULT_SEASON_ID}`)[key] = rawStorage.getItem.call(window.localStorage, key);
-    }
-  });
-
-  return { clubData, teamData };
-}
-
-function readAllMatchesFromDb(teamId, seasonId) {
-  return new Promise((resolve) => {
-    try {
-      const req = indexedDB.open(matchesDbNameFor(teamId, seasonId), 2);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(MATCHES_STORE)) db.createObjectStore(MATCHES_STORE, { keyPath: "id" });
-        if (!db.objectStoreNames.contains(OBS_STORE)) db.createObjectStore(OBS_STORE, { keyPath: "id" });
-      };
-      req.onsuccess = () => {
-        const db = req.result;
-        try {
-          const tx = db.transaction([MATCHES_STORE, OBS_STORE], "readonly");
-          let matches = null, obs = null;
-          const done = () => { if (matches != null && obs != null) resolve({ matches, obs }); };
-          const mReq = tx.objectStore(MATCHES_STORE).getAll();
-          mReq.onsuccess = () => { matches = mReq.result || []; done(); };
-          mReq.onerror = () => { matches = []; done(); };
-          const oReq = tx.objectStore(OBS_STORE).getAll();
-          oReq.onsuccess = () => { obs = oReq.result || []; done(); };
-          oReq.onerror = () => { obs = []; done(); };
-        } catch (e) { resolve({ matches: [], obs: [] }); }
-      };
-      req.onerror = () => resolve({ matches: [], obs: [] });
-    } catch (e) { resolve({ matches: [], obs: [] }); }
-  });
-}
-
-function restoreMatchesToDb(teamId, seasonId, matches, obs) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(matchesDbNameFor(teamId, seasonId), 2);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(MATCHES_STORE)) db.createObjectStore(MATCHES_STORE, { keyPath: "id" });
-      if (!db.objectStoreNames.contains(OBS_STORE)) db.createObjectStore(OBS_STORE, { keyPath: "id" });
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      try {
-        const tx = db.transaction([MATCHES_STORE, OBS_STORE], "readwrite");
-        (matches || []).forEach((m) => tx.objectStore(MATCHES_STORE).put(m));
-        (obs || []).forEach((m) => tx.objectStore(OBS_STORE).put(m));
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject(tx.error);
-      } catch (e) { reject(e); }
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function exportFullBackup(onProgress) {
-  let teams = [], seasons = [];
-  try { teams = JSON.parse(rawStorage.getItem.call(window.localStorage, "tf_teams") || "[]"); } catch (e) {}
-  try { seasons = JSON.parse(rawStorage.getItem.call(window.localStorage, "tf_seasons") || "[]"); } catch (e) {}
-  if (teams.length === 0) teams = [{ id: DEFAULT_TEAM_ID, name: "Équipe" }];
-  if (seasons.length === 0) seasons = [{ id: DEFAULT_SEASON_ID, label: "Saison" }];
-
-  const { clubData, teamData } = inventoryLocalStorage(teams, seasons);
-
-  let done = 0;
-  const total = teams.length * seasons.length;
-  for (const team of teams) {
-    for (const season of seasons) {
-      const scopeKey = `${team.id}::${season.id}`;
-      const { matches, obs } = await readAllMatchesFromDb(team.id, season.id);
-      if (matches.length > 0 || obs.length > 0) {
-        if (!teamData[scopeKey]) teamData[scopeKey] = {};
-        teamData[scopeKey]._studioMatches = matches;
-        teamData[scopeKey]._obsMatches = obs;
-      }
-      done++;
-      if (onProgress) onProgress(done, total);
-    }
-  }
-
-  const backup = { exportedAt: new Date().toISOString(), version: 1, teams, seasons, clubData, teamData };
-  const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `game-changer-sauvegarde-${todayIso()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-async function importFullBackup(file, onProgress) {
-  const text = await file.text();
-  const backup = JSON.parse(text);
-  if (!backup.teams || !backup.teamData) throw new Error("Format de sauvegarde non reconnu.");
-
-  rawStorage.setItem.call(window.localStorage, "tf_teams", JSON.stringify(backup.teams));
-  rawStorage.setItem.call(window.localStorage, "tf_seasons", JSON.stringify(backup.seasons || []));
-
-  Object.entries(backup.clubData || {}).forEach(([key, value]) => {
-    rawStorage.setItem.call(window.localStorage, key, value);
-  });
-
-  const entries = Object.entries(backup.teamData);
-  let done = 0;
-  for (const [scopeKey, data] of entries) {
-    const [teamId, seasonId] = scopeKey.split("::");
-    for (const [baseKey, value] of Object.entries(data)) {
-      if (baseKey === "_studioMatches" || baseKey === "_obsMatches") continue;
-      writeScopedKeyFor(baseKey, teamId, seasonId, value);
-    }
-    if (data._studioMatches || data._obsMatches) {
-      await restoreMatchesToDb(teamId, seasonId, data._studioMatches || [], data._obsMatches || []);
-    }
-    done++;
-    if (onProgress) onProgress(done, entries.length);
-  }
-}
+// L'export, la restauration (aperçu, instantané automatique, retour arrière), le chiffrement optionnel
+// et la jauge de stockage vivent dans src/lib/ (fullBackup.js, backupCrypto.js, storageGauge.js,
+// BackupPanels.jsx) : le bouton « Télécharger une sauvegarde » de l'écran d'erreur doit marcher
+// même quand l'app a planté, et ces fonctions se testent sous Node.
 
 function BackupScreen() {
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState(null);
-  const fileInputRef = useRef(null);
   const [currentPin, setCurrentPin] = useState("");
   const [pinDraft, setPinDraft] = useState("");
   const [pinLoaded, setPinLoaded] = useState(false);
@@ -5858,33 +5731,6 @@ function BackupScreen() {
     setTimeout(() => setPinSaved(false), 2500);
   }
 
-  async function handleExport() {
-    setExporting(true);
-    setProgress({ done: 0, total: 1 });
-    try {
-      await exportFullBackup((done, total) => setProgress({ done, total }));
-    } catch (e) {
-      alert("L'export a échoué : " + e.message);
-    }
-    setExporting(false);
-    setProgress(null);
-  }
-
-  async function handleImportFile(file) {
-    if (!confirm("Restaurer cette sauvegarde ? Les données existantes portant les mêmes identifiants seront écrasées — les autres resteront intactes. La page se rechargera à la fin.")) return;
-    setImporting(true);
-    setProgress({ done: 0, total: 1 });
-    try {
-      await importFullBackup(file, (done, total) => setProgress({ done, total }));
-      alert("Sauvegarde restaurée avec succès.");
-      window.location.reload();
-    } catch (e) {
-      alert("La restauration a échoué : " + e.message);
-      setImporting(false);
-      setProgress(null);
-    }
-  }
-
   return (
     <div className="stats-screen">
       <div className="stats-screen-header">
@@ -5894,21 +5740,7 @@ function BackupScreen() {
       <p className="radar-note">Exporte l'intégralité de tes données — toutes les équipes, toutes les saisons, toutes les données de club — dans un seul fichier que tu peux garder de côté. Sans ça, tout ce que tu as construit ne vit que dans ce navigateur, sans filet.</p>
       <p className="hint" style={{ marginTop: 0 }}>Ce que couvre la sauvegarde : effectifs, compétitions, projets de jeu, séances, exercices, causeries, suivi médical, discipline, développement, scouting, toutes les données Club, et les matchs Studio/Observation tagués (scores, tags, possession). Ce qu'elle ne couvre pas : les clips vidéo compilés dans Vidéothèque (trop volumineux pour un fichier de sauvegarde) — mais comme tous les tags sont sauvegardés, ils restent régénérables depuis tes vidéos originales.</p>
 
-      <div className="new-match-card">
-        <div className="panel-heading" style={{ marginTop: 0 }}>Exporter</div>
-        <button className="btn btn-primary" onClick={handleExport} disabled={exporting || importing}>
-          {exporting ? `Préparation… ${progress ? `${progress.done}/${progress.total}` : ""}` : "Télécharger une sauvegarde complète"}
-        </button>
-      </div>
-
-      <div className="new-match-card" style={{ marginTop: 16 }}>
-        <div className="panel-heading" style={{ marginTop: 0 }}>Restaurer</div>
-        <p className="hint" style={{ marginTop: 0 }}>À utiliser sur un navigateur neuf (nouvel ordinateur, cache vidé) ou pour revenir à un état antérieur.</p>
-        <button className="btn btn-ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} disabled={exporting || importing}>
-          {importing ? `Restauration… ${progress ? `${progress.done}/${progress.total}` : ""}` : "Choisir un fichier de sauvegarde"}
-        </button>
-        <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]); e.target.value = ""; }} />
-      </div>
+      <BackupCenter />
       <div className="new-match-card" style={{ marginTop: 16 }}>
         <div className="panel-heading" style={{ marginTop: 0 }}>Verrou par code</div>
         <p className="hint" style={{ marginTop: 0 }}>Protège Suivi médical, Trésorier, Sécurité & éthique et Protection de l'enfance par un code — un frein simple contre le coup d'œil sur un appareil partagé, pas un vrai chiffrement (le code reste en clair dans le stockage local). Le déverrouillage ne dure qu'une session : recharger la page redemande le code.</p>
@@ -5926,173 +5758,178 @@ function BackupScreen() {
 }
 
 // Rassemble l'état local (localStorage + IndexedDB via readMatchFromCache) de l'équipe/saison
-// active dans la forme attendue par publishPortalSnapshot (src/lib/portalSync.js) — cette fonction
-// connaît les formes internes de l'app staff, portalSync.js ne connaît que du Postgres.
+// active et le passe à assemblePortalSnapshot (src/lib/portalSnapshot.js), qui le convertit au format
+// de la base, écarte ce qui est invalide ou hors cadre et dit pourquoi. Cette fonction ne fait que
+// CONNAÎTRE les formes internes de l'app staff ; les règles de publication vivent dans le module pur.
+// Renvoie { snapshot, blocking, problems, notices } (snapshot est null si blocking n'est pas vide).
 function buildPortalSnapshot(teamId, seasonId) {
-  const roster = JSON.parse(localStorage.getItem("tf_roster") || "[]");
-  const devPlans = JSON.parse(localStorage.getItem("tf_development_plans") || "{}");
-  const programs = JSON.parse(localStorage.getItem("tf_individual_programs") || "{}");
-  const injuriesRaw = JSON.parse(localStorage.getItem("tf_medical_injuries") || "[]");
-  const sessionsRaw = JSON.parse(localStorage.getItem("tf_sessions") || "[]");
-  const faqRaw = JSON.parse(localStorage.getItem("tf_club_faq") || "[]");
-  const clubEventsRaw = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
-  const carpoolRaw = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
-  const forumThreadsRaw = JSON.parse(localStorage.getItem("tf_forum_threads") || "[]");
-  const forumMessagesRaw = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
+  // Lecture tolérante : une clé absente ou corrompue donne la valeur de repli au lieu de faire échouer
+  // toute la publication avec « Unexpected token » (le staff ne saurait pas quelle clé est en cause).
+  const read = (key, fallback) => {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || "null");
+      return value == null ? fallback : value;
+    } catch (e) { return fallback; }
+  };
+
+  const roster = read("tf_roster", []);
+  const teams = read("tf_teams", []);
   const comp = loadCompetitionsData();
 
-  const matchIndex = JSON.parse(localStorage.getItem(MATCHES_INDEX_KEY) || "[]");
+  const matchIndex = read(MATCHES_INDEX_KEY, []);
   const allFullMatches = matchIndex.map((m) => readMatchFromCache(m.id)).filter((m) => m && m.closed);
-
-  const players = roster.map((p) => ({
-    id: p.id, team_id: teamId, season_id: seasonId,
-    first_name: p.firstName || p.name || "", last_name: p.lastName || "", position: p.position || null,
-  }));
-
-  const developmentGoals = roster.flatMap((p) =>
-    (devPlans[p.id] || []).map((g) => ({ id: g.id, player_id: p.id, team_id: teamId, season_id: seasonId, label: g.title, status: g.status || null }))
-  );
-  const individualPrograms = roster.flatMap((p) =>
-    (programs[p.id] || []).map((pr) => ({ id: pr.id, player_id: p.id, team_id: teamId, season_id: seasonId, title: pr.title, content: pr }))
-  );
-  // Vue restreinte volontaire : statut RTP seulement, jamais le diagnostic/type de blessure.
-  const injuries = injuriesRaw.map((i) => ({
-    id: i.id, player_id: i.playerId, team_id: teamId, season_id: seasonId, status: i.status, rtp_stage: i.rtpStage || null,
-  }));
-  const sessions = sessionsRaw.map((s) => ({ id: s.id, team_id: teamId, season_id: seasonId, date: s.date, label: s.name || null }));
-  const faq = faqRaw.map((f) => ({ id: f.id, team_id: teamId, season_id: seasonId, question: f.question, answer: f.answer }));
-  const clubEvents = clubEventsRaw.map((e) => ({ id: e.id, title: e.name, date: e.date, location: null }));
-  const carpoolOffers = carpoolRaw.map((o) => ({
-    id: o.id, team_id: teamId, season_id: seasonId, driver_name: o.driverName, event_label: o.eventTitle, date: o.eventDate, seats_total: o.seats,
-  }));
-
-  const competitions = comp.competitions.map((c) => ({ id: c.id, team_id: teamId, season_id: seasonId, name: c.name }));
-  const fixtures = comp.competitions.flatMap((c) =>
-    c.fixtures.map((f) => ({ id: f.id, competition_id: c.id, team_id: teamId, season_id: seasonId, date: f.date, opponent: f.opponent, location: f.venue || null }))
-  );
-
-  const matches = allFullMatches.map((m) => ({ id: m.id, team_id: teamId, season_id: seasonId, name: m.name, date: m.date, closed: true }));
   const matchStats = roster.flatMap((p) =>
     computePlayerMatchStats(p.id, allFullMatches).map((s) => ({
-      match_id: s.matchId, player_id: p.id, buts: s.buts, passes_decisives: s.passesDecisives, highlights: s.highlights,
+      matchId: s.matchId, playerId: p.id, buts: s.buts, passesDecisives: s.passesDecisives, highlights: s.highlights,
     }))
   );
 
-  const forumThreads = forumThreadsRaw.map((t) => ({
-    id: t.id, team_id: teamId, season_id: seasonId, title: t.title, type: t.type,
-    linked_event_title: t.linkedEventTitle || null, linked_event_date: t.linkedEventDate || null,
-    targetPlayerIds: t.type === "individuelle" ? (t.targetIndividuals || []) : undefined,
-  }));
-
-  // Tous les messages locaux, marqués « staff » : portalSync écarte ceux qui sont déjà connus côté
-  // Supabase comme messages de parents (ramenés par « Récupérer les nouveautés »). Les pièces
-  // jointes (exercices, clips) ne sont pas publiées.
-  const forumMessages = forumMessagesRaw
-    .filter((m) => m && m.threadId && m.content)
-    .map((m) => ({
-      id: m.id, thread_id: m.threadId, author_kind: "staff", author_name: m.authorName || "Staff",
-      parent_id: null, content: m.content, at: new Date(m.at || Date.now()).toISOString(),
-    }));
-
-  return {
-    teamId, seasonId, players, developmentGoals, individualPrograms, injuries, sessions, faq,
-    clubEvents, carpoolOffers, competitions, fixtures, matches, matchStats, forumThreads, forumMessages,
-  };
+  return assemblePortalSnapshot({
+    teamId, seasonId, teams, team: teams.find((t) => t.id === teamId) || null,
+    locations: read("tf_club_locations", []),
+    today: todayIso(),
+    roster,
+    devPlans: read("tf_development_plans", {}),
+    programs: read("tf_individual_programs", {}),
+    injuries: read("tf_medical_injuries", []),
+    sessions: read("tf_sessions", []),
+    faq: read("tf_club_faq", []),
+    clubEvents: read("tf_club_events", []),
+    carpool: read("tf_club_carpool", []),
+    competitions: comp.competitions,
+    matches: allFullMatches.map((m) => ({ id: m.id, name: m.name, date: m.date })),
+    matchStats,
+    forumThreads: read("tf_forum_threads", []),
+    forumMessages: read("tf_forum_messages", []),
+  });
 }
 
 function PortalBackendScreen() {
   const [staffUser, setStaffUser] = useState(undefined); // undefined = pas encore su
-  const [email, setEmail] = useState("");
-  const [sendingLink, setSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [pulling, setPulling] = useState(false);
-  const [statusMsg, setStatusMsg] = useState("");
+  // Compte rendu de la dernière action : { tone: "ok" | "warn" | "error", title, headline, problems, warnings, notices }
+  const [report, setReport] = useState(null);
+  const [lastPublish, setLastPublish] = useState(null);
   const [roster, setRoster] = useState([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [codes, setCodes] = useState([]);
   const [links, setLinks] = useState([]);
+  const [inviting, setInviting] = useState(null); // code d'invitation dont on prépare le message
 
   useEffect(() => {
     getStaffUser().then(setStaffUser);
     const unsub = onStaffAuthChange((session) => setStaffUser(session?.user || null));
     try { setRoster(JSON.parse(localStorage.getItem("tf_roster") || "[]")); } catch (e) {}
+    try { setLastPublish(localStorage.getItem("tf_portal_last_publish") || null); } catch (e) {}
     return unsub;
   }, []);
 
   useEffect(() => {
+    setInviting(null);
     if (!staffUser || !selectedPlayerId) { setCodes([]); setLinks([]); return; }
     listActiveCodesForPlayer(selectedPlayerId).then(setCodes).catch(() => setCodes([]));
     listPlayerLinks(selectedPlayerId).then(setLinks).catch(() => setLinks([]));
   }, [staffUser, selectedPlayerId]);
 
-  async function handleSendLink(e) {
-    e.preventDefault();
-    setSendingLink(true);
-    try {
-      await signInStaff(email.trim());
-      setLinkSent(true);
-    } catch (err) {
-      alert("Échec de l'envoi : " + err.message);
-    }
-    setSendingLink(false);
-  }
+  // Fiches non publiées parce qu'invalides : « Séance « Entraînement » : date manquante. »
+  const describeProblems = (problems) => problems.map((p) => `${p.what} ${p.label} : ${p.reason} — non publiée.`);
 
   async function handlePublish() {
     setPublishing(true);
-    setStatusMsg("");
+    setReport(null);
+    let built = null;
     try {
-      const snapshot = buildPortalSnapshot(getActiveTeamId(), getActiveSeasonId());
-      await publishPortalSnapshot(snapshot);
+      built = buildPortalSnapshot(getActiveTeamId(), getActiveSeasonId());
+      if (!built.snapshot) {
+        setReport({ tone: "error", title: "Publication impossible", headline: built.blocking[0], problems: describeProblems(built.problems), warnings: [], notices: built.notices });
+        return;
+      }
+
+      // Avant d'envoyer : une conversation individuelle publiée sans parent lié ne sera lisible par
+      // personne, et ses participants ne peuvent plus être ajoutés ensuite. Autant laisser le choix.
+      let unreachable = [];
+      try { unreachable = await findUnreachableNewThreads(built.snapshot); } catch (e) { /* simple aide : si le serveur est injoignable, la publication le dira */ }
+      if (unreachable.length > 0) {
+        const names = unreachable.map((t) => `« ${t.title} »`).join(", ");
+        const proceed = confirm(
+          `Aucun parent n'est encore lié aux joueurs de ${unreachable.length > 1 ? "ces conversations individuelles" : "cette conversation individuelle"} : ${names}.\n\n` +
+          "Les parents ne sont rattachés qu'à la première publication d'un sujet : si tu publies maintenant, personne ne pourra le lire, et cela ne se rattrape pas.\n\n" +
+          "Publier quand même ? (Annuler pour lier d'abord les parents avec leurs codes d'invitation.)"
+        );
+        if (!proceed) {
+          setReport({ tone: "warn", title: "Publication annulée", headline: "Rien n'a été publié.", problems: [], warnings: [], notices: [] });
+          return;
+        }
+      }
+
+      const result = await publishPortalSnapshot(built.snapshot);
       const now = new Date().toISOString();
       localStorage.setItem("tf_portal_last_publish", now);
-      setStatusMsg("Publié le " + new Date(now).toLocaleString("fr-FR"));
+      setLastPublish(now);
+      const skippedByServer = Object.entries(result.skipped || {}).filter(([, n]) => n > 0);
+      const problems = describeProblems(built.problems);
+      const warnings = describeUnreachableThreads(result.individual_threads_without_parent);
+      const notices = [...built.notices];
+      if (skippedByServer.length > 0) notices.push(`Le serveur a écarté des lignes qui ne correspondent à aucun joueur ou sujet publié : ${skippedByServer.map(([table, n]) => `${n} (${table})`).join(", ")}.`);
+      setReport({
+        tone: problems.length + warnings.length > 0 ? "warn" : "ok",
+        title: "Publication terminée",
+        headline: `Publié le ${new Date(now).toLocaleString("fr-FR")} — ${describePublishedCounts(result.counts) || "rien à publier"}.`,
+        problems, warnings, notices,
+      });
     } catch (err) {
-      setStatusMsg("Échec de la publication : " + err.message);
+      setReport({
+        tone: "error", title: "Échec de la publication", headline: err.message,
+        problems: built ? describeProblems(built.problems) : [], warnings: [], notices: built ? built.notices : [],
+      });
+    } finally {
+      setPublishing(false);
     }
-    setPublishing(false);
   }
 
   async function handlePull() {
     setPulling(true);
-    setStatusMsg("");
+    setReport(null);
     try {
       const teamId = getActiveTeamId(), seasonId = getActiveSeasonId();
-      const since = localStorage.getItem("tf_portal_last_pull") || null;
-      const { journalEntries, carpoolPassengers, forumMessages, pulledAt } = await pullPortalUpdates(teamId, seasonId, since);
+      const cursor = localStorage.getItem("tf_portal_last_pull") || null;
+      const pulled = await pullPortalUpdates(teamId, seasonId, cursor);
 
-      if (journalEntries.length > 0) {
-        const journal = JSON.parse(localStorage.getItem("tf_player_journal") || "[]");
-        const existingIds = new Set(journal.map((j) => j.id));
-        localStorage.setItem("tf_player_journal", JSON.stringify([...journal, ...journalEntries.filter((j) => !existingIds.has(j.id))]));
-      }
-      if (carpoolPassengers.length > 0) {
-        const offers = JSON.parse(localStorage.getItem("tf_club_carpool") || "[]");
-        carpoolPassengers.forEach(({ offerId, passengerName }) => {
-          const offer = offers.find((o) => o.id === offerId);
-          if (offer && !offer.passengers.includes(passengerName)) offer.passengers.push(passengerName);
-        });
-        localStorage.setItem("tf_club_carpool", JSON.stringify(offers));
-      }
-      if (forumMessages.length > 0) {
-        const messages = JSON.parse(localStorage.getItem("tf_forum_messages") || "[]");
-        const existingIds = new Set(messages.map((m) => m.id));
-        localStorage.setItem("tf_forum_messages", JSON.stringify([...messages, ...forumMessages.filter((m) => !existingIds.has(m.id))]));
-      }
+      const readList = (key) => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } };
+      const merged = mergePulledUpdates(
+        { journal: readList("tf_player_journal"), carpoolOffers: readList("tf_club_carpool"), forumMessages: readList("tf_forum_messages") },
+        pulled
+      );
+      if (merged.added.journal > 0) localStorage.setItem("tf_player_journal", JSON.stringify(merged.journal));
+      if (merged.added.passengers > 0) localStorage.setItem("tf_club_carpool", JSON.stringify(merged.carpoolOffers));
+      if (merged.added.messages > 0) localStorage.setItem("tf_forum_messages", JSON.stringify(merged.forumMessages));
+      // Le curseur n'avance qu'une fois les données enregistrées : un échec d'écriture se rejoue
+      // à la récupération suivante (les doublons sont écartés par identifiant).
+      if (pulled.cursor) localStorage.setItem("tf_portal_last_pull", pulled.cursor);
 
-      localStorage.setItem("tf_portal_last_pull", pulledAt);
-      setStatusMsg(`Récupéré : ${journalEntries.length} note(s) de journal, ${carpoolPassengers.length} covoiturage(s), ${forumMessages.length} message(s) de forum.`);
+      const { journal, passengers, messages } = merged.added;
+      setReport({
+        tone: "ok", title: "Récupération terminée",
+        headline: journal + passengers + messages === 0
+          ? "Rien de nouveau depuis la dernière récupération."
+          : `Récupéré : ${journal} note(s) de journal, ${passengers} inscription(s) au covoiturage, ${messages} message(s) de forum.`,
+        problems: [], warnings: [], notices: [],
+      });
     } catch (err) {
-      setStatusMsg("Échec de la récupération : " + err.message);
+      setReport({ tone: "error", title: "Échec de la récupération", headline: err.message, problems: [], warnings: [], notices: [] });
+    } finally {
+      setPulling(false);
     }
-    setPulling(false);
   }
 
   async function handleGenerateCode() {
     try {
       const code = await generateInvitationCode(selectedPlayerId, getActiveTeamId(), getActiveSeasonId());
-      setCodes(await listActiveCodesForPlayer(selectedPlayerId));
-      alert("Code généré : " + code);
+      const refreshed = await listActiveCodesForPlayer(selectedPlayerId);
+      setCodes(refreshed);
+      // Le message à envoyer à la famille s'ouvre tout de suite (avant : une alerte avec le code, à recopier à la main).
+      setInviting(refreshed.find((c) => c.code === code) || { code, expires_at: null });
     } catch (err) {
       alert("Échec : " + err.message);
     }
@@ -6101,6 +5938,7 @@ function PortalBackendScreen() {
   async function handleRevokeCode(code) {
     if (!confirm("Révoquer ce code ?")) return;
     await revokeInvitationCode(code);
+    setInviting((current) => (current && current.code === code ? null : current));
     setCodes(await listActiveCodesForPlayer(selectedPlayerId));
   }
 
@@ -6120,14 +5958,7 @@ function PortalBackendScreen() {
           <h1>Portail parent (backend)</h1>
           <p className="subtitle">Connecte-toi avec ton compte staff pour publier des données vers le portail parent et gérer les codes d'invitation.</p>
         </div>
-        {linkSent ? (
-          <p>Lien de connexion envoyé à {email}. Vérifie ta boîte mail.</p>
-        ) : (
-          <form onSubmit={handleSendLink}>
-            <input type="email" required placeholder="ton.email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 10 }} />
-            <button className="btn btn-primary" disabled={sendingLink} type="submit">{sendingLink ? "Envoi…" : "Recevoir un lien de connexion"}</button>
-          </form>
-        )}
+        <StaffLogin />
       </div>
     );
   }
@@ -6140,6 +5971,8 @@ function PortalBackendScreen() {
         <p className="subtitle">Connecté comme {staffUser.email}. Publie les données de l'équipe/saison active vers le portail parent, et gère les codes d'invitation par joueur.</p>
       </div>
 
+      <NouveauxLiensParents />
+
       <div className="panel-heading">Synchronisation</div>
       <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
         <button className="btn btn-primary" disabled={publishing} onClick={handlePublish}>
@@ -6149,9 +5982,24 @@ function PortalBackendScreen() {
           {pulling ? "Récupération…" : "Récupérer les nouveautés"}
         </button>
       </div>
-      {statusMsg && <p className="hint">{statusMsg}</p>}
+      <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+        {lastPublish ? `Dernière publication de cette équipe/saison : ${new Date(lastPublish).toLocaleString("fr-FR")}.` : "Rien n'a encore été publié pour cette équipe/saison."}
+        {" "}Les parents ne voient que ce que tu publies : pense à republier après un changement.
+      </p>
+      {report && (
+        <div className="signals-box" role="status" style={{ marginTop: 12 }}>
+          <div className="signals-box-title">{report.title}</div>
+          <div className={`signal-item ${report.tone === "ok" ? "positive" : report.tone === "error" ? "negative" : ""}`}>{report.headline}</div>
+          {report.warnings.map((line, i) => <div className="signal-item negative" key={`w${i}`}>⚠ {line}</div>)}
+          {report.problems.length > 0 && <div className="signals-box-title" style={{ marginTop: 6 }}>À corriger dans l'app, puis republier</div>}
+          {report.problems.map((line, i) => <div className="signal-item negative" key={`p${i}`}>{line}</div>)}
+          {report.notices.length > 0 && <div className="signals-box-title" style={{ marginTop: 6 }}>Pour information</div>}
+          {report.notices.map((line, i) => <div className="signal-item" key={`n${i}`}>{line}</div>)}
+        </div>
+      )}
 
       <div className="panel-heading" style={{ marginTop: 24 }}>Codes d'invitation par joueur</div>
+      <InvitationBudgetNotice />
       <select value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)} style={{ width: "100%", padding: 8, marginBottom: 12 }}>
         <option value="">— Choisir un joueur —</option>
         {roster.map((p) => <option key={p.id} value={p.id}>{p.firstName || p.name} {p.lastName || ""}</option>)}
@@ -6164,16 +6012,22 @@ function PortalBackendScreen() {
           {codes.length > 0 && (
             <div className="scouting-list" style={{ marginBottom: 16 }}>
               {codes.map((c) => (
-                <div className="scouting-card" key={c.code}>
-                  <div className="scouting-info">
+                // flexWrap + largeur minimale du code : sur téléphone, les deux boutons passent sous le code au lieu de le recouvrir
+                <div className="scouting-card" key={c.code} style={{ flexWrap: "wrap" }}>
+                  <div className="scouting-info" style={{ minWidth: 140 }}>
                     <div className="scouting-name">{c.code}</div>
                     <div className="scouting-meta">{c.use_count}/{c.max_uses} utilisation(s)</div>
                   </div>
-                  <button className="btn btn-ghost btn-small" onClick={() => handleRevokeCode(c.code)}>Révoquer</button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-primary btn-small" onClick={() => setInviting(c)}>Préparer l'invitation</button>
+                    <button className="btn btn-ghost btn-small" onClick={() => handleRevokeCode(c.code)}>Révoquer</button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+
+          {inviting && <InvitationMessage key={inviting.code} code={inviting.code} expiresAt={inviting.expires_at || null} onClose={() => setInviting(null)} />}
 
           <div className="panel-heading">Parents liés</div>
           {links.length === 0 && <div className="empty-state">Aucun parent lié pour l'instant.</div>}
@@ -6415,13 +6269,15 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
     if (!confirm("Supprimer ce véhicule ?")) return;
     persistVehicles(vehicles.filter((v) => v.id !== id));
   }
+  // Renvoient false si l'écriture a échoué (stockage plein) : la création d'une équipe ou d'une saison
+  // n'annonce un succès qu'après avoir vérifié ce retour.
   function persistTeams(next) {
     setTeams(next);
-    try { window.localStorage.setItem("tf_teams", JSON.stringify(next)); } catch (e) {}
+    try { window.localStorage.setItem("tf_teams", JSON.stringify(next)); return true; } catch (e) { return false; }
   }
   function persistSeasons(next) {
     setSeasons(next);
-    try { window.localStorage.setItem("tf_seasons", JSON.stringify(next)); } catch (e) {}
+    try { window.localStorage.setItem("tf_seasons", JSON.stringify(next)); return true; } catch (e) { return false; }
   }
   function addTeam() {
     if (!newTeamName.trim()) { alert("Donne un nom à cette équipe."); return; }
@@ -6438,48 +6294,80 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
     if (!name.trim()) { alert("Donne un nom à la nouvelle équipe."); return; }
     const seasonId = getActiveSeasonId();
     const newTeam = { id: newId(), name: name.trim(), category: sourceTeam.category || "" };
-    persistTeams([...teams, newTeam]);
 
-    const STRUCTURAL_KEYS = ["tf_gameplan", "tf_exercices", "tf_training_cycles", "tf_active_cycle_id"];
-    STRUCTURAL_KEYS.forEach((key) => {
-      const raw = readScopedKeyFor(key, sourceTeam.id, seasonId);
-      if (raw != null) writeScopedKeyFor(key, newTeam.id, seasonId, raw);
-    });
-    alert(`"${newTeam.name}" créée avec le Projet de jeu, les exercices et les cycles d'entraînement de "${sourceTeam.name}" comme point de départ — modifiable librement ensuite. L'effectif, les matchs et le reste démarrent vides.`);
+    // Ce qui sera copié, avec le nom affiché si une copie échoue. Les exercices pèsent lourd (la banque
+    // de départ ≈ 2,4 millions de caractères) : on vérifie la place AVANT de créer quoi que ce soit.
+    const STRUCTURAL_KEYS = [["tf_gameplan", "le Projet de jeu"], ["tf_exercices", "les exercices"], ["tf_training_cycles", "les cycles d'entraînement"], ["tf_active_cycle_id", "le cycle actif"]];
+    const copies = STRUCTURAL_KEYS.map(([key, label]) => ({ key, label, raw: readScopedKeyFor(key, sourceTeam.id, seasonId) })).filter((c) => c.raw != null);
+    const room = checkRoomForChars(copies.reduce((n, c) => n + c.key.length + c.raw.length, 0) + 200);
+    if (!room.ok && !confirm(`Le stockage de ce navigateur est presque plein : la copie demande environ ${formatChars(room.neededChars)} et il en reste environ ${formatChars(room.freeChars)}. Créer quand même "${newTeam.name}", en copiant ce qui rentre ? (Annuler : rien n'est créé — libère d'abord de la place dans Club → Sauvegarde → « Place disponible ».)`)) return;
+
+    if (!persistTeams([...teams, newTeam])) {
+      alert("L'équipe n'a pas pu être créée : le stockage de ce navigateur est plein. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence.");
+      return;
+    }
+    const failed = copies.filter((c) => !writeScopedKeyFor(c.key, newTeam.id, seasonId, c.raw, { silent: true }));
+    if (failed.length === 0) {
+      alert(`"${newTeam.name}" créée avec le Projet de jeu, les exercices et les cycles d'entraînement de "${sourceTeam.name}" comme point de départ — modifiable librement ensuite. L'effectif, les matchs et le reste démarrent vides.`);
+    } else {
+      alert(`"${newTeam.name}" est créée, mais le stockage de ce navigateur est plein : ${failed.map((c) => c.label).join(", ")} n'ont PAS été copiés. Le reste a bien été copié. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recopie-les à la main (Séance → Création d'exercices : exporter puis importer tes exercices).`);
+    }
   }
   function renameTeam(id, field, value) {
     persistTeams(teams.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
   }
   function deleteTeam(id) {
     if (id === DEFAULT_TEAM_ID) { alert("L'équipe par défaut ne peut pas être supprimée — elle contient tes données déjà existantes."); return; }
-    if (!confirm("Supprimer cette équipe ? Ses données (effectif, matchs, etc.) resteront stockées mais ne seront plus accessibles depuis un sélecteur.")) return;
+    if (!confirm("Supprimer cette équipe ? Ses données (effectif, matchs, etc.) resteront stockées mais ne seront plus accessibles depuis un sélecteur — elles continueront d'occuper de la place dans le navigateur ; tu pourras les supprimer pour de bon depuis Club → Sauvegarde → « Place disponible ».")) return;
     persistTeams(teams.filter((t) => t.id !== id));
     if (getActiveTeamId() === id) switchTeamAndSeason(DEFAULT_TEAM_ID, getActiveSeasonId());
   }
   function addSeason() {
     if (!newSeasonLabel.trim()) { alert("Donne un nom à cette saison (ex. 2026-2027)."); return; }
     const newSeason = { id: newId(), label: newSeasonLabel.trim(), startDate: "", endDate: "" };
-    persistSeasons([...seasons, newSeason]);
+
+    // Ce qui serait reconduit. Les exercices pèsent lourd (≈ 2,4 millions de caractères pour la banque
+    // de départ, recopiés pour CHAQUE équipe) : on vérifie la place AVANT de créer la saison, pour ne
+    // pas la laisser vide sans moyen de reconduire ensuite.
+    const sourceSeasonId = getActiveSeasonId();
+    const CARRY_FORWARD_KEYS = [["tf_roster", "l'effectif"], ["tf_gameplan", "le Projet de jeu"], ["tf_exercices", "les exercices"], ["tf_training_cycles", "les cycles d'entraînement"], ["tf_active_cycle_id", "le cycle actif"]];
+    const copies = [];
+    teams.forEach((t) => {
+      CARRY_FORWARD_KEYS.forEach(([key, label]) => {
+        const raw = readScopedKeyFor(key, t.id, sourceSeasonId);
+        if (raw != null) copies.push({ team: t, key, label, raw });
+      });
+    });
+    let canCarry = teams.length > 0;
+    const room = checkRoomForChars(copies.reduce((n, c) => n + c.key.length + c.raw.length, 0) + 200);
+    if (canCarry && !room.ok) {
+      if (!confirm(`Le stockage de ce navigateur est presque plein : reconduire demande environ ${formatChars(room.neededChars)} et il en reste environ ${formatChars(room.freeChars)}.\n\nOK : créer la saison "${newSeason.label}" SANS reconduction (vide).\nAnnuler : ne rien créer, le temps de libérer de la place (Club → Sauvegarde → « Place disponible »).`)) return;
+      canCarry = false;
+    }
+
+    if (!persistSeasons([...seasons, newSeason])) {
+      alert("La saison n'a pas pu être créée : le stockage de ce navigateur est plein. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recommence.");
+      return;
+    }
     setNewSeasonLabel("");
 
     if (teams.length === 0) return;
+    if (!canCarry) { alert(`Saison "${newSeason.label}" créée vide : rien n'a été reconduit (stockage presque plein).`); return; }
     if (!confirm(`Reconduire l'effectif (et le Projet de jeu, les exercices, les cycles d'entraînement) de tes ${teams.length} équipe${teams.length > 1 ? "s" : ""} vers "${newSeason.label}" ? Les matchs, séances, blessures et suivis restent sur la saison d'origine — seule la base de départ est copiée, librement modifiable ensuite (joueur parti, nouvelle recrue...).`)) return;
-    const sourceSeasonId = getActiveSeasonId();
-    const CARRY_FORWARD_KEYS = ["tf_roster", "tf_gameplan", "tf_exercices", "tf_training_cycles", "tf_active_cycle_id"];
-    teams.forEach((t) => {
-      CARRY_FORWARD_KEYS.forEach((key) => {
-        const raw = readScopedKeyFor(key, t.id, sourceSeasonId);
-        if (raw != null) writeScopedKeyFor(key, t.id, newSeason.id, raw);
-      });
-    });
-    alert(`Effectif et structure reconduits vers "${newSeason.label}" pour ${teams.length} équipe${teams.length > 1 ? "s" : ""}.`);
+    const failed = copies.filter((c) => !writeScopedKeyFor(c.key, c.team.id, newSeason.id, c.raw, { silent: true }));
+    if (failed.length === 0) {
+      alert(`Effectif et structure reconduits vers "${newSeason.label}" pour ${teams.length} équipe${teams.length > 1 ? "s" : ""}.`);
+    } else {
+      const lines = [...new Set(failed.map((c) => c.label))].map((label) => `${label} (${failed.filter((c) => c.label === label).map((c) => c.team.name).join(", ")})`);
+      alert(`Reconduction INCOMPLÈTE vers "${newSeason.label}" : le stockage de ce navigateur est plein. Non reconduit : ${lines.join(" ; ")}. Le reste a bien été reconduit, et rien n'est perdu sur la saison d'origine. Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »), puis recopie ces éléments à la main.`);
+    }
   }
   function renameSeason(id, field, value) {
     persistSeasons(seasons.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }
   function deleteSeason(id) {
     if (id === DEFAULT_SEASON_ID) { alert("La saison par défaut ne peut pas être supprimée — elle contient tes données déjà existantes."); return; }
-    if (!confirm("Supprimer cette saison ? Ses données resteront stockées mais ne seront plus accessibles depuis un sélecteur.")) return;
+    if (!confirm("Supprimer cette saison ? Ses données resteront stockées mais ne seront plus accessibles depuis un sélecteur — elles continueront d'occuper de la place dans le navigateur ; tu pourras les supprimer pour de bon depuis Club → Sauvegarde → « Place disponible ».")) return;
     persistSeasons(seasons.filter((s) => s.id !== id));
     if (getActiveSeasonId() === id) switchTeamAndSeason(getActiveTeamId(), DEFAULT_SEASON_ID);
   }
@@ -6499,7 +6387,7 @@ function ClubScreen({ unlockedSections, setUnlockedSections }) {
           <button key={g.id} className={`tab ${clubGroup === g.id ? "active" : ""}`} onClick={() => { setClubGroup(g.id); setClubSubTab(g.subTabs[0].id); }}>{g.label}</button>
         ))}
       </div>
-      <div className="tabs" style={{ marginTop: -6 }}>
+      <div className="tabs" style={{ marginTop: -6, flexWrap: "wrap" }}>
         {CLUB_GROUPS.find((g) => g.id === clubGroup).subTabs.map((st) => (
           <button key={st.id} className={`tab ${clubSubTab === st.id ? "active" : ""}`} onClick={() => setClubSubTab(st.id)}>{st.label}</button>
         ))}
@@ -7015,9 +6903,8 @@ function JournalDecisionsScreen() {
   // jeu déclarée dans le Projet de jeu — un rappel, pas un jugement.
   const FATIGUE_WINDOW_DAYS = 14;
   const FATIGUE_THRESHOLD = 3;
-  const cutoff = new Date(todayIso());
-  cutoff.setDate(cutoff.getDate() - FATIGUE_WINDOW_DAYS);
-  const recentSystemChanges = decisions.filter((d) => d.category === "Système/formation" && new Date(d.date) > cutoff);
+  const cutoff = addDaysIso(todayIso(), -FATIGUE_WINDOW_DAYS);
+  const recentSystemChanges = decisions.filter((d) => d.category === "Système/formation" && d.date > cutoff);
   const showFatigueSignal = recentSystemChanges.length >= FATIGUE_THRESHOLD;
 
   return (
@@ -12943,7 +12830,7 @@ function AdminAssistantScreen() {
             <div className="scouting-list">
               {[...filteredHistory].reverse().map((h) => (
                 <div className="scouting-card" key={h.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
-                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(new Date(h.at).toISOString().slice(0, 10))}</div>
+                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(dateIsoLocal(new Date(h.at)))}</div>
                   <div className="scouting-name">{h.question}</div>
                   <div className="scouting-meta" style={{ marginTop: 4 }}>{h.answer}</div>
                 </div>
@@ -16384,7 +16271,7 @@ function TableauPerformanceScreen({ roster }) {
       const comp = loadCompetitionsData();
       const sess = JSON.parse(localStorage.getItem("tf_sessions") || "[]");
       const clubEvents = JSON.parse(localStorage.getItem("tf_club_events") || "[]");
-      const next7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+      const next7 = addDaysIso(todayIso(), 7);
       setAllEvents(buildAccueilEvents(comp, sess, clubEvents).filter((e) => e.date >= todayIso() && e.date <= next7).sort((a, b) => new Date(a.date) - new Date(b.date)));
     } catch (e) { setAllEvents([]); }
     setLoaded(true);
@@ -18071,8 +17958,18 @@ function ForumScreen() {
     openThread(threadForm.id);
     setThreadForm(emptyForumThread());
   }
-  function removeThread(id) {
-    if (!confirm("Supprimer ce sujet et tous ses messages ?")) return;
+  // Modération : ce que le staff supprime ici doit aussi disparaître du portail parent, sinon les familles
+  // continuent de le lire. Renvoie true quand la suppression sur cet appareil peut suivre : le portail est à
+  // jour (ou n'a jamais eu cet élément), ou le staff accepte de ne le supprimer que d'ici.
+  async function removeFromPortal(request, what) {
+    const r = await request;
+    if (r.status === "signed_out") return confirm(`Tu n'es pas connecté au portail parent : si ${what} y a déjà été publié, les familles le verront encore. Le supprimer quand même de cet appareil ? (Pour le retirer aussi du portail, connecte-toi dans Portail parent (backend), puis recommence.)`);
+    if (r.status === "error") return confirm(`Le portail parent n'a pas pu retirer ${what} : ${r.message}. Le supprimer quand même de cet appareil ?`);
+    return true;
+  }
+  async function removeThread(id) {
+    if (!confirm("Supprimer ce sujet et tous ses messages ? S'il a été publié sur le portail parent, les familles ne le verront plus.")) return;
+    if (!(await removeFromPortal(removePortalForumThread(id), "ce sujet"))) return;
     persistThreads(threads.filter((t) => t.id !== id));
     persistMessages(messages.filter((m) => m.threadId !== id));
     if (openThreadId === id) setOpenThreadId(null);
@@ -18098,8 +17995,9 @@ function ForumScreen() {
     persistMessages([...messages, msg]);
     setComposeText(""); setAttachType(""); setAttachId("");
   }
-  function removeMessage(id) {
-    if (!confirm("Supprimer ce message ?")) return;
+  async function removeMessage(id) {
+    if (!confirm("Supprimer ce message ? S'il a été publié sur le portail parent (ou écrit par un parent), les familles ne le verront plus.")) return;
+    if (!(await removeFromPortal(removePortalForumMessage(id), "ce message"))) return;
     persistMessages(messages.filter((m) => m.id !== id));
   }
 
@@ -18353,7 +18251,7 @@ function exportAssistantHistory(history, filenamePrefix) {
   const lines = [`Historique — exporté le ${formatDateFr(todayIso())}`, ""];
   sorted.forEach((h) => {
     const d = new Date(h.at);
-    lines.push(`[${formatDateFr(d.toISOString().slice(0, 10))} ${d.toTimeString().slice(0, 5)}]`);
+    lines.push(`[${formatDateFr(dateIsoLocal(d))} ${d.toTimeString().slice(0, 5)}]`);
     lines.push(`Q : ${h.question}`);
     lines.push(`R : ${h.answer}`);
     lines.push("");
@@ -18500,10 +18398,8 @@ function findLibraryLinkFor(theme, libraryEntries) {
 }
 
 function answerWeeklyDigest(ctx) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 7);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
   const todayS = todayIso();
+  const cutoffStr = addDaysIso(todayS, -7);
 
   const weekMatches = ctx.allFullMatches.filter((m) => m.date >= cutoffStr && m.date <= todayS);
   const weekSessions = ctx.sessions.filter((s) => s.date >= cutoffStr && s.date <= todayS);
@@ -18716,8 +18612,8 @@ function answerAssistantQuestion(question, ctx) {
 
   if (/programme de la semaine|séances prévues|planning de la semaine|prochaines séances/.test(q)) {
     const todayS = todayIso();
-    const in7 = new Date(); in7.setDate(in7.getDate() + 7);
-    const upcoming = ctx.sessions.filter((s) => s.date >= todayS && s.date <= in7.toISOString().slice(0, 10)).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const in7 = addDaysIso(todayS, 7);
+    const upcoming = ctx.sessions.filter((s) => s.date >= todayS && s.date <= in7).sort((a, b) => new Date(a.date) - new Date(b.date));
     if (upcoming.length === 0) return "Aucune séance programmée dans les 7 prochains jours, à priori.";
     return `Séances à venir cette semaine : ${upcoming.map((s) => `${s.name} (${formatDateFr(s.date)})`).join(", ")}.`;
   }
@@ -18730,8 +18626,8 @@ function answerAssistantQuestion(question, ctx) {
 
   if (/charge.*gardien|gardien.*charge|plongeon|séances.*gardien/.test(q)) {
     if (ctx.goalkeeperLoad.length === 0) return "Aucune charge gardien enregistrée pour l'instant — Vestiaire → Suivi médical → Gardien.";
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
-    const recent = ctx.goalkeeperLoad.filter((l) => l.date >= cutoff.toISOString().slice(0, 10));
+    const cutoff = addDaysIso(todayIso(), -7);
+    const recent = ctx.goalkeeperLoad.filter((l) => l.date >= cutoff);
     const totalPlongeons = recent.reduce((s, l) => s + (Number(l.plongeons) || 0), 0);
     const totalSauts = recent.reduce((s, l) => s + (Number(l.sauts) || 0), 0);
     return `Charge gardien (7 derniers jours) : ${totalPlongeons} plongeon${totalPlongeons > 1 ? "s" : ""}, ${totalSauts} saut${totalSauts > 1 ? "s" : ""} au total.`;
@@ -18768,9 +18664,7 @@ const GENERIC_JOURNAL_PROMPTS = [
 
 function generateJournalPrompts(recentMatches, causeries) {
   const prompts = [];
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 3);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -3);
 
   recentMatches.filter((m) => m.date >= cutoffStr && m.date <= todayIso()).forEach((m) => {
     prompts.push(`Qu'est-ce que tu retiens du match contre ${m.opponent || "cet adversaire"} (${formatDateFr(m.date)}) ?`);
@@ -19015,7 +18909,7 @@ function AssistantScreen({ roster, matches }) {
             <div className="scouting-list">
               {[...filteredHistory].reverse().map((h) => (
                 <div key={h.id} className="new-match-card" style={{ marginBottom: 10 }}>
-                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(new Date(h.at).toISOString().slice(0, 10))}</div>
+                  <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>{formatDateFr(dateIsoLocal(new Date(h.at)))}</div>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>{h.question}</div>
                   <div className="hint" style={{ marginTop: 0, marginBottom: 8 }}>{h.answer}</div>
                   <button className="btn btn-ghost btn-small" onClick={() => addToJournalFromDiscussion(h)}>+ Ajouter au journal</button>
@@ -19173,12 +19067,8 @@ function HelpAssistantScreen() {
 
 function WeekAgenda({ events, setSection }) {
   const days = [];
-  const today = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  const todayStr = todayIso();
+  for (let i = 0; i < 7; i++) days.push(addDaysIso(todayStr, i));
   const byDate = {};
   events.forEach((ev) => { (byDate[ev.date] || (byDate[ev.date] = [])).push(ev); });
   const hasAny = days.some((d) => byDate[d] && byDate[d].length > 0);
@@ -19647,9 +19537,8 @@ function renderAccueilWidget(id, ctx) {
       // élargit la fenêtre à 21 jours et à TOUS les matchs à venir dans cette fenêtre, pas
       // seulement le suivant, pour repérer un manque d'observation avant qu'il ne devienne urgent.
       const todayS2 = todayIso();
-      const cutoff = new Date(todayS2);
-      cutoff.setDate(cutoff.getDate() + 21);
-      const upcomingInWindow = ctx.allFixtures.filter((f) => !fixtureIsPlayed(f) && new Date(f.date) >= new Date(todayS2) && new Date(f.date) <= cutoff);
+      const cutoff = addDaysIso(todayS2, 21);
+      const upcomingInWindow = ctx.allFixtures.filter((f) => !fixtureIsPlayed(f) && f.date >= todayS2 && f.date <= cutoff);
       const seenOpponents = new Set();
       const notObserved = [];
       upcomingInWindow.forEach((f) => {
@@ -19922,9 +19811,12 @@ function AccueilScreen({ matches, roster, setSection, QuickBackupButton }) {
   // Jours où la disponibilité est réduite (blessure ou suspension en cours), pour le calendrier
   const reducedAvailabilityDays = new Set();
   injuries.filter((i) => i.status === "en cours").forEach((i) => {
-    const start = new Date(i.dateDebut);
-    const end = new Date(start); end.setDate(start.getDate() + (Number(i.dureeEstimeeJours) || 0));
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) reducedAvailabilityDays.add(d.toISOString().slice(0, 10));
+    const duration = Math.min(Number(i.dureeEstimeeJours) || 0, 3660); // plafond : une durée saisie à tort ne doit pas boucler des millions de fois
+    for (let k = 0; k <= duration; k++) {
+      const day = addDaysIso(i.dateDebut, k);
+      if (!day) break;
+      reducedAvailabilityDays.add(day);
+    }
   });
 
   const allStudioRaw = matches.map((m) => readMatchFromCache(m.id)).filter((m) => m);
@@ -19941,6 +19833,8 @@ function AccueilScreen({ matches, roster, setSection, QuickBackupButton }) {
         <h1>Accueil</h1>
         <p className="subtitle">Ton calendrier du mois et l'essentiel de chaque onglet, en un coup d'œil.</p>
       </div>
+
+      <BackupReminderBanner />
 
       <WeekAgenda events={events} setSection={setSection} />
 
@@ -20481,6 +20375,9 @@ export default function App() {
         </>
       )}
 
+      {/* Zone de contenu : une erreur d'affichage ne remplace que cette zone — le menu reste utilisable
+          (lib/ErrorBoundary.jsx ; l'écran change => l'erreur est effacée). */}
+      <ErrorBoundary scope="section" resetKey={section} rescue={() => exportFullBackupFile()} onReset={section === "accueil" ? undefined : () => setSection("accueil")}>
       {section === "accueil" && <AccueilScreen matches={matches} roster={roster} setSection={setSection} QuickBackupButton={QuickBackupButton} />}
       {section === "club" && <ClubScreen unlockedSections={unlockedSections} setUnlockedSections={setUnlockedSections} />}
       {section === "academie" && <AcademyScreen />}
@@ -20589,6 +20486,7 @@ export default function App() {
       )}
         </>
       )}
+      </ErrorBoundary>
     </div>
   );
 }
@@ -22753,9 +22651,7 @@ function CauserieScreen({ roster, matches }) {
 // boucle de rendu des widgets — dupliquer l'enveloppe créerait un double encadré et un titre
 // répété "Joueur du mois" / "Joueur du mois (suggestion)").
 function computePlayerOfTheMonth(roster, allFullMatches) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -30);
   const recentMatches = allFullMatches.filter((m) => m.source !== "observation" && m.date >= cutoffStr);
 
   const candidates = roster.map((p) => {
@@ -26162,7 +26058,7 @@ function computeSeasonBilan(dateStart, dateEnd, allFullMatches, roster, injuries
 
 function SeasonBilanScreen({ allFullMatches, roster }) {
   const today = todayIso();
-  const oneYearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })();
+  const oneYearAgo = addMonthsIso(todayIso(), -12);
   const [dateStart, setDateStart] = useState(oneYearAgo);
   const [dateEnd, setDateEnd] = useState(today);
   const [injuries, setInjuries] = useState([]);
@@ -29979,20 +29875,49 @@ function generateSessionOutline(exercises, { sectionPath, ageFormat, targetDurat
 }
 
 
+// Bandes de tonte, coins et arc de surface ("D") ajoutés — refonte visuelle du 30/09/2026 (voir
+// CLAUDE.md). Les coins et l'arc de surface sont dessinés comme des cercles pleins découpés par un
+// clipPath plutôt qu'avec l'arc SVG (A rx,ry ...) : un premier essai à la main s'est trompé de point
+// d'arrivée (le coin de la diagonale au lieu d'un point sur chaque ligne de touche) — le clipPath
+// évite ce calcul et ne peut pas se tromper de la même façon. Buts approfondis (14 au lieu de 8) et
+// canevas élargi en conséquence pour les loger sans les rogner ; le décalage (18) est resté modeste
+// pour limiter le déplacement des lignes de fond par rapport aux positions 0-1 des schémas existants
+// (indépendantes du viewBox, seule cette image de fond se déplace légèrement).
 function PitchBackgroundFull() {
   return (
-    <svg viewBox="0 0 600 400" className="pad-pitch-svg" preserveAspectRatio="none">
-      <rect x="0" y="0" width="600" height="400" fill="#1F7A3D" />
-      <rect x="8" y="8" width="584" height="384" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <line x1="300" y1="8" x2="300" y2="392" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <circle cx="300" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <circle cx="300" cy="200" r="3" fill="rgba(255,255,255,0.7)" />
-      <rect x="8" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="8" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="502" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="557" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <rect x="0" y="182" width="8" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
-      <rect x="592" y="182" width="8" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+    <svg viewBox="0 0 620 400" className="pad-pitch-svg" preserveAspectRatio="none">
+      <defs>
+        <clipPath id="pitchCornerClip"><rect x="18" y="8" width="584" height="384" /></clipPath>
+        <clipPath id="pitchLeftBoxArcClip"><rect x="108" y="8" width="494" height="384" /></clipPath>
+        <clipPath id="pitchRightBoxArcClip"><rect x="18" y="8" width="494" height="384" /></clipPath>
+      </defs>
+      <rect x="0" y="0" width="620" height="400" fill="#1F7A3D" />
+      <rect x="62.92" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="152.77" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="242.62" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="332.46" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="422.31" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="512.15" y="0" width="44.92" height="400" fill="#227F42" />
+      <rect x="18" y="8" width="584" height="384" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <line x1="310" y1="8" x2="310" y2="392" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="310" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="310" cy="200" r="3" fill="rgba(255,255,255,0.92)" />
+      <rect x="18" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <rect x="18" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="80" cy="200" r="2.8" fill="rgba(255,255,255,0.92)" />
+      <rect x="512" y="110" width="90" height="180" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <rect x="567" y="160" width="35" height="80" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" />
+      <circle cx="540" cy="200" r="2.8" fill="rgba(255,255,255,0.92)" />
+      <g clipPath="url(#pitchLeftBoxArcClip)"><circle cx="80" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" /></g>
+      <g clipPath="url(#pitchRightBoxArcClip)"><circle cx="540" cy="200" r="55" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" /></g>
+      <g clipPath="url(#pitchCornerClip)">
+        <circle cx="18" cy="8" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="602" cy="8" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="18" cy="392" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+        <circle cx="602" cy="392" r="12" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+      </g>
+      <rect x="4" y="182" width="14" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+      <rect x="602" y="182" width="14" height="36" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
     </svg>
   );
 }
@@ -30463,6 +30388,8 @@ const PAD_PLAYER_KEYS = ["playerA", "playerB", "playerC", "playerD", "keeper"];
 function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey, isFutsal }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
+  const zoomViewportRef = useRef(null);
+  const panRef = useRef(null);
   const [tool, setTool] = useState("playerA");
   const [pendingPoints, setPendingPoints] = useState([]);
   const [preview, setPreview] = useState(null);
@@ -30470,6 +30397,7 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
   const [textPending, setTextPending] = useState(null);
   const [textValue, setTextValue] = useState("");
   const [size, setSize] = useState({ w: 600, h: 400 });
+  const [zoom, setZoom] = useState(1);
   const [rotatingId, setRotatingId] = useState(null);
   const [movingId, setMovingId] = useState(null);
   const [moveDragStart, setMoveDragStart] = useState(null);
@@ -30512,6 +30440,39 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
     window.addEventListener("resize", syncSize);
     return () => window.removeEventListener("resize", syncSize);
   }, []);
+
+  // Zoom du pad (01/10/2026, demandé par Gregory après un retour sur la difficulté à voir/viser le
+  // Mini but sur mobile) : `.pad-wrap` grandit (largeur en % de `.pad-zoom-viewport`, qui garde lui
+  // la taille d'affichage normale avec overflow:auto) plutôt qu'un agrandissement CSS de l'existant —
+  // le canevas se redessine alors à une résolution plus grande (net, pas flou) via le même mécanisme
+  // que le redimensionnement de fenêtre. `getBoundingClientRect()` (déjà utilisé par `getPos`) reste
+  // juste quel que soit le défilement du conteneur : aucun changement nécessaire côté détection de clic.
+  const ZOOM_LEVELS = [1, 1.5, 2, 2.5, 3];
+  function centerZoomViewport() {
+    const el = zoomViewportRef.current;
+    if (!el) return;
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+    el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+  }
+  useEffect(() => { syncSize(); centerZoomViewport(); }, [zoom]);
+  function zoomIn() { setZoom((z) => ZOOM_LEVELS[Math.min(ZOOM_LEVELS.indexOf(z) + 1, ZOOM_LEVELS.length - 1)]); }
+  function zoomOut() { setZoom((z) => ZOOM_LEVELS[Math.max(ZOOM_LEVELS.indexOf(z) - 1, 0)]); }
+
+  // Le dessin/placement au doigt utilise déjà un seul doigt (voir handleTouchStart plus bas) : le
+  // déplacement de la vue zoomée passe donc par deux doigts (distinct, jamais les deux en même temps).
+  function panStart(e) {
+    const [t0, t1] = e.touches;
+    panRef.current = { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
+  }
+  function panMove(e) {
+    const el = zoomViewportRef.current;
+    if (!panRef.current || !el) return;
+    const [t0, t1] = e.touches;
+    const mx = (t0.clientX + t1.clientX) / 2, my = (t0.clientY + t1.clientY) / 2;
+    el.scrollLeft -= mx - panRef.current.x;
+    el.scrollTop -= my - panRef.current.y;
+    panRef.current = { x: mx, y: my };
+  }
 
   // Le redimensionnement du canvas ne dépend QUE de sa taille réelle — jamais du dessin en cours,
   // pour éviter de perturber la détection des clics pendant une interaction à plusieurs étapes.
@@ -30780,10 +30741,16 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
   // Support tactile : mêmes gestionnaires que la souris (getPos gère déjà les deux types
   // d'événement), avec preventDefault pour éviter le scroll/zoom du navigateur pendant le dessin
   // et empêcher les événements souris de synthèse que certains navigateurs déclenchent après un
-  // touchend (qui déclencheraient sinon l'action une seconde fois).
-  function handleTouchStart(e) { e.preventDefault(); handleMouseDown(e); }
-  function handleTouchMove(e) { e.preventDefault(); handleMove(e); }
-  function handleTouchEnd(e) { e.preventDefault(); handleMouseUp(); handleClick(e); }
+  // touchend (qui déclencheraient sinon l'action une seconde fois). Deux doigts = déplacer la vue
+  // zoomée (panStart/panMove) plutôt que dessiner — vérifié avant toute autre logique, sans toucher
+  // au chemin à un doigt déjà en place.
+  function handleTouchStart(e) { e.preventDefault(); if (e.touches.length >= 2) { panStart(e); return; } handleMouseDown(e); }
+  function handleTouchMove(e) { e.preventDefault(); if (e.touches.length >= 2) { panMove(e); return; } handleMove(e); }
+  function handleTouchEnd(e) {
+    e.preventDefault();
+    if (panRef.current) { panRef.current = null; return; }
+    handleMouseUp(); handleClick(e);
+  }
 
   // Attachés nativement plutôt que via les props JSX onTouchStart/onTouchMove : React les force en
   // écouteur "passive" (pour ne pas bloquer le scroll par défaut du navigateur), ce qui fait échouer
@@ -30905,16 +30872,25 @@ function TacticalPadEditor({ elements, setElements, nextFrameElements, frameKey,
       )}
       {isRotateTool && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>Clique un élément et fais glisser la souris autour de lui pour l'orienter.</p>}
       {stepHint && <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>{stepHint}</p>}
-      <div className="pad-wrap" ref={wrapRef}>
-        {isFutsal ? <FutsalCourtBackground /> : <PitchBackgroundFull />}
-        <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
-        {textPending && (
-          <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
-            <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextPending(null); }} />
-            <button className="btn btn-primary btn-small" onClick={commitText}>Ajouter</button>
-          </div>
-        )}
+      <div className="pad-zoom-controls">
+        <button className="btn btn-ghost btn-small" onClick={zoomOut} disabled={zoom === ZOOM_LEVELS[0]}>−</button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button className="btn btn-ghost btn-small" onClick={zoomIn} disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}>+</button>
+        {zoom !== 1 && <button className="btn btn-ghost btn-small" onClick={() => setZoom(1)}>Réinitialiser</button>}
+        {zoom !== 1 && <span className="hint" style={{ margin: 0 }}>Deux doigts pour déplacer la vue</span>}
+      </div>
+      <div className="pad-zoom-viewport" ref={zoomViewportRef}>
+        <div className="pad-wrap" ref={wrapRef} style={{ width: `${zoom * 100}%`, maxWidth: "none", margin: 0 }}>
+          {isFutsal ? <FutsalCourtBackground /> : <PitchBackgroundFull />}
+          <canvas ref={canvasRef} onClick={handleClick} onMouseDown={handleMouseDown} onMouseMove={handleMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: isRotateTool || isMoveTool ? "grab" : (isDeleteTool || isRecolorTool || isCurveTool || isWaypointTool ? "pointer" : undefined), touchAction: "none" }} />
+          {textPending && (
+            <div className="clip-text-popup" style={{ left: textPending.x * size.w, top: textPending.y * size.h }}>
+              <input autoFocus type="text" placeholder="Texte…" value={textValue} onChange={(e) => setTextValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextPending(null); }} />
+              <button className="btn btn-primary btn-small" onClick={commitText}>Ajouter</button>
+            </div>
+          )}
+        </div>
       </div>
       <p className="hint">Choisis un élément dans les groupes ci-dessus puis clique sur le terrain pour le placer (les joueurs des 4 équipes se numérotent automatiquement, dans l'ordre où tu les places). Pour une flèche ou une zone : un clic par étape, coche "Courber" pour ajouter un point de courbure. "Pivoter" et "Déplacer" agissent au clic-glisse ; "Points de passage" construit un trajet en plusieurs clics, quand "Courber un trajet" n'incurve que le tout dernier segment, sans étape intermédiaire.</p>
     </div>
@@ -30931,6 +30907,20 @@ const EXERCISE_INTENSITIES = [{ key: "faible", label: "Faible" }, { key: "modere
 // à avant l'ajout de l'animation.
 export function getExerciseFrames(ex) {
   return [ex && ex.diagram ? ex.diagram : [], ...((ex && ex.diagramFrames) || [])];
+}
+// Comme getExerciseFrames, mais pour l'AFFICHAGE seulement (ExerciseDetailModal) : si l'exercice n'a
+// pas déjà ses propres diagramFrames, tente de calculer une animation à la volée depuis la flèche de
+// son schéma (deriveArrowAnimation, 01/10/2026 — 605 flèches dans la bibliothèque, la plupart dans
+// des schémas écrits à la main que les 7 fonctions genX() de starterContent.js ne couvrent pas). Rien
+// n'est écrit nulle part : un exercice garde sa donnée d'origine ; seul ce qui est montré change.
+// Jamais utilisée pour l'édition (ExerciseFormPanel appelle directement getExerciseFrames(form)) :
+// un coach qui ouvre un exercice dans l'éditeur doit voir et modifier exactement ses propres images,
+// jamais une animation devinée à la volée qui n'existe dans aucune donnée réelle.
+export function getExerciseDisplayFrames(ex) {
+  if (ex && ex.diagramFrames && ex.diagramFrames.length > 0) return getExerciseFrames(ex);
+  const derived = ex && ex.diagram ? deriveArrowAnimation(ex.diagram) : null;
+  if (!derived) return getExerciseFrames(ex);
+  return [derived.diagram, ...derived.diagramFrames];
 }
 const GOALKEEPER_SKILLS = ["Plongeon", "Sortie aérienne", "Relance / jeu au pied", "Une-contre-un", "Placement", "Communication défensive"];
 const CURRICULUM_FEDERATIONS = [
@@ -31445,7 +31435,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
     const existingNames = new Set(exercises.map((e) => e.name));
     const toAdd = ALL_STARTER_EXERCISES.filter((ex) => !existingNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     if (toAdd.length === 0) { alert("Tous les exercices de démarrage sont déjà présents dans ta banque — utilise \"Mettre à jour les schémas\" si tu les avais ajoutés avant qu'ils existent."); return; }
-    setExercises((prev) => [...prev, ...toAdd]);
+    if (setExercises([...exercises, ...toAdd]) === false) return;
     alert(`${toAdd.length} exercice${toAdd.length > 1 ? "s" : ""} ajouté${toAdd.length > 1 ? "s" : ""} — les exercices tactiques (un par thème du Projet de jeu), plus une première base d'exercices technique et athlétique, à ajuster librement.`);
   }
 
@@ -31462,7 +31452,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       return ex;
     });
     if (updated === 0) { alert("Rien à mettre à jour — tes exercices de démarrage ont déjà un schéma, ou aucun ne correspond aux noms de la banque de départ."); return; }
-    setExercises(next);
+    if (setExercises(next) === false) return;
     alert(`Schéma ajouté sur ${updated} exercice${updated > 1 ? "s" : ""} déjà présent${updated > 1 ? "s" : ""} dans ta banque, sans toucher au reste de leurs informations.`);
   }
 
@@ -31479,7 +31469,7 @@ function ExerciseCreationScreen({ exercises, setExercises, gameplan }) {
       return ex;
     });
     if (updated === 0) { alert("Rien à mettre à jour — tes exercices de démarrage ont déjà un thème (ou un thème que tu as toi-même choisi), ou aucun ne correspond à la banque de départ."); return; }
-    setExercises(next);
+    if (setExercises(next) === false) return;
     alert(`Thème ajouté sur ${updated} exercice${updated > 1 ? "s" : ""} — n'écrase jamais un thème que tu as déjà choisi toi-même, seulement ceux qui n'en avaient aucun.`);
   }
 
@@ -31709,9 +31699,21 @@ function ExerciseAnimationPlayer({ frames, isFutsal }) {
   const [playing, setPlaying] = useState(false);
   const rafRef = useRef(null);
   const lastTsRef = useRef(null);
-  const SEGMENT_MS = 900; // durée d'une transition entre deux images, glissée depuis l'ancien pas fixe
+  const SEGMENT_MS = 900; // durée d'une transition simple (sans points de passage), inchangée
+  const HOP_MS = 450; // par point de passage (plot d'un slalom...) pour une transition qui en a
 
   const totalSegments = Math.max(0, (frames ? frames.length : 0) - 1);
+
+  // Un slalom à 8 plots a 2 à 3 fois plus de terrain à couvrir qu'un slalom à 2 ou 3 plots — une
+  // durée fixe par transition (l'ancien SEGMENT_MS seul) les joue toutes à la même vitesse, ce qui
+  // rendait les plus fournies illisibles (retour de Gregory du 01/10/2026 : "un peu trop rapide").
+  // Chaque transition dure maintenant SEGMENT_MS, ou HOP_MS par point de passage si elle en a
+  // (mouvement à trajet simple, sans point de passage : comportement exactement inchangé).
+  function segmentDurationMs(frameA) {
+    const movers = (frameA || []).filter((e) => e.movePath && e.movePath.length);
+    const maxHops = movers.reduce((m, e) => Math.max(m, e.movePath.length + 1), 1);
+    return maxHops > 1 ? maxHops * HOP_MS : SEGMENT_MS;
+  }
 
   useEffect(() => { setRawSegment(0); setPlaying(false); }, [frames]);
 
@@ -31723,7 +31725,9 @@ function ExerciseAnimationPlayer({ frames, isFutsal }) {
       const dt = ts - lastTsRef.current;
       lastTsRef.current = ts;
       setRawSegment((prev) => {
-        const next = prev + dt / SEGMENT_MS;
+        const idx = Math.min(Math.floor(prev), totalSegments - 1);
+        const dur = segmentDurationMs(frames[idx]);
+        const next = prev + dt / dur;
         return next >= totalSegments ? 0 : next; // boucle
       });
       rafRef.current = requestAnimationFrame(step);
@@ -31783,7 +31787,7 @@ function ExerciseDetailModal({ exercise, onClose, onEdit, onDelete }) {
   if (!exercise) return null;
   const links = getExerciseGameplanLinks(exercise);
   const cat = EXERCISE_CATEGORIES.find((c) => c.key === (exercise.category || "tactique"));
-  const frames = getExerciseFrames(exercise);
+  const frames = getExerciseDisplayFrames(exercise);
   const ageFormatLabel = EXERCISE_AGE_FORMATS.find((f) => f.key === (exercise.ageFormat || "standard"))?.label;
   const federationLabel = CURRICULUM_FEDERATIONS.find((f) => f.key === exercise.curriculumFederation)?.label;
   const bracketLabel = CURRICULUM_BRACKETS.find((b) => b.key === exercise.fffBracket)?.label;
@@ -32649,7 +32653,7 @@ function MicrocycleScreen({ sessions, roster }) {
     for (let offset = -6; offset <= 0; offset++) {
       const d = new Date(matchDate);
       d.setDate(d.getDate() + offset);
-      weekDays.push({ date: d, offset, dateStr: d.toISOString().slice(0, 10) });
+      weekDays.push({ date: d, offset, dateStr: addDaysIso(upcomingFixture.date, offset) });
     }
   }
 
@@ -32926,16 +32930,37 @@ function SessionsScreen({ roster }) {
     setLoaded(true);
   }, []);
 
+  // Forme directe (un tableau, pas une fonction) : l'écriture a lieu tout de suite et le résultat
+  // (true/false) revient à l'appelant — les imports de la banque de départ ne doivent annoncer « N
+  // exercices ajoutés » qu'après avoir vérifié ce retour (≈ 2,4 millions de caractères : c'est ce qui
+  // sature le stockage). En cas d'échec l'état n'est pas modifié : l'écran ne montre jamais des
+  // données qui disparaîtraient au rechargement.
   function persistExercises(updater) {
+    if (typeof updater !== "function") {
+      if (!writeRawKey(scopedStorageKey("tf_exercices"), JSON.stringify(updater), { silent: true })) {
+        alert("Le stockage de ce navigateur est plein : les exercices n'ont PAS été enregistrés (rien n'a été ajouté). Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »).");
+        return false;
+      }
+      setExercises(updater);
+      return true;
+    }
     setExercises((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = updater(prev);
       try { localStorage.setItem("tf_exercices", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
       return next;
     });
   }
   function persistSessions(updater) {
+    if (typeof updater !== "function") {
+      if (!writeRawKey(scopedStorageKey("tf_sessions"), JSON.stringify(updater), { silent: true })) {
+        alert("Le stockage de ce navigateur est plein : les séances n'ont PAS été enregistrées (rien n'a été ajouté). Libère de la place (Administratif → Club → Sauvegarde → « Place disponible »).");
+        return false;
+      }
+      setSessions(updater);
+      return true;
+    }
     setSessions((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = updater(prev);
       try { localStorage.setItem("tf_sessions", JSON.stringify(next)); } catch (e) { alert("La sauvegarde a échoué."); }
       return next;
     });
@@ -32953,24 +32978,23 @@ function SessionsScreen({ roster }) {
     const existingExNames = new Set(exercises.map((e) => e.name));
     const newExercises = ALL_STARTER_EXERCISES.filter((ex) => !existingExNames.has(ex.name)).map((ex) => ({ id: newId(), ...emptyExerciseForm(), ...ex, createdAt: Date.now() }));
     const allExercises = [...exercises, ...newExercises];
-    if (newExercises.length > 0) persistExercises(allExercises);
+    if (newExercises.length > 0 && persistExercises(allExercises) === false) return;
 
     const existingSessionNames = new Set(sessions.map((s) => s.name));
     const toAdd = STARTER_SESSIONS.filter((s) => !existingSessionNames.has(s.name));
     if (toAdd.length === 0) { alert("Les séances de démarrage sont déjà présentes."); return; }
 
-    const today = new Date();
+    const todayStr = todayIso();
     const newSessions = toAdd.map((s, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + (i + 1) * 2); // espacées de 2 jours, à ajuster librement
+      const sessionDate = addDaysIso(todayStr, (i + 1) * 2); // espacées de 2 jours, à ajuster librement
       const blocks = s.plan.map((item) => {
         const ex = allExercises.find((e) => e.name === item.exerciseName);
         if (!ex) return null;
         return { id: newId(), exerciseId: ex.id, exerciseName: ex.name, duree: ex.duree, phase: item.phase };
       }).filter(Boolean);
-      return { ...emptySessionForm(), id: newId(), name: s.name, date: d.toISOString().slice(0, 10), blocks };
+      return { ...emptySessionForm(), id: newId(), name: s.name, date: sessionDate, blocks };
     });
-    persistSessions([...sessions, ...newSessions]);
+    if (persistSessions([...sessions, ...newSessions]) === false) return;
     alert(`${newSessions.length} séance${newSessions.length > 1 ? "s" : ""} de démarrage ajoutée${newSessions.length > 1 ? "s" : ""} — dates à ajuster librement dans le calendrier.`);
   }
 
@@ -33056,17 +33080,6 @@ function hooperLevel(total) {
   return { label: "Alerte", cls: "grade-f" };
 }
 
-function addMonths(dateStr, months) {
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 // Fil médical unique : croise le bien-être (Hooper, saisi au fil de l'eau) et les blessures pour un
 // joueur, sur une seule frise — pour repérer un décrochage du bien-être avant une blessure, ou son
 // retour à la normale après, plutôt que de croiser Bien-être et Blessures séparément.
@@ -33080,7 +33093,7 @@ function buildMedicalFeedData(playerId, wellness, injuries) {
     .map((i) => ({
       id: i.id, type: i.type || i.category || "Blessure", status: i.status,
       start: i.dateDebut,
-      end: i.dateFinReelle || (i.status === "en cours" ? todayIso() : addDays(i.dateDebut, Number(i.dureeEstimeeJours) || 14).toISOString().slice(0, 10)),
+      end: i.dateFinReelle || (i.status === "en cours" ? todayIso() : addDaysIso(i.dateDebut, Number(i.dureeEstimeeJours) || 14)),
     }))
     .filter((p) => p.start)
     .sort((a, b) => new Date(b.start) - new Date(a.start));
@@ -33095,16 +33108,16 @@ function detectYellowCardSuspensions(cardDates) {
   const triggers = [];
   let i = 0;
   while (i < sorted.length) {
-    const windowEnd = addMonths(sorted[i], 3);
+    const windowEnd = addMonthsIso(sorted[i], 3);
     let j = i;
-    while (j < sorted.length && new Date(sorted[j]) <= windowEnd) j++;
+    while (j < sorted.length && sorted[j] <= windowEnd) j++;
     const countInWindow = j - i;
     if (countInWindow >= 3) {
       const thirdCardDate = sorted[i + 2];
       triggers.push({
         cardDates: [sorted[i], sorted[i + 1], sorted[i + 2]],
         thirdCardDate,
-        suspensionStart: addDays(thirdCardDate, 15).toISOString().slice(0, 10),
+        suspensionStart: addDaysIso(thirdCardDate, 15),
       });
       i += 3;
     } else {
@@ -33147,9 +33160,7 @@ function gatherRosterCardDates(allFullMatches, eventKey) {
 
 function detectFatigueRisk(roster, wellness, rpeLog, windowDays) {
   const days = windowDays || 7;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = addDaysIso(todayIso(), -days);
 
   return roster.map((p) => {
     const recentWellness = wellness.filter((w) => w.playerId === p.id && w.date >= cutoffStr);
@@ -33197,11 +33208,8 @@ function detectPhysicalAnomalies(roster) {
 
 function CollectiveWellnessDashboard({ wellness, rpeLog, roster }) {
   const days = [];
-  for (let i = 27; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  const todayStr = todayIso();
+  for (let i = 27; i >= 0; i--) days.push(addDaysIso(todayStr, -i));
   const chartData = days.map((d) => {
     const dayWellness = wellness.filter((w) => w.date === d);
     const dayRpe = rpeLog.filter((r) => r.date === d);
@@ -33259,10 +33267,10 @@ function CollectiveWellnessDashboard({ wellness, rpeLog, roster }) {
 // séance) est une simplification assumée — pas la formule complète "sRPE load" — faute de durée
 // de séance rattachée à chaque entrée aujourd'hui.
 function dailyAverageLoad(playerId, rpeLog, asOfDate, windowDays) {
-  const asOf = new Date(asOfDate);
-  const cutoff = new Date(asOf);
-  cutoff.setDate(cutoff.getDate() - windowDays);
-  const entries = rpeLog.filter((r) => r.playerId === playerId && new Date(r.date) > cutoff && new Date(r.date) <= asOf);
+  // Dates AAAA-MM-JJ comparées telles quelles (asOfDate en est une, toujours todayIso() à l'appel) :
+  // un changement d'heure ne décale pas le bord de la fenêtre.
+  const cutoff = addDaysIso(asOfDate, -windowDays);
+  const entries = rpeLog.filter((r) => r.playerId === playerId && r.date > cutoff && r.date <= asOfDate);
   if (entries.length === 0) return null;
   const byDate = {};
   entries.forEach((r) => { (byDate[r.date] || (byDate[r.date] = [])).push(Number(r.rpe) || 0); });
@@ -33292,23 +33300,18 @@ const ACWR_ZONE_LABELS = { risque_eleve: "en risque élevé", risque_accru: "en 
 // l'autre : un total plus élevé simplement parce que plus de joueurs ont saisi leur RPE ne
 // signifierait pas une semaine plus dense.
 function computeWeeklyCollectiveLoad(rpeLog, asOfDate, weeksBack) {
-  const asOf = new Date(asOfDate);
   const weeks = [];
   for (let w = weeksBack - 1; w >= 0; w--) {
-    const weekEnd = new Date(asOf);
-    weekEnd.setDate(weekEnd.getDate() - w * 7);
-    const weekStart = new Date(weekEnd);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const entries = rpeLog.filter((r) => {
-      const d = new Date(r.date);
-      return d >= weekStart && d <= weekEnd;
-    });
+    // Bornes en dates AAAA-MM-JJ (asOfDate en est une) : comparées telles quelles, un changement
+    // d'heure ne fait ni perdre une journée de saisie ni décaler les libellés de la semaine.
+    const weekEnd = addDaysIso(asOfDate, -w * 7);
+    const weekStart = addDaysIso(weekEnd, -6);
+    const entries = rpeLog.filter((r) => r.date >= weekStart && r.date <= weekEnd);
     const playersInvolved = new Set(entries.map((r) => r.playerId));
     const totalLoad = entries.reduce((s, r) => s + (Number(r.rpe) || 0), 0);
     const avgLoadPerPlayer = playersInvolved.size > 0 ? Math.round((totalLoad / playersInvolved.size) * 10) / 10 : 0;
     weeks.push({
-      weekStart: weekStart.toISOString().slice(0, 10),
-      weekEnd: weekEnd.toISOString().slice(0, 10),
+      weekStart, weekEnd,
       totalLoad, playersInvolved: playersInvolved.size, avgLoadPerPlayer,
     });
   }
@@ -33688,10 +33691,11 @@ function emptyInjuryForm() {
 }
 
 function daysRemaining(injury) {
-  const end = new Date(injury.dateDebut);
-  end.setDate(end.getDate() + Number(injury.dureeEstimeeJours || 0));
-  const diff = Math.ceil((end - new Date(todayIso())) / (1000 * 60 * 60 * 24));
-  return diff;
+  // Écart en jours ENTIERS entre deux dates AAAA-MM-JJ : l'ancien `Math.ceil` sur des millisecondes
+  // affichait un jour de trop (« 10 jours » au lieu de 9) pour une blessure à cheval sur le
+  // passage à l'heure d'hiver.
+  const end = addDaysIso(injury.dateDebut, Number(injury.dureeEstimeeJours || 0));
+  return diffDaysIso(end, todayIso());
 }
 
 function computeAutoPhaseProgress(injury) {
@@ -35179,8 +35183,8 @@ function PlayerProgressionTab({ roster, rawFullMatches }) {
 
 function PeriodComparisonTab({ rawFullMatches }) {
   const today = todayIso();
-  const oneYearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })();
-  const twoYearsAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 2); return d.toISOString().slice(0, 10); })();
+  const oneYearAgo = addMonthsIso(todayIso(), -12);
+  const twoYearsAgo = addMonthsIso(todayIso(), -24);
 
   const [periodA, setPeriodA] = useState({ start: oneYearAgo, end: today });
   const [periodB, setPeriodB] = useState({ start: twoYearsAgo, end: oneYearAgo });

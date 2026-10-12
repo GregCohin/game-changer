@@ -267,6 +267,12 @@ export const CSS = `
   .pad-wrap { position: relative; width: 100%; max-width: 640px; aspect-ratio: 3/2; margin: 0 auto; }
   .pad-pitch-svg { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 6px; }
   .pad-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+  /* Conteneur de zoom du Tactical Pad : taille d'affichage fixe (identique à .pad-wrap à 100%),
+     .pad-wrap grandit à l'intérieur (voir le style inline sur son width) et déborde avec défilement. */
+  .pad-zoom-viewport { width: 100%; max-width: 640px; aspect-ratio: 3/2; margin: 0 auto; overflow: auto; border-radius: 6px; }
+  .pad-zoom-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .pad-zoom-controls span.hint { flex-basis: 100%; margin: 0; }
+  .pad-zoom-controls > span:not(.hint) { font-size: 12px; color: var(--ink-muted); min-width: 34px; text-align: center; }
   .pad-curve-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink); padding: 0 8px; }
   .pad-toolbar-groups { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
   .pad-toolbar-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 10px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
