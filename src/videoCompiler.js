@@ -1,24 +1,36 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { toBlobURL } from "@ffmpeg/util";
- 
+import { toVerifiedBlobURL } from "./lib/verifiedBlobUrl.js";
+
 let ffmpegInstance = null;
 let ffmpegLoadingPromise = null;
- 
+
 const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
- 
+
+// Le moteur est téléchargé à la demande depuis unpkg : version épinglée dans l'adresse ET empreinte
+// vérifiée avant toute exécution (lib/verifiedBlobUrl.js) — un fichier modifié par le CDN n'est jamais
+// exécuté dans la page. Pour changer de version : télécharger les deux fichiers de la nouvelle version,
+// recalculer leurs empreintes (`echo sha384-$(openssl dgst -sha384 -binary fichier | openssl base64 -A)`)
+// et relancer `VERIFY_FFMPEG_CORE=1 npm test` (tests/integrite.test.mjs compare avec les vrais fichiers).
+const FFMPEG_CORE_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+const FFMPEG_CORE_JS_INTEGRITY = "sha384-H+a0XSA2fcJYIUwy5Jos26+RdN3Flo5q2jQgu1A8XtvG3RxpnEb71F1GOk89G2Qm";
+const FFMPEG_CORE_WASM_INTEGRITY = "sha384-SnAthyn82idS4YdVo46XOl86g1sUylqtN6BEYmPDFqzVO3Z3O/Xj1tVlyFqgyW4K";
+
 async function getFFmpeg() {
   if (ffmpegInstance) return ffmpegInstance;
   if (ffmpegLoadingPromise) return ffmpegLoadingPromise;
   ffmpegLoadingPromise = (async () => {
     const ffmpeg = new FFmpeg();
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      coreURL: await toVerifiedBlobURL(`${FFMPEG_CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript", FFMPEG_CORE_JS_INTEGRITY),
+      wasmURL: await toVerifiedBlobURL(`${FFMPEG_CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm", FFMPEG_CORE_WASM_INTEGRITY),
     });
     ffmpegInstance = ffmpeg;
     return ffmpeg;
-  })();
+  })().catch((e) => {
+    // Un échec (hors ligne, empreinte refusée) ne doit pas figer la promesse rejetée : le prochain essai repart de zéro.
+    ffmpegLoadingPromise = null;
+    throw e;
+  });
   return ffmpegLoadingPromise;
 }
  
