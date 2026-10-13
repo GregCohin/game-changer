@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Envoie un e-mail de connexion : un code à 6 chiffres ET un lien (selon le modèle d'e-mail réglé dans Supabase,
+  // Envoie un e-mail de connexion : un code ET un lien (selon le modèle d'e-mail réglé dans Supabase,
   // voir docs/connexion-parent.md). Le lien mène à parent.html#confirmation… (ConfirmationLayer), qui ne vérifie le
   // jeton qu'à un appui sur un bouton ; avec l'ancien modèle d'e-mail, c'est l'ancien lien magique qui reste valable.
   async function signInWithEmail(email) {
@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
-  // Connexion par le code à 6 chiffres reçu par e-mail. La session est rangée par supabase-js, qui prévient
+  // Connexion par le code reçu par e-mail. La session est rangée par supabase-js, qui prévient
   // onAuthStateChange ci-dessus : l'écran de connexion est alors remplacé par le portail.
   async function verifyCode(email, code) {
     await verifyEmailCode(supabase, email, code);

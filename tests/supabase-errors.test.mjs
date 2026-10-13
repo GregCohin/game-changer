@@ -111,9 +111,9 @@ describe("describeError (messages du parent)", () => {
   });
 
   test("code incomplet : message court", () => {
-    const e = describeError(Object.assign(new Error("Code incomplet : saisis les 6 chiffres reçus par e-mail."), { code: "code_format" }));
+    const e = describeError(Object.assign(new Error("Code incomplet : saisis le code reçu par e-mail."), { code: "code_format" }));
     assert.equal(e.kind, "code_format");
-    assert.match(e.text, /6 chiffres/);
+    assert.match(e.text, /code reçu par e-mail/);
   });
 
   test("« trop de demandes » : trois situations, trois messages", () => {

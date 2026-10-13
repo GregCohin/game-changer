@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { signInStaff, verifyStaffCode } from "../lib/portalSync.js";
-import { EMAIL_CODE_LENGTH, rateLimitWaitSeconds } from "../lib/emailLogin.js";
+import { rateLimitWaitSeconds } from "../lib/emailLogin.js";
 
 // Connexion du staff à l'écran Portail parent : même mécanisme que côté parent (src/parent/screens/LoginScreen.jsx),
-// avec les classes de l'app staff. Deux étapes : l'adresse e-mail, puis le code à 6 chiffres de l'e-mail (ou son lien :
+// avec les classes de l'app staff. Deux étapes : l'adresse e-mail, puis le code de l'e-mail (ou son lien :
 // il mène à la page de confirmation de portail/StaffConfirmation.jsx). Une fois connecté, onStaffAuthChange
 // (PortalBackendScreen) remplace ce bloc.
 //
@@ -86,10 +86,10 @@ export function StaffLogin() {
   if (step === "code") {
     return (
       <div>
-        <p>E-mail envoyé à <strong>{email.trim()}</strong>. Saisis le <strong>code à {EMAIL_CODE_LENGTH} chiffres</strong> qu'il contient, ou clique sur le lien de l'e-mail. Pas reçu ? Regarde dans les indésirables.</p>
+        <p>E-mail envoyé à <strong>{email.trim()}</strong>. Saisis le <strong>code reçu par e-mail</strong>, ou clique sur le lien de l'e-mail. Pas reçu ? Regarde dans les indésirables.</p>
         {notice}
         <form onSubmit={submitCode}>
-          <label htmlFor="staff-login-code" className="hint" style={{ display: "block", textAlign: "left", marginBottom: 4 }}>Code à {EMAIL_CODE_LENGTH} chiffres</label>
+          <label htmlFor="staff-login-code" className="hint" style={{ display: "block", textAlign: "left", marginBottom: 4 }}>Code reçu par e-mail</label>
           <input
             id="staff-login-code"
             type="text"

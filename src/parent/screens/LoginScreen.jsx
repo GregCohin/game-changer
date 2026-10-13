@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import { describeError } from "../lib/errors";
 import { ErrorNotice, Field, ui, useAsyncAction } from "../ui";
-import { EMAIL_CODE_LENGTH, rateLimitWaitSeconds } from "../../lib/emailLogin.js";
+import { rateLimitWaitSeconds } from "../../lib/emailLogin.js";
 
 // Délai avant de pouvoir redemander un e-mail : le service d'envoi limite les demandes rapprochées pour une
 // même adresse (une par minute) ; au-delà, il répond « trop de demandes » et le parent croirait que ça ne marche pas.
 const RESEND_DELAY_SECONDS = 60;
 
-// Deux étapes. 1. L'adresse e-mail. 2. Le code à 6 chiffres reçu par e-mail (ou le lien du même e-mail).
+// Deux étapes. 1. L'adresse e-mail. 2. Le code reçu par e-mail (ou le lien du même e-mail).
 //
 // Pourquoi un code en plus du lien (audit du 07/10/2026) : certaines messageries (Outlook, passerelles de sécurité
 // d'entreprise…) ouvrent chaque lien avant le destinataire, et un lien de connexion ne sert qu'une fois : le parent
@@ -89,10 +89,10 @@ export function LoginScreen() {
       <div style={styles.card}>
         <h1 style={styles.title}>Vérifie ta boîte mail</h1>
         <p>On a envoyé un e-mail à <strong>{email.trim()}</strong>.</p>
-        <p>Saisis ci-dessous le <strong>code à {EMAIL_CODE_LENGTH} chiffres</strong> qu'il contient, ou clique sur le lien de l'e-mail.</p>
+        <p>Saisis ci-dessous le <strong>code reçu par e-mail</strong>, ou clique sur le lien de l'e-mail.</p>
         {notice && <p role="status" style={styles.notice}>{notice}</p>}
         <form onSubmit={handleCodeSubmit}>
-          <Field id="login-code" label={`Code à ${EMAIL_CODE_LENGTH} chiffres`}>
+          <Field id="login-code" label="Code reçu par e-mail">
             <input
               id="login-code"
               type="text"
