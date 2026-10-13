@@ -1,4 +1,4 @@
-# Connexion des parents : code à 6 chiffres, lien de confirmation et invitations
+# Connexion des parents : code reçu par e-mail, lien de confirmation et invitations
 
 ## En clair
 
@@ -6,7 +6,7 @@
 
 **Ce qui change.**
 
-- L'e-mail de connexion contient maintenant un **code à 6 chiffres** (rien à ouvrir, donc rien qu'un scanner puisse consommer) **et** un bouton « Me connecter ».
+- L'e-mail de connexion contient maintenant un **code** (rien à ouvrir, donc rien qu'un scanner puisse consommer) **et** un bouton « Me connecter ».
 - Ce bouton ne mène pas directement à la connexion : il ouvre une page qui **ne vérifie rien tant qu'on n'appuie pas sur « Me connecter »**. Un scanner qui ouvre la page ne consomme donc pas le lien.
 - Un lien périmé ou déjà utilisé (y compris un *ancien* lien) affiche maintenant un message clair, avec un bouton pour recevoir un nouveau code, au lieu de renvoyer sur l'écran de connexion sans explication.
 - Côté staff, le bouton **« Préparer l'invitation »** (Administratif → Club → Portail parent (backend)) fabrique le message à envoyer à une famille : adresse du portail, code d'invitation, rappel des indésirables. Il se copie, ou s'ouvre dans ta messagerie ou dans WhatsApp. **Rien n'est jamais envoyé automatiquement.**
@@ -15,7 +15,7 @@
 ## Ce que voit le parent
 
 1. Il saisit son adresse e-mail → *Recevoir un e-mail de connexion*.
-2. Écran *Vérifie ta boîte mail* : il saisit le code à 6 chiffres de l'e-mail, ou clique sur le bouton de l'e-mail (page *Confirme ta connexion* → *Me connecter*).
+2. Écran *Vérifie ta boîte mail* : il saisit le code de l'e-mail, ou clique sur le bouton de l'e-mail (page *Confirme ta connexion* → *Me connecter*).
 3. Il est connecté ; s'il n'est lié à aucun enfant, l'écran suivant lui demande son code d'invitation (inchangé).
 
 ## À faire par toi dans Supabase, une seule fois
@@ -57,7 +57,7 @@ Les deux modèles servent : un parent qui se connecte pour la première fois re�
 
 ### 4. Durée et longueur du code
 
-Authentication → Sign In / Providers → Auth Providers → Email → **Email OTP expiration** : 1 heure par défaut, ce qui convient. Garde la longueur à **6 chiffres** (l'application l'annonce ainsi). Les noms exacts des menus peuvent varier un peu selon la version du tableau de bord.
+Authentication → Sign In / Providers → Auth Providers → Email → **Email OTP expiration** : 1 heure par défaut, ce qui convient. **Email OTP Length** : 6 à 10, au choix — l'application ne suppose plus une longueur précise (corrigé le 12/10/2026 : le texte affiché disait « 6 chiffres » alors que ce projet envoie en réalité des codes à 8 chiffres ; elle dit maintenant juste « le code reçu par e-mail », quelle que soit la longueur réglée ici). Les noms exacts des menus peuvent varier un peu selon la version du tableau de bord.
 
 ### 5. Adresses de redirection
 
@@ -119,7 +119,7 @@ Quand le plafond est atteint, le parent voit *Beaucoup de connexions en ce momen
 
 ## Sécurité, en deux mots
 
-- Le code se devine avec une chance sur un million par essai ; Supabase limite les essais (30 vérifications par 5 minutes et par adresse IP), le code expire (1 heure par défaut) et chaque nouvelle demande invalide le précédent.
+- Le code se devine avec au pire une chance sur un million par essai (10⁶, pour la longueur minimale de 6 chiffres ; moins probable encore à la longueur réglée aujourd'hui, 8 chiffres) ; Supabase limite les essais (30 vérifications par 5 minutes et par adresse IP), le code expire (1 heure par défaut) et chaque nouvelle demande invalide le précédent.
 - Le jeton du lien est dans la partie `#` de l'adresse : le navigateur ne l'envoie jamais au serveur (ni journaux d'accès, ni en-tête `Referer`). Après connexion, l'adresse est nettoyée.
 - Ce qui ne change pas : l'e-mail peut toujours atterrir en indésirables sur iCloud (réputation du domaine, voir CLAUDE.md), et le code d'invitation reste nécessaire pour lier un compte à un enfant.
 

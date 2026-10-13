@@ -62,7 +62,7 @@ describe("texte du message", () => {
     assert.ok(body.includes(code));
     assert.match(body, /indésirables \(spam\)/);
     assert.match(body, /non indésirable/);
-    assert.match(body, /code à 6 chiffres/);
+    assert.match(body, /e-mail avec un code/);
     assert.match(body, /Ne le diffuse pas, notamment dans un groupe/);
     assert.match(body, /Le club AS Exemple/);
     assert.equal(subject, "Ton accès au portail du club AS Exemple");

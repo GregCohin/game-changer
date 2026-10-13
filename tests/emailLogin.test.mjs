@@ -1,7 +1,7 @@
 // Connexion par e-mail : code à saisir et lien de confirmation (src/lib/emailLogin.js).
 // Le cas qui compte : un scanner de messagerie qui ouvre le lien AVANT le parent le consomme (jeton à usage unique).
 // Le lien d'un e-mail doit donc mener à une page qui ne vérifie rien tant que la personne n'appuie pas sur un bouton,
-// et le code à 6 chiffres doit rester une voie de secours qu'aucun scanner ne peut utiliser.
+// et le code (reçu par e-mail, longueur réglable côté Supabase) doit rester une voie de secours qu'aucun scanner ne peut utiliser.
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -89,7 +89,7 @@ describe("lien de confirmation", () => {
     const empty = parseConfirmationLink("#confirmation");
     assert.equal(empty.ok, false);
     assert.match(empty.reason, /incomplet/);
-    assert.match(empty.reason, /code à 6 chiffres/, "propose la voie de secours");
+    assert.match(empty.reason, /code reçu par e-mail/, "propose la voie de secours, sans nombre de chiffres figé");
     const other = parseConfirmationLink(`#confirmation?token_hash=${HASH_56}&type=recovery`);
     assert.equal(other.ok, false, "un lien de réinitialisation de mot de passe n'est pas une connexion");
     assert.equal(parseConfirmationLink(`#confirmation?token_hash=${HASH_56}&type=invite`).ok, false);
@@ -146,7 +146,7 @@ describe("vérification (faux client)", () => {
   test("verifyEmailCode : un code incomplet est refusé AVANT tout appel réseau (famille « code_format »)", async () => {
     const client = fakeClient({ data: { session: SESSION }, error: null });
     for (const bad of ["", "123", "12345", "abcdef"]) {
-      await assert.rejects(() => verifyEmailCode(client, "p@example.com", bad), (e) => e.code === "code_format" && /6 chiffres/.test(e.message));
+      await assert.rejects(() => verifyEmailCode(client, "p@example.com", bad), (e) => e.code === "code_format" && /code reçu par e-mail/.test(e.message));
     }
     assert.equal(client.calls.length, 0);
   });
