@@ -21,6 +21,7 @@ from scipy.optimize import linear_sum_assignment
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from panorama.config import PANORAMA_OUT, PANORAMA_TRACK_MODEL, pitch_dims
+from panorama.fisheye_model import FisheyeModel
 from panorama.geometry import PanoramaModel
 from panorama.geometry2 import PanoramaModel2
 
@@ -44,9 +45,14 @@ H_MEAS = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], float)
 def load_model():
     """Modèle géométrique du suivi. Par défaut l'ancien modèle (calibration_finale.json), dont les positions sont ensuite reprojetées en mètres v2
     (panorama.reproject), comme pour le 1er match. Avec PANORAMA_TRACK_MODEL=v2 : directement le modèle v2 (calibration_v2.json) aux dimensions de
-    PANORAMA_PITCH, donc des positions déjà en vrais mètres et une reprojection sans effet."""
+    PANORAMA_PITCH, donc des positions déjà en vrais mètres et une reprojection sans effet. Avec PANORAMA_TRACK_MODEL=fisheye : un objectif fisheye
+    brut (calibration_fisheye.json, panorama.calibrate_fisheye) -- un seul objectif par PANORAMA_OUT, positions déjà en vrais mètres elles aussi."""
     if PANORAMA_TRACK_MODEL == "v2":
         m = PanoramaModel2.from_json(OUT / "calibration_v2.json")
+        m.L, m.W = pitch_dims()
+        return m
+    if PANORAMA_TRACK_MODEL == "fisheye":
+        m = FisheyeModel.from_json(OUT / "calibration_fisheye.json")
         m.L, m.W = pitch_dims()
         return m
     return PanoramaModel.from_json(OUT / "calibration_finale.json")
