@@ -1,0 +1,68 @@
+# Tests automatiques sur chaque PR et chaque push sur main (un push sur main part en production).
+#
+# Trois contrôles, dans l'ordre : le build (celui de Vercel), les tests JavaScript (dates, publication,
+# récupération, portail parent, stockage…) et les tests SQL (les VRAIES migrations rejouées dans PGlite,
+# un Postgres en mémoire). PGlite n'est pas une dépendance du dépôt : il est installé ici, à la volée,
+# dans un dossier temporaire (voir supabase/tests/harness.mjs).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Une nouvelle poussée sur la même branche annule la vérification en cours.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Build et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Build (même commande que Vercel)
+        run: npm run build
+
+      - name: Tests JavaScript
+        run: npm test
+
+      # Version figée : la suite SQL a été écrite et validée avec celle-ci. À monter volontairement.
+      - name: Installer PGlite (hors du dépôt)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pglite"
+          cd "$RUNNER_TEMP/pglite"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @electric-sql/pglite@0.5.8
+
+      # Sans PGlite, les tests SQL sont IGNORÉS sans échec (c'est voulu en local). En CI, ce serait un
+      # faux vert : on vérifie donc d'abord que PGlite se charge, comme le fait le banc d'essai.
+      - name: Vérifier que PGlite se charge
+        env:
+          PGLITE_DIR: ${{ runner.temp }}/pglite
+        run: |
+          node --input-type=module -e '
+            const base = process.env.PGLITE_DIR + "/node_modules/@electric-sql/pglite/dist/";
+            await import(base + "index.js");
+            await import(base + "contrib/pgcrypto.js");
+            console.log("PGlite se charge : les tests SQL ne seront pas ignorés.");
+          '
+
+      - name: Tests SQL (vraies migrations sur PGlite)
+        env:
+          PGLITE_DIR: ${{ runner.temp }}/pglite
+        run: npm run test:db
