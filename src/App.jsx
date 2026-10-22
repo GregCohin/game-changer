@@ -21476,10 +21476,14 @@ function TrackingStatsTab({ roster, rawFullMatches }) {
   );
   const [matchId, setMatchId] = useState("");
   const [playerId, setPlayerId] = useState("");
+  const [heatPlayerId, setHeatPlayerId] = useState("");
   const players = roster || [];
   const selected = withData.find((m) => m.id === matchId) || withData[0] || null;
   const data = selected ? selected.advancedAnalytics : null;
   const rows = data ? players.map((p) => ({ p, d: playerAdvancedAnalytics(data.players, p.id) })).filter(({ d }) => d) : [];
+  const rowsWithHeat = rows.filter(({ d }) => (d.heatmapPoints || []).length > 0);
+  const activeHeatId = rowsWithHeat.some(({ p }) => p.id === heatPlayerId) ? heatPlayerId : (rowsWithHeat[0] ? rowsWithHeat[0].p.id : "");
+  const heatRow = rowsWithHeat.find(({ p }) => p.id === activeHeatId);
   const playersWithData = players.filter((p) => withData.some((m) => playerAdvancedAnalytics(m.advancedAnalytics.players, p.id)));
   const activePlayerId = playersWithData.some((p) => p.id === playerId) ? playerId : (playersWithData[0] ? playersWithData[0].id : "");
   const teamMatches = withData.filter((m) => m.advancedAnalytics.team && m.advancedAnalytics.team.avgBlockHeight != null);
@@ -21561,6 +21565,19 @@ function TrackingStatsTab({ roster, rawFullMatches }) {
         )}
         {rows.length === 0 && !unmatched && <p className="radar-note">Pas de données par joueur pour ce match.</p>}
       </div>
+      {rowsWithHeat.length > 0 && (
+        <div className="new-match-card" style={{ marginTop: 14 }}>
+          <div className="panel-heading" style={{ marginTop: 0 }}>Heatmap réelle (positions trackées) — {label(selected)}</div>
+          <label style={{ display: "block", marginBottom: 10 }}>
+            Joueur
+            <select value={activeHeatId} onChange={(e) => setHeatPlayerId(e.target.value)}>
+              {rowsWithHeat.map(({ p }) => (<option key={p.id} value={p.id}>{playerFullName(p)}</option>))}
+            </select>
+          </label>
+          {heatRow && <RealHeatmapPitch points={heatRow.d.heatmapPoints} />}
+          <p className="hint">Chaque point est une position réelle mesurée par la vidéo, uniquement pendant les instants certifiés (le "Visible" du tableau ci-dessus) — pas une estimation sur le reste du match.</p>
+        </div>
+      )}
       {playersWithData.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <label style={{ display: "block" }}>
@@ -21572,6 +21589,39 @@ function TrackingStatsTab({ roster, rawFullMatches }) {
           <PhysicalMatchDataPanel playerId={activePlayerId} allFullMatches={rawFullMatches} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Nuage de points semi-transparents plutôt qu'un lissage (gaussien ou autre) calculé : chaque point est
+// une vraie position mesurée (cf. player_metrics.py côté pipeline), les zones les plus fréquentées
+// ressortent simplement par superposition — jamais une densité inventée au-delà des points réels.
+function RealHeatmapPitch({ points }) {
+  return (
+    <div className="pitch-field">
+      <div className="pitch-markings">
+        <div className="pitch-goal top" />
+        <div className="pitch-circle" />
+        <div className="pitch-halfline" />
+        <div className="pitch-goal bottom" />
+      </div>
+      {points.map((pt, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${Math.min(100, Math.max(0, pt.x * 100))}%`,
+            top: `${Math.min(100, Math.max(0, pt.y * 100))}%`,
+            width: 10,
+            height: 10,
+            marginLeft: -5,
+            marginTop: -5,
+            borderRadius: "50%",
+            background: "rgba(176,106,135,0.16)",
+            pointerEvents: "none",
+          }}
+        />
+      ))}
     </div>
   );
 }
