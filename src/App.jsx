@@ -21565,6 +21565,27 @@ function TrackingStatsTab({ roster, rawFullMatches }) {
         )}
         {rows.length === 0 && !unmatched && <p className="radar-note">Pas de données par joueur pour ce match.</p>}
       </div>
+      {rows.length > 0 && rowsWithHeat.length === 0 && (
+        <div className="new-match-card" style={{ marginTop: 14, border: "2px dashed var(--gold)" }}>
+          <div className="panel-heading" style={{ marginTop: 0 }}>Diagnostic temporaire — heatmap introuvable</div>
+          <p className="hint" style={{ textAlign: "left" }}>À envoyer en capture, sera retiré une fois le problème trouvé.</p>
+          <div className="table-scroll">
+            <table className="stat-table">
+              <thead><tr><th>Joueur</th><th>type de heatmapPoints</th><th>longueur</th><th>clés présentes sur l'objet</th></tr></thead>
+              <tbody>
+                {rows.map(({ p, d }) => (
+                  <tr key={p.id}>
+                    <td>{playerFullName(p)}</td>
+                    <td>{Array.isArray(d.heatmapPoints) ? "tableau" : typeof d.heatmapPoints}</td>
+                    <td>{Array.isArray(d.heatmapPoints) ? d.heatmapPoints.length : "—"}</td>
+                    <td>{Object.keys(d).join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {rowsWithHeat.length > 0 && (
         <div className="new-match-card" style={{ marginTop: 14 }}>
           <div className="panel-heading" style={{ marginTop: 0 }}>Heatmap réelle (positions trackées) — {label(selected)}</div>
