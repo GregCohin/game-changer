@@ -32,7 +32,7 @@ function friendlyError(error, action = "publish") {
   else if (kind === "forbidden") message = "Refusé : ce compte n'est pas reconnu comme staff (ou sa session a expiré). Rien n'a été modifié.";
   else if (kind === "server") message = "Le serveur a rencontré une erreur" + (error && error.message ? ` (${error.message})` : "") + ". " + retryAdvice;
   else if (kind === "otp") message = "Ce code ou ce lien n'est plus valable : il a expiré, ou il a déjà été utilisé (une messagerie peut ouvrir un lien avant toi). Redemande un e-mail de connexion, puis saisis le code du DERNIER e-mail reçu : les anciens ne fonctionnent plus.";
-  else if (kind === "code_format") message = (error && error.message) || "Code incomplet : saisis les 6 chiffres reçus par e-mail.";
+  else if (kind === "code_format") message = (error && error.message) || "Code incomplet : saisis le code reçu par e-mail.";
   else if (kind === "rate_limit" && action === "login") {
     const wait = rateLimitWaitSeconds(error);
     message = wait !== null
@@ -64,7 +64,7 @@ async function requireStaff() {
 
 // ---- Authentification staff (même mécanisme que côté parent : lien magique) ----
 
-// Envoie l'e-mail de connexion (code à 6 chiffres + lien, selon le modèle d'e-mail réglé dans Supabase : voir
+// Envoie l'e-mail de connexion (code + lien, selon le modèle d'e-mail réglé dans Supabase : voir
 // docs/connexion-parent.md). Les erreurs sont celles de friendlyError (message lisible, `kind` et `cause` conservés).
 export async function signInStaff(email) {
   const { error } = await supabaseStaff.auth.signInWithOtp({
@@ -74,7 +74,7 @@ export async function signInStaff(email) {
   if (error) throw friendlyError(error, "login");
 }
 
-// Connexion par le code à 6 chiffres reçu par e-mail.
+// Connexion par le code reçu par e-mail.
 export async function verifyStaffCode(email, code) {
   try {
     await verifyEmailCode(supabaseStaff, email, code);

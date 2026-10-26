@@ -75,7 +75,7 @@ export function composeInvitation({ clubName = "", portalUrl, code, expiresAt = 
     "",
     "Pour y accéder :",
     `1. Ouvre cette adresse : ${portalUrl}`,
-    "2. Saisis ton adresse e-mail. Tu reçois un e-mail avec un code à 6 chiffres : saisis-le sur la page, ou clique sur le lien de l'e-mail.",
+    "2. Saisis ton adresse e-mail. Tu reçois un e-mail avec un code : saisis-le sur la page, ou clique sur le lien de l'e-mail.",
     `3. Saisis ensuite ce code d'invitation pour relier ton compte à ton enfant : ${code}`,
     "",
     "Tu ne vois pas l'e-mail ? Regarde dans les indésirables (spam) : le premier message d'un nouvel expéditeur s'y range souvent. Marque-le « non indésirable » pour recevoir les suivants.",

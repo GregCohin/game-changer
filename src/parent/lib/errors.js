@@ -36,7 +36,7 @@ const MESSAGES = {
   },
   code_format: {
     title: "Code incomplet",
-    text: "Saisis les 6 chiffres du code reçu par e-mail.",
+    text: "Saisis le code reçu par e-mail.",
   },
   server: {
     title: "Le serveur a rencontré un problème",

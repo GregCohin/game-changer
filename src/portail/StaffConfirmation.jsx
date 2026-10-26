@@ -20,7 +20,7 @@ export default function StaffConfirmation({ onDone }) {
   const link = redirectError
     ? classifyError(redirectError) === "otp"
       ? { ok: false, title: "Ce lien de connexion n'est plus valable", reason: describeStaffLoginError(redirectError) }
-      : { ok: false, title: "Ce lien de connexion n'a pas pu servir", reason: "Redemande un e-mail de connexion depuis l'application, puis saisis le code à 6 chiffres qu'il contient." }
+      : { ok: false, title: "Ce lien de connexion n'a pas pu servir", reason: "Redemande un e-mail de connexion depuis l'application, puis saisis le code reçu par e-mail." }
     : parseConfirmationLink(hash, search);
 
   function leave() {

@@ -13,7 +13,6 @@
 // Sans dépendance : importé par le bundle parent ET par le bundle staff, et testé sous Node avec un faux client.
 
 export const CONFIRMATION_HASH = "#confirmation";
-export const EMAIL_CODE_LENGTH = 6; // longueur par défaut du code Supabase (réglable de 6 à 10 dans le tableau de bord)
 
 // Types de jeton acceptés dans un lien. « magiclink » et « signup » sont d'anciens noms de « email » : Supabase
 // range sous « email » aussi bien une connexion qu'une première inscription par code.
@@ -46,8 +45,8 @@ export function parseConfirmationLink(hash, search = "") {
   const fromSearch = new URLSearchParams(String(search || "").replace(/^\?/, ""));
   const tokenHash = params.get("token_hash") || fromSearch.get("token_hash") || "";
   const rawType = (params.get("type") || fromSearch.get("type") || "email").toLowerCase();
-  if (!tokenHash) return { ok: false, reason: "Le lien est incomplet : il ne contient pas le jeton de connexion. Copie-le en entier depuis l'e-mail, ou saisis le code à 6 chiffres." };
-  if (!TOKEN_HASH_RE.test(tokenHash)) return { ok: false, reason: "Le lien est abîmé (le jeton de connexion est illisible). Copie-le en entier depuis l'e-mail, ou saisis le code à 6 chiffres." };
+  if (!tokenHash) return { ok: false, reason: "Le lien est incomplet : il ne contient pas le jeton de connexion. Copie-le en entier depuis l'e-mail, ou saisis le code reçu par e-mail." };
+  if (!TOKEN_HASH_RE.test(tokenHash)) return { ok: false, reason: "Le lien est abîmé (le jeton de connexion est illisible). Copie-le en entier depuis l'e-mail, ou saisis le code reçu par e-mail." };
   const type = LINK_TYPES[rawType];
   if (!type) return { ok: false, reason: "Ce lien n'est pas un lien de connexion." };
   return { ok: true, tokenHash, type };
@@ -83,7 +82,7 @@ export function rateLimitWaitSeconds(err) {
 export async function verifyEmailCode(client, email, code) {
   const token = normalizeEmailCode(code);
   if (!isPlausibleEmailCode(token)) {
-    const err = new Error(`Code incomplet : saisis les ${EMAIL_CODE_LENGTH} chiffres reçus par e-mail.`);
+    const err = new Error("Code incomplet : saisis le code reçu par e-mail.");
     err.code = "code_format";
     throw err;
   }
